@@ -1,0 +1,5 @@
+YARA_RULE_PATH = 'rules/image_shellcode.yar'
+MALWARE_HASH_FILE = 'full_sha256.txt'
+MAX_IMAGE_SIZE_MB = 10
+ENTROPY_THRESHOLD = (3.0, 7.0)
+SUPPORTED_FORMATS = ['JPEG', 'PNG', 'BMP', 'GIF', 'WEBP']
