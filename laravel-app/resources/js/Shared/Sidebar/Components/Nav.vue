@@ -173,7 +173,7 @@ import { route } from "ziggy-js";
                         />
                     </svg>
 
-                    Logout
+                    <span class="truncate">Logout</span>
                 </NavLink>
             </ul>
         </div>
