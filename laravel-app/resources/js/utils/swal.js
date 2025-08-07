@@ -51,7 +51,16 @@ export const successToast = (title = "Success!", timer = 3000) => {
     return Toast.fire({
         icon: "success",
         title,
+        toast: true,
+        position: "bottom-end",
+        showConfirmButton: false,
         timer,
+        timerProgressBar: true,
+        background:
+            localStorage.getItem("theme") === "dark" ? "#1c1d21" : "#ffffff",
+        color: localStorage.getItem("theme") === "dark" ? "#f9fafb" : "#1f2937",
+        iconColor:
+            localStorage.getItem("theme") === "dark" ? "#10b981" : "#34d399",
     });
 };
 
