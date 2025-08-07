@@ -63,8 +63,10 @@ Route::middleware(['auth'])->group(function () {
       ->name('reports.single.preview');
 
     // Future batch report routes (for later implementation)
-    // Route::post('/batch/generate', [ReportController::class, 'generateBatchReport'])
-    //     ->name('batch.generate');
+    Route::get('/batch/generate', [ReportController::class, 'generateBatchReport'])
+      ->name('reports.batch.generate');
+    Route::get('/batch/preview', [ReportController::class, 'previewBatchReport'])
+      ->name('reports.batch.preview');
   });
 
   //SETTINGS
@@ -81,11 +83,11 @@ Route::middleware(['auth'])->group(function () {
 
   // SCANS 
   // scans store (image analysis)
-  route::get('/image-analysis', [ScanController::class, 'create'])->name('scans.create');
-  route::post('image-analysis', [ScanController::class, 'store'])->name('scans.store');
+  Route::get('/image-analysis', [ScanController::class, 'create'])->name('scans.create');
+  Route::post('image-analysis', [ScanController::class, 'store'])->name('scans.store');
   // Scan list (database) (admin only)
   Route::prefix('database/scans')->group(function () {
-    //   Route::get('/', [ScanController::class, 'index'])->name('scans.index');
+    //   Route::get('/', [ScanController::class, 'index'])->name('scans.index');  
     //   Route::get('/api', [ScanController::class, 'indexApi'])->middleware('throttle:60,1')->name('scans.index.api');
     //   Route::get('/check-updates', [ScanController::class, 'checkUpdates'])->middleware('throttle:120,1')->name('scans.index.check-updates');
     //   Route::get('/force-refresh', [ScanController::class, 'forceRefresh'])->middleware('throttle:60,1')->name('scans.index.forceRefresh');
@@ -105,13 +107,13 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/{scan}', [ScanController::class, 'destroyMyScan'])->name('scans.destroy-myscan');
   });
 
+  // Route::get('/{scan}', [ScanController::class, 'show'])->name('analysis.show');
 
-  Route::get('/{scan}', [ScanController::class, 'show'])->name('analysis.show');
 
   // REALTIME SESSIONS
   // sessions store (realtime analysis)
-  route::get('/realtime-detection', [RealtimeController::class, 'create'])->name('sessions.create');
-  // route::post('image-analysis', [RealtimeController::class, 'store'])->name('sessions.store');
+  Route::get('/realtime-detection', [RealtimeController::class, 'create'])->name('sessions.create');
+  // Route::post('realtime-detection', [RealtimeController::class, 'store'])->name('sessions.store');
   // Session list (database) (admin only)
   Route::prefix('database/realtime-sessions')->group(function () {
     //   Route::get('/', [RealtimeController::class, 'index'])->name('sessions.index');
