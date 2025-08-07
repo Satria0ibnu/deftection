@@ -4,7 +4,6 @@ import { ref, computed, reactive } from "vue";
 // Import the placeholder components for each tab's content.
 import AccountSettings from "./Components/AccountSettings.vue";
 import DetectionSettings from "./Components/DetectionSettings.vue";
-import NotificationSettings from "./Components/NotificationSettings.vue";
 import AdvancedSettings from "./Components/AdvancedSettings.vue";
 
 // --- State ---
@@ -25,16 +24,6 @@ const settings = reactive({
         autoSave: true,
         generateVisualizations: true,
         exportFormat: "pdf",
-    },
-    notifications: {
-        email: {
-            enabled: true,
-            defectAlerts: true,
-            dailySummary: false,
-        },
-        browser: {
-            desktop: true,
-        },
     },
     advanced: {
         systemInfo: {
@@ -69,12 +58,6 @@ const tabs = [
         icon: "fa-solid fa-magnifying-glass",
     },
     {
-        id: "notifications",
-        name: "Notifications",
-        component: NotificationSettings,
-        icon: "fa-solid fa-bell",
-    },
-    {
         id: "advanced",
         name: "Advanced",
         component: AdvancedSettings,
@@ -94,8 +77,6 @@ const activeTabProps = computed(() => {
             return { user: settings.account };
         case "detection":
             return { settings: settings.detection };
-        case "notifications":
-            return { settings: settings.notifications };
         case "advanced":
             return { settings: settings.advanced };
         default:
