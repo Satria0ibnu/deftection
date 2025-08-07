@@ -1,11 +1,24 @@
 <script setup>
-import { computed } from "vue";
+import { ref, onMounted, onUnmounted, watch, computed } from "vue";
 import Nav from "./Components/Nav.vue";
 import { route } from "ziggy-js";
 
 // 1. Import the UI store and storeToRefs
 import { useUiStore } from "@/stores/useUiStore";
 import { storeToRefs } from "pinia";
+
+// Import Logo
+import darkLogo from "@/../images/dark-logo.png";
+import lightLogo from "@/../images/light-logo.png";
+import { useThemeStore } from "../../stores/useThemeStore";
+
+// Initialize the theme store
+const themeStore = useThemeStore();
+const { isDark } = storeToRefs(themeStore);
+
+const logoSrc = computed(() => {
+    return isDark.value ? darkLogo : lightLogo;
+});
 
 // 2. Initialize the store
 const uiStore = useUiStore();
@@ -54,12 +67,16 @@ const userInitials = computed(() => {
                     href="/"
                     class="font-semibold text-2xl text-start tracking-wide"
                 >
-                    <span class="text-primary-600 dark:text-primary-400"
-                        >Defect</span
-                    >
-                    <span class="text-dark-900 dark:text-dark-200"
-                        >Detection</span
-                    >
+                    <div class="flex items-center">
+                        <img :src="logoSrc" alt="Logo" class="size-18" />
+
+                        <span class="text-primary-600 dark:text-primary-400"
+                            >Defte</span
+                        >
+                        <span class="text-dark-900 dark:text-dark-200"
+                            >ction</span
+                        >
+                    </div>
                 </a>
                 <div class="pt-3 xl:hidden">
                     <!-- 4. The close button now calls the `toggleSidebar` action from the store -->
