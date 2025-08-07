@@ -114,11 +114,9 @@ defineOptions({
                                     type="text"
                                     placeholder="Enter Email"
                                     class="dark:bg-dark-700 py-2 pr-3 pl-10 border dark:border-dark-600 focus:border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 w-full dark:text-dark-100 transition-all duration-200 placeholder-dark-400"
+                                    required
                                 />
                             </div>
-                        </div>
-                        <div v-if="form.errors.email">
-                            {{ form.errors.email }}
                         </div>
 
                         <!-- Password Input -->
@@ -142,11 +140,15 @@ defineOptions({
                                     type="password"
                                     placeholder="Enter Password"
                                     class="dark:bg-dark-700 py-2 pr-3 pl-10 border dark:border-dark-600 focus:border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 w-full dark:text-dark-100 transition-all duration-200 placeholder-dark-400"
+                                    required
                                 />
                             </div>
                         </div>
-                        <div v-if="form.errors.password">
-                            {{ form.errors.password }}
+                        <div
+                            v-if="form.errors.email || form.errors.password"
+                            class="flex items-center mt-1 text-red-600 dark:text-red-400 text-sm"
+                        >
+                            {{ form.errors.email }}
                         </div>
 
                         <!-- Remember Me & Forgot Password -->
@@ -177,7 +179,7 @@ defineOptions({
                     <!-- Sign In Button -->
                     <button
                         type="submit"
-                        :disabled="isLoading || form.hasErrors"
+                        :disabled="isLoading"
                         class="bg-primary-600 hover:bg-primary-700 focus:bg-primary-700 disabled:opacity-70 mt-5 py-2.5 w-full font-medium text-white transition-all duration-200 btn-base btn"
                     >
                         <span v-if="!isLoading">Sign In</span>
