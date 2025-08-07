@@ -11,7 +11,7 @@ const props = defineProps({
 </script>
 
 <template>
-    <div class="transition-content flex grow flex-col px-(--margin-x)">
+    <div class="transition-content flex grow flex-col">
         <table class="table w-full text-left rtl:text-right is-hoverable">
             <thead class="group/thead table-thead">
                 <tr class="group/tr table-tr">
