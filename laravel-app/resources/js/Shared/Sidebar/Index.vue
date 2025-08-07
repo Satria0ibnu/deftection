@@ -97,7 +97,7 @@ const userInitials = computed(() => {
                 <!-- Account Section -->
                 <Link :href="route('settings')">
                     <div
-                        class="flex items-center p-4 gap-3 cursor-pointer transition-all duration-300 group"
+                        class="flex items-center p-4 pb-0 gap-3 cursor-pointer transition-all duration-300 group"
                     >
                         <div
                             class="avatar relative inline-flex shrink-0"
