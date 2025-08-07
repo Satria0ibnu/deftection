@@ -224,21 +224,6 @@ defineOptions({
                     </Link>
                 </div>
             </div>
-
-            <!-- Footer Links -->
-            <div
-                class="flex justify-center mt-8 text-gray-400 dark:text-dark-300 text-xs"
-            >
-                <a href="#" class="hover:text-dark-100 transition-colors"
-                    >Privacy Notice</a
-                >
-                <div
-                    class="bg-gray-200 dark:bg-dark-500 mx-2.5 my-0.5 w-px"
-                ></div>
-                <a href="#" class="hover:text-dark-100 transition-colors"
-                    >Terms of Service</a
-                >
-            </div>
         </div>
 
         <button
