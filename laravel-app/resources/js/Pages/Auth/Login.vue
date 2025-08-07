@@ -1,8 +1,11 @@
 <script setup>
-import { ref, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { Link, useForm } from "@inertiajs/vue3";
 import { useThemeStore } from "@/stores/useThemeStore.js";
 import { storeToRefs } from "pinia";
+
+// Import Logo
+import lightLogo from "@/../images/light-logo.png";
 
 // Form data
 const form = useForm({
@@ -73,25 +76,15 @@ defineOptions({
     >
         <div class="p-4 sm:px-5 w-full max-w-[26rem]">
             <!-- Header Section -->
-            <div class="text-center">
+            <div class="flex items-center justify-center mr-10">
                 <!-- Logo (you can replace with your own) -->
+                <img :src="lightLogo" alt="Logo" class="size-32" />
                 <div
-                    class="pb-5 font-semibold text-3xl text-center tracking-wide"
+                    class="flex justify-center font-semibold text-3xl text-center tracking-wide"
                 >
-                    <span class="text-primary-500">Defect</span>
-                    <span class="text-dark-900 dark:text-dark-200"
-                        >Detection</span
-                    >
+                    <span class="text-primary-400">Defte</span>
+                    <span class="text-dark-900 dark:text-dark-200">ction</span>
                 </div>
-
-                <!-- <div class="mt-4">
-                    <h2 class="font-semibold text-gray-600 dark:text-dark-100 text-2xl">
-                        Welcome Back
-                    </h2>
-                    <p class="text-gray-400 dark:text-dark-300">
-                        Please sign in to continue
-                    </p>
-                </div> -->
             </div>
 
             <!-- Login Card -->
