@@ -44,7 +44,6 @@ import { route } from "ziggy-js";
                 <NavCollapse
                     :active="
                         $page.component === 'ImageAnalysis/Index' ||
-                        $page.component === 'RealTimeAnalysis/Index' ||
                         $page.component === 'ScanHistory/Index'
                     "
                 >
@@ -60,10 +59,11 @@ import { route } from "ziggy-js";
                             <path
                                 stroke-linecap="round"
                                 stroke-linejoin="round"
-                                d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
+                                d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"
                             />
                         </svg>
-                        <span class="truncate"> Analysis </span>
+
+                        <span class="truncate"> Singular / Batch Image </span>
                     </template>
 
                     <template #content>
@@ -71,21 +71,49 @@ import { route } from "ziggy-js";
                             :href="route('scans.create')"
                             :active="$page.component === 'ImageAnalysis/Index'"
                         >
-                            Image Analysis
-                        </NavCollapseLink>
-                        <NavCollapseLink
-                            :href="route('sessions.create')"
-                            :active="
-                                $page.component === 'RealTimeAnalysis/Index'
-                            "
-                        >
-                            Real-Time Analysis
+                            New Scan
                         </NavCollapseLink>
                         <NavCollapseLink
                             :href="route('scans.myscans')"
                             :active="$page.component === 'ScanHistory/Index'"
                         >
                             Scan History
+                        </NavCollapseLink>
+                    </template>
+                </NavCollapse>
+                <NavCollapse
+                    :active="
+                        $page.component === 'RealTimeAnalysis/Index' ||
+                        $page.component === 'SessionHistory/Index'
+                    "
+                >
+                    <template #title>
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke-width="1.5"
+                            stroke="currentColor"
+                            class="stroke-[1.5] size-5 shrink-0"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+                            />
+                        </svg>
+
+                        <span class="truncate"> Live Monitor </span>
+                    </template>
+
+                    <template #content>
+                        <NavCollapseLink
+                            :href="route('sessions.create')"
+                            :active="
+                                $page.component === 'RealTimeAnalysis/Index'
+                            "
+                        >
+                            New Session
                         </NavCollapseLink>
                         <NavCollapseLink
                             href="/history"
