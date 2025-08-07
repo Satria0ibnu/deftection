@@ -9,6 +9,8 @@ import BatchImageSelector from "./Components/BatchImageSelector.vue";
 import ProcessingModal from "./Components/Modals/ProcessingModal.vue";
 import SuccessModal from "./Components/Modals/SuccessModal.vue";
 
+import { successToast } from "@/utils/swal.js"; // Make sure this path is correct
+
 // View Mode State (Single vs Batch)
 const isBatchMode = ref(false);
 const handleSwitchMode = (mode) => {
@@ -72,6 +74,7 @@ async function handleRunAnalysis(settings) {
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Simulate if success
+    successToast("Analysis completed successfully!");
     // toast success here
 
     // Mock data
