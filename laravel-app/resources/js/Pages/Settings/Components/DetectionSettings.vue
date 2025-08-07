@@ -110,64 +110,9 @@ const form = useForm({
             </div>
         </div>
 
-        <div class="my-6 h-px bg-gray-200 dark:bg-dark-500"></div>
-
-        <!-- Section 2: Processing Options -->
-        <div>
-            <h2
-                class="flex items-center text-lg font-semibold text-gray-900 dark:text-dark-50"
-            >
-                Processing Options
-            </h2>
-            <div class="mt-4 space-y-4">
-                <!-- Auto-save Results Toggle -->
-                <div class="flex items-center justify-between">
-                    <div>
-                        <span
-                            class="mb-1 text-sm font-medium text-gray-800 dark:text-dark-100"
-                            >Auto-save Results</span
-                        >
-                        <p class="text-xs text-gray-400 dark:text-dark-300">
-                            Automatically save analysis results to database.
-                        </p>
-                    </div>
-                    <label
-                        class="relative inline-flex items-center cursor-pointer"
-                    >
-                        <input
-                            type="checkbox"
-                            v-model="form.autoSave"
-                            class="h-6 w-12 form-switch this:primary bg-gray-300 before:bg-gray-50 checked:bg-this checked:before:bg-white dark:bg-surface-1 dark:before:bg-dark-50 dark:checked:bg-this-light dark:checked:before:bg-white focus-visible:ring-3 focus-visible:ring-this/50 dark:focus-visible:ring-this-light/50"
-                        />
-                    </label>
-                </div>
-                <!-- Generate Visualizations Toggle -->
-                <div class="flex items-center justify-between">
-                    <div>
-                        <span
-                            class="mb-1 text-sm font-medium text-gray-800 dark:text-dark-100"
-                            >Generate Visualizations</span
-                        >
-                        <p class="text-xs text-gray-400 dark:text-dark-300">
-                            Create visual analysis reports with bounding boxes.
-                        </p>
-                    </div>
-                    <label
-                        class="relative inline-flex items-center cursor-pointer"
-                    >
-                        <input
-                            type="checkbox"
-                            v-model="form.generateVisualizations"
-                            class="h-6 w-12 form-switch this:primary bg-gray-300 before:bg-gray-50 checked:bg-this checked:before:bg-white dark:bg-surface-1 dark:before:bg-dark-50 dark:checked:bg-this-light dark:checked:before:bg-white focus-visible:ring-3 focus-visible:ring-this/50 dark:focus-visible:ring-this-light/50"
-                        />
-                    </label>
-                </div>
-            </div>
-        </div>
-
         <hr class="my-6 border-gray-200 dark:border-dark-600" />
 
-        <!-- Section 3: Export Settings -->
+        <!-- Section 2: Export Settings -->
         <div>
             <h2
                 class="flex items-center text-lg font-semibold text-gray-900 dark:text-dark-50"
