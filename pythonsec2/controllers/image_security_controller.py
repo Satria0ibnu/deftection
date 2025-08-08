@@ -1,371 +1,227 @@
 # controllers/image_security_controller.py
 """
-Image Security Controller
-Handles HTTP requests and response formatting for image security scanning
+Image Security Controller - Simplified version
 """
 
+import json
 import base64
-import os
 from datetime import datetime
-from pathlib import Path
 from typing import Dict, Any, Tuple
+from flask import jsonify
+from werkzeug.datastructures import FileStorage
+from pathlib import Path
 
-from flask import Flask, request, jsonify
+# Import simplified configuration
+from config import (
+    MAX_FILE_SIZE,
+    MIN_FILE_SIZE,
+    ALLOWED_EXTENSIONS,
+    RISK_LEVELS,
+    ERROR_CODES,
+    DEBUG_MODE,
+    DETAILED_ERRORS
+)
+
+# Import service
 from services.image_security_service import ImageSecurityService
 
 class ImageSecurityController:
     def __init__(self):
+        """Initialize controller with simplified config"""
         self.service = ImageSecurityService()
+        self.MAX_FILE_SIZE = MAX_FILE_SIZE
+        self.ALLOWED_EXTENSIONS = ALLOWED_EXTENSIONS
+        self.RISK_LEVELS = RISK_LEVELS
+        self.ERROR_CODES = ERROR_CODES
         
-        # Configuration
-        self.MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
-        self.ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp', '.ico', '.psd'}
+        print("ImageSecurityController initialized")
     
     def scan_image(self, request) -> Tuple[Dict[str, Any], int]:
-        """Main endpoint for image security scanning"""
+        """Main image scanning endpoint"""
+        start_time = datetime.now()
+        
         try:
-            # Extract file data and parameters
-            file_data, filename, validation_error = self._extract_file_data(request)
+            # Parse request and validate
+            file_data, filename, is_full_scan, validation_error = self._parse_scan_request(request)
             
             if validation_error:
-                return self._error_response(validation_error, 400)
+                return validation_error
             
-            # Extract scan parameters
-            is_full_scan = self._extract_scan_parameters(request)
+            print(f"Starting {'full' if is_full_scan else 'light'} scan for {filename}")
             
             # Perform scan using service
             scan_result = self.service.scan_file(file_data, filename, is_full_scan)
             
-            # Format and return response
-            return self._format_scan_response(scan_result, filename, is_full_scan)
+            # Format response
+            response = self._format_scan_response(scan_result, start_time)
+            
+            # Log scan completion
+            risk_level = scan_result.get('risk_level', 'UNKNOWN')
+            threats_count = scan_result.get('threats_detected', 0)
+            duration = scan_result.get('scan_duration', 0)
+            
+            print(f"Scan completed: {filename} - Risk: {risk_level}, Threats: {threats_count}, Duration: {duration}s")
+            
+            # Return appropriate HTTP status based on risk level
+            status_code = self._get_http_status_for_risk(risk_level)
+            return response, status_code
         
         except Exception as e:
-            return self._error_response(f"Internal scan error: {str(e)}", 500)
+            print(f"Scan error: {e}")
+            return self._error_response(
+                message=f"Internal scan error: {str(e) if DETAILED_ERRORS else 'Processing failed'}",
+                error_code=self.ERROR_CODES['INTERNAL_ERROR'],
+                status_code=500
+            )
     
-    def health_check(self) -> Tuple[Dict[str, Any], int]:
-        """Health check endpoint"""
+    def _parse_scan_request(self, request) -> Tuple[bytes, str, bool, Dict[str, Any]]:
+        """Parse and validate scan request"""
         try:
-            service_info = self.service.get_service_info()
-            
-            response = {
-                'status': 'healthy',
-                'service_info': service_info,
-                'configuration': {
-                    'max_file_size_mb': self.MAX_FILE_SIZE // (1024 * 1024),
-                    'allowed_extensions': list(self.ALLOWED_EXTENSIONS),
-                    'scan_types': ['light', 'full']
-                },
-                'timestamp': datetime.now().isoformat()
-            }
-            
-            return response, 200
-        
-        except Exception as e:
-            return self._error_response(f"Health check failed: {str(e)}", 500)
-    
-    def get_scanner_stats(self) -> Tuple[Dict[str, Any], int]:
-        """Get scanner statistics"""
-        try:
-            service_info = self.service.get_service_info()
-            
-            response = {
-                'status': 'success',
-                'scanner_statistics': {
-                    'service_info': service_info,
-                    'scan_capabilities': {
-                        'light_scan': {
-                            'description': 'Fast scan for critical threats only',
-                            'includes': [
-                                'Known malware hash checking',
-                                'Critical YARA rules (PE executables, web shells)',
-                                'Basic EXIF threat detection',
-                                'File format validation'
-                            ],
-                            'average_duration': '< 0.5 seconds'
-                        },
-                        'full_scan': {
-                            'description': 'Comprehensive security analysis',
-                            'includes': [
-                                'Complete hash analysis (MD5, SHA1, SHA256, SHA512)',
-                                'All YARA rules (malware, steganography, network threats)',
-                                'Complete EXIF analysis with privacy checks',
-                                'Advanced file structure analysis',
-                                'Entropy analysis',
-                                'Format validation and mismatch detection'
-                            ],
-                            'average_duration': '1-3 seconds'
-                        }
-                    },
-                    'threat_detection': {
-                        'categories': [
-                            'Malware (executables, web shells, ransomware)',
-                            'Steganography (hidden data, tools)',
-                            'Network threats (C2, phishing, data exfiltration)',
-                            'Advanced threats (zero-day, cryptocurrency mining)',
-                            'Privacy concerns (GPS data, metadata)',
-                            'Format manipulation (fake extensions, polyglots)'
-                        ]
-                    }
-                },
-                'timestamp': datetime.now().isoformat()
-            }
-            
-            return response, 200
-        
-        except Exception as e:
-            return self._error_response(f"Stats retrieval failed: {str(e)}", 500)
-    
-    def _extract_file_data(self, request) -> Tuple[bytes, str, str]:
-        """Extract file data from request"""
-        try:
-            # Handle JSON request with base64 data
-            if request.is_json:
-                json_data = request.get_json()
-                
-                if 'image_base64' not in json_data:
-                    return None, None, 'JSON request must contain "image_base64"field'
-                
-                try:
-                    base64_data = json_data['image_base64']
-                    if base64_data.startswith('data:'):
-                        base64_data = base64_data.split(',')[1]
-                    
-                    file_data = base64.b64decode(base64_data)
-                    filename = json_data.get('filename', 'uploaded_image.bin')
-                    
-                except Exception as e:
-                    return None, None, f'Invalid base64 data: {str(e)}'
-            
-            # Handle form data with file upload
-            elif 'file' in request.files:
-                uploaded_file = request.files['file']
-                
-                if uploaded_file.filename == '':
-                    return None, None, 'No file selected'
-                
-                file_data = uploaded_file.read()
-                filename = uploaded_file.filename
-            
-            else:
-                return None, None, 'No file provided. Use "file"field for form data or "image_base64"for JSON'
-            
-            # Validate file size
-            if len(file_data) > self.MAX_FILE_SIZE:
-                return None, None, f'File too large. Maximum size: {self.MAX_FILE_SIZE // (1024*1024)}MB'
-            
-            # Validate file extension
-            file_extension = Path(filename).suffix.lower()
-            if file_extension not in self.ALLOWED_EXTENSIONS:
-                return None, None, f'File type not allowed. Allowed extensions: {", ".join(self.ALLOWED_EXTENSIONS)}'
-            
-            return file_data, filename, None
-        
-        except Exception as e:
-            return None, None, f'Error extracting file data: {str(e)}'
-    
-    def _extract_scan_parameters(self, request) -> bool:
-        """Extract scan parameters from request"""
-        # Default to light scan
-        is_full_scan = False
-        
-        try:
-            if request.is_json:
-                json_data = request.get_json()
-                is_full_scan = json_data.get('is_full_scan', False)
-            else:
-                # Check form data or query parameters
-                is_full_scan = request.form.get('is_full_scan', 'false').lower() == 'true'
-                if not is_full_scan:
-                    is_full_scan = request.args.get('is_full_scan', 'false').lower() == 'true'
-            
-            # Ensure boolean type
-            if isinstance(is_full_scan, str):
-                is_full_scan = is_full_scan.lower() in ['true', '1', 'yes', 'on']
-            else:
-                is_full_scan = bool(is_full_scan)
-        
-        except Exception as e:
-            print(f"Error extracting scan parameters: {e}")
+            file_data = None
+            filename = None
             is_full_scan = False
+            
+            # Handle JSON requests (base64 encoded images)
+            if request.is_json:
+                json_data = request.get_json()
+                
+                if not json_data:
+                    return None, None, False, self._error_response(
+                        "Invalid JSON request",
+                        self.ERROR_CODES['INVALID_FILE_TYPE'],
+                        400
+                    )
+                
+                # Extract base64 image
+                image_base64 = json_data.get('image_base64', '')
+                filename = json_data.get('filename', 'uploaded_image.jpg')
+                is_full_scan = json_data.get('is_full_scan', False)
+                
+                if not image_base64:
+                    return None, None, False, self._error_response(
+                        "Missing image_base64 field",
+                        self.ERROR_CODES['INVALID_FILE_TYPE'],
+                        400
+                    )
+                
+                # Decode base64 data
+                try:
+                    # Handle data URI format
+                    if ',' in image_base64:
+                        image_base64 = image_base64.split(',')[1]
+                    
+                    file_data = base64.b64decode(image_base64)
+                except Exception as e:
+                    return None, None, False, self._error_response(
+                        f"Invalid base64 image data: {e}",
+                        self.ERROR_CODES['INVALID_FILE_TYPE'],
+                        400
+                    )
+            
+            # Handle form data requests (file upload)
+            else:
+                if 'file' not in request.files:
+                    return None, None, False, self._error_response(
+                        "No file provided in request",
+                        self.ERROR_CODES['INVALID_FILE_TYPE'],
+                        400
+                    )
+                
+                file_obj: FileStorage = request.files['file']
+                
+                if file_obj.filename == '':
+                    return None, None, False, self._error_response(
+                        "No file selected",
+                        self.ERROR_CODES['INVALID_FILE_TYPE'],
+                        400
+                    )
+                
+                filename = file_obj.filename
+                file_data = file_obj.read()
+                is_full_scan = request.form.get('is_full_scan', 'false').lower() == 'true'
+            
+            # Validate file
+            validation_result = self._validate_file_request(file_data, filename)
+            if validation_result:
+                return None, None, False, validation_result
+            
+            return file_data, filename, is_full_scan, None
         
-        return is_full_scan
+        except Exception as e:
+            print(f"Request parsing error: {e}")
+            return None, None, False, self._error_response(
+                f"Request parsing failed: {str(e) if DETAILED_ERRORS else 'Invalid request'}",
+                self.ERROR_CODES['INVALID_FILE_TYPE'],
+                400
+            )
     
-    def _format_scan_response(self, scan_result: Dict[str, Any], filename: str, is_full_scan: bool) -> Tuple[Dict[str, Any], int]:
-        """Format scan results into API response"""
-        # Determine risk level and status code
-        threat_summary = scan_result.get('threat_summary', {})
-        risk_level = self._calculate_risk_level(threat_summary)
+    def _validate_file_request(self, file_data: bytes, filename: str) -> Dict[str, Any]:
+        """Validate file request"""
+        # Check file size
+        if len(file_data) > self.MAX_FILE_SIZE:
+            max_mb = self.MAX_FILE_SIZE / (1024 * 1024)
+            actual_mb = len(file_data) / (1024 * 1024)
+            return self._error_response(
+                f"File too large: {actual_mb:.1f}MB (max: {max_mb:.1f}MB)",
+                self.ERROR_CODES['FILE_TOO_LARGE'],
+                413
+            )
+        
+        if len(file_data) < MIN_FILE_SIZE:
+            return self._error_response(
+                f"File too small: {len(file_data)} bytes (min: {MIN_FILE_SIZE})",
+                self.ERROR_CODES['INVALID_FILE_TYPE'],
+                400
+            )
+        
+        # Check file extension
+        if filename:
+            file_extension = Path(filename).suffix.lower()
+            
+            if file_extension not in self.ALLOWED_EXTENSIONS:
+                allowed_list = ', '.join(sorted(self.ALLOWED_EXTENSIONS))
+                return self._error_response(
+                    f"Unsupported file type: {file_extension}. Allowed: {allowed_list}",
+                    self.ERROR_CODES['INVALID_FILE_TYPE'],
+                    400
+                )
+        
+        return None
+    
+    def _format_scan_response(self, scan_result: Dict[str, Any], start_time: datetime) -> Dict[str, Any]:
+        """Format scan response"""
+        total_duration = (datetime.now() - start_time).total_seconds()
         
         # Base response structure
         response = {
-            'status': 'success',
-            'scan_result': {
-                'scan_type': 'full' if is_full_scan else 'light',
-                'risk_level': risk_level,
+            'status': scan_result.get('status', 'success'),
+            'timestamp': datetime.now().isoformat(),
+            'scan_info': {
+                'scan_type': scan_result.get('scan_type', 'unknown'),
+                'duration': round(total_duration, 3),
+                'risk_level': scan_result.get('risk_level', 'UNKNOWN'),
+                'threats_detected': scan_result.get('threats_detected', 0)
+            }
+        }
+        
+        # Add scan results
+        if scan_result.get('status') == 'success':
+            response['scan_result'] = {
                 'file_info': scan_result.get('file_info', {}),
-                'security_analysis': self._format_security_analysis(scan_result, is_full_scan),
-                'threat_summary': threat_summary,
-                'recommendations': self._generate_recommendations(scan_result, risk_level),
-                'scan_metadata': {
-                    'scan_duration': scan_result.get('scan_duration', 0),
-                    'scan_timestamp': datetime.now().isoformat(),
-                    'scanner_version': '1.0.0',
-                    'is_full_scan': is_full_scan
+                'hash_analysis': scan_result.get('hash_analysis', {}),
+                'yara_matches': scan_result.get('yara_matches', []),
+                'exif_analysis': scan_result.get('exif_analysis', {}),
+                'mime_validation': scan_result.get('mime_validation', {}),
+                'risk_assessment': {
+                    'level': scan_result.get('risk_level', 'UNKNOWN'),
+                    'score': self.RISK_LEVELS.get(scan_result.get('risk_level', 'CLEAN'), 0),
+                    'threats_count': scan_result.get('threats_detected', 0)
                 }
-            },
-            'timestamp': datetime.now().isoformat()
-        }
-        
-        # Add error if present
-        if 'error' in scan_result:
-            response['scan_result']['error'] = scan_result['error']
-        
-        return response, 200
-    
-    def _format_security_analysis(self, scan_result: Dict[str, Any], is_full_scan: bool) -> Dict[str, Any]:
-        """Format security analysis section"""
-        analysis = {}
-        
-        # Hash analysis
-        hash_analysis = scan_result.get('hash_analysis', {})
-        if is_full_scan:
-            analysis['hash_analysis'] = {
-                'hashes': hash_analysis.get('hashes', {}),
-                'known_malware': hash_analysis.get('known_malware', False),
-                'reputation': hash_analysis.get('reputation', 'unknown')
             }
-        else:
-            analysis['hash_analysis'] = {
-                'sha256': hash_analysis.get('sha256', ''),
-                'known_malware': hash_analysis.get('known_malware', False),
-                'reputation': hash_analysis.get('reputation', 'unknown')
-            }
-        
-        # YARA detections
-        yara_matches = scan_result.get('yara_matches', [])
-        analysis['yara_detections'] = {
-            'total_rules_matched': len(yara_matches),
-            'matches': yara_matches
-        }
-        
-        # EXIF analysis
-        exif_analysis = scan_result.get('exif_analysis', {})
-        if is_full_scan:
-            analysis['exif_analysis'] = {
-                'has_exif_data': exif_analysis.get('has_exif', False),
-                'exif_data': exif_analysis.get('exif_data', {}),
-                'exif_size_bytes': exif_analysis.get('exif_size', 0),
-                'threats_found': exif_analysis.get('threats_found', 0),
-                'exif_threats': exif_analysis.get('exif_threats', [])
-            }
-        else:
-            analysis['exif_analysis'] = {
-                'has_exif_data': exif_analysis.get('has_exif', False),
-                'threats_found': exif_analysis.get('threats_found', 0),
-                'exif_threats': exif_analysis.get('exif_threats', [])
-            }
-        
-        # Advanced analysis (full scan only)
-        if is_full_scan:
-            advanced_analysis = scan_result.get('advanced_analysis', {})
-            analysis['advanced_analysis'] = {
-                'file_structure': advanced_analysis.get('file_structure', {}),
-                'entropy_analysis': advanced_analysis.get('entropy_analysis', {}),
-                'format_validation': advanced_analysis.get('format_validation', {}),
-                'additional_threats': advanced_analysis.get('threats', [])
-            }
-        
-        return analysis
-    
-    def _calculate_risk_level(self, threat_summary: Dict[str, Any]) -> str:
-        """Calculate overall risk level"""
-        critical = threat_summary.get('critical_threats', 0)
-        high = threat_summary.get('high_threats', 0)
-        medium = threat_summary.get('medium_threats', 0)
-        low = threat_summary.get('low_threats', 0)
-        
-        if critical > 0:
-            return 'CRITICAL'
-        elif high > 0:
-            return 'HIGH'
-        elif medium > 0:
-            return 'MEDIUM'
-        elif low > 0:
-            return 'LOW'
-        else:
-            return 'CLEAN'
-    
-    def _generate_recommendations(self, scan_result: Dict[str, Any], risk_level: str) -> list:
-        """Generate security recommendations"""
-        recommendations = []
-        
-        # Risk-based recommendations
-        if risk_level == 'CRITICAL':
-            recommendations.extend([
-                "CRITICAL: Do not open or execute this file",
-                "CRITICAL: Quarantine this file immediately",
-                "CRITICAL: Run full system antivirus scan",
-                "CRITICAL: Report to security team immediately"
-            ])
-        elif risk_level == 'HIGH':
-            recommendations.extend([
-                "HIGH RISK: Exercise extreme caution",
-                "Isolate file and verify source",
-                "Consider additional malware scanning"
-            ])
-        elif risk_level == 'MEDIUM':
-            recommendations.extend([
-                "MEDIUM RISK: Review detected threats",
-                "Verify file authenticity and source"
-            ])
-        elif risk_level == 'LOW':
-            recommendations.extend([
-                "LOW RISK: Minor concerns detected",
-                "Review privacy and metadata concerns"
-            ])
-        else:
-            recommendations.extend([
-                "CLEAN: No security threats detected",
-                "File appears safe to use"
-            ])
-        
-        # Hash-specific recommendations
-        hash_analysis = scan_result.get('hash_analysis', {})
-        if hash_analysis.get('known_malware'):
-            recommendations.append("MALWARE: File matches known malware signatures")
-        
-        # YARA-specific recommendations
-        yara_matches = scan_result.get('yara_matches', [])
-        if yara_matches:
-            critical_rules = [m for m in yara_matches if m.get('severity') == 'critical']
-            if critical_rules:
-                recommendations.append(f"CRITICAL YARA: {len(critical_rules)} critical rules triggered")
-        
-        # EXIF-specific recommendations
-        exif_analysis = scan_result.get('exif_analysis', {})
-        exif_threats = exif_analysis.get('exif_threats', [])
-        if exif_threats:
-            critical_exif = [t for t in exif_threats if t.get('severity') == 'critical']
-            if critical_exif:
-                recommendations.append("CRITICAL EXIF: Malicious content in metadata")
-        
-        # General recommendations
-        scan_type = scan_result.get('scan_type', 'light')
-        if scan_type == 'light' and risk_level != 'CLEAN':
-            recommendations.append("SUGGESTION: Run full scan for detailed analysis")
-        
-        recommendations.extend([
-            "Always verify file sources",
-            "Keep antivirus software updated",
-            "Use principle of least privilege"
-        ])
-        
-        return recommendations[:10]  # Limit to 10 recommendations
-    
-    def _error_response(self, message: str, status_code: int) -> Tuple[Dict[str, Any], int]:
-        """Generate error response"""
-        return {
-            'status': 'error',
-            'message': message,
-            'timestamp': datetime.now().isoformat()
-        }, status_code
+            
+            # Add full scan specific results
+            if scan_result.get('scan_type') == 'full':
+                response['scan_result'].update({
+                    'entropy_analysis': scan_result.get('entropy_analysis', {}),
+                    'format_analysis': scan_result.get('format_analysis', {})
+                })

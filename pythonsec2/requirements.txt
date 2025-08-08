@@ -14,6 +14,8 @@ Pillow==10.0.1
 
 # File type detection
 python-magic==0.4.27
+# pip install python-magic-bin (windows)
+
 
 # Additional utilities
 pathlib2==2.3.7
