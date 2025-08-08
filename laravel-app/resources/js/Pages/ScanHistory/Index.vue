@@ -482,7 +482,7 @@ const sortBy = (column) => {
                         />
                         <div
                             v-if="defectTypeOptions.length === 0"
-                            class="px-3 py-2 text-gray-500 text-xs"
+                            class="px-3 py-2 text-xs"
                         >
                             No defect types found
                         </div>
