@@ -48,7 +48,6 @@ class ProductController extends Controller
         } catch (\Exception $e) {
             Log::error('Error fetching products: ' . $e->getMessage(), [
                 'user_id' => auth()->id(),
-                'trace' => $e->getTraceAsString()
             ]);
             return Inertia::render(
                 'Database/Product/Index',
@@ -90,7 +89,6 @@ class ProductController extends Controller
             Log::error('Error checking updates: ' . $e->getMessage(), [
                 'user_id' => auth()->id(),
                 'last_checksum' => $request->input('checksum', ''),
-                'trace' => $e->getTraceAsString()
             ]);
             return response()->json([
                 'error' => 'Failed to check updates',
@@ -131,7 +129,6 @@ class ProductController extends Controller
         } catch (\Exception $e) {
             Log::error('Error in poll data: ' . $e->getMessage(), [
                 'filters' => $request->all(),
-                'trace' => $e->getTraceAsString()
             ]);
             return response()->json([
                 'user_id' => auth()->id(),
@@ -188,7 +185,6 @@ class ProductController extends Controller
             Log::error('Error showing product: ' . $e->getMessage(), [
                 'product_id' => $product->id,
                 'user_id' => auth()->id(),
-                'trace' => $e->getTraceAsString()
             ]);
             return response()->json([
                 'success' => false,

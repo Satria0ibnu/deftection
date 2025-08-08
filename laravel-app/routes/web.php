@@ -9,6 +9,8 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\RealtimeController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\DefectTypeController;
+use App\Models\DefectType;
 
 Route::permanentRedirect('/', '/login');
 Route::post('/logout', [LoginController::class, 'destroy'])->middleware('auth')->name('logout');
@@ -38,6 +40,20 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/', [ProductController::class, 'store'])->name('products.store');
     Route::put('/{product}', [ProductController::class, 'update'])->name('products.update');
     Route::delete('/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
+  });
+
+  // DEFECT TYPES
+  Route::prefix('database/defectTypes')->group(function () {
+    // Defect Type list
+    Route::get('/', [DefectTypeController::class, 'index'])->name('defect_types.index');
+    Route::get('/api', [DefectTypeController::class, 'indexApi'])->middleware('throttle:60,1')->name('defect_types.index.api');
+    Route::get('/check-updates', [DefectTypeController::class, 'indexCheck'])->middleware('throttle:120,1')->name('defect_types.index.check');
+    Route::get('/force-refresh', [DefectTypeController::class, 'indexRefresh'])->middleware('throttle:60,1')->name('defect_types.index.refresh');
+    Route::get('/{defectType}', [DefectTypeController::class, 'showApi'])->middleware('throttle:60,1')->name('defect_types.show.api');
+    // Defect Type operations
+    Route::post('/', [DefectTypeController::class, 'store'])->name('defect_types.store');
+    Route::put('/{defectType}', [DefectTypeController::class, 'update'])->name('defect_types.update');
+    Route::delete('/{defectType}', [DefectTypeController::class, 'destroy'])->name('defect_types.destroy');
   });
 
   // USERS
