@@ -15,7 +15,7 @@ const headerTitle = computed(() => {
         "ImageAnalysis/Index": "Image Analysis",
         "RealTimeAnalysis/Index": "Real-Time Analysis",
         "ScanHistory/Index": "Scan History",
-        "ScanAnalysis/Index": "Detail Image Analysis",
+        "DetailScan/Index": "Detail Image Analysis",
         "History/Index": "Session History",
         "Database/Product/Index": "Products",
         "Database/User/Index": "Users",
