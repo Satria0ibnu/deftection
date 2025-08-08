@@ -110,7 +110,7 @@ const handleSubmit = async () => {
     }
 
     // Show create confirmation dialog
-    const result = await createConfirmDialog("this product");
+    const result = await createConfirmDialog("this defect type");
     if (!result.isConfirmed) {
         return; // User cancelled
     }
@@ -120,9 +120,10 @@ const handleSubmit = async () => {
     // Transform data before sending
     const formData = {
         name: form.name?.trim(),
+        description: form.description?.trim(),
     };
 
-    form.transform(() => formData).post(route("products.store"), {
+    form.transform(() => formData).post(route("defect_types.store"), {
         preserveScroll: true,
         preserveState: true,
         onSuccess: (response) => {

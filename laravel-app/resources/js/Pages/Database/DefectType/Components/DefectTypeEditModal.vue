@@ -51,7 +51,10 @@ const form = useForm(initializeForm());
 // Computed properties
 const hasChanges = computed(() => {
     if (!originalData.value) return false;
-    return form.name?.trim() !== originalData.value.name?.trim();
+    return (
+        form.name?.trim() !== originalData.value.name?.trim() ||
+        form.description?.trim() !== originalData.value.description?.trim()
+    );
 });
 
 const isFormDisabled = computed(() => isLoading.value || isFetching.value);
@@ -157,6 +160,7 @@ const fetchDefectType = async () => {
         // Pre-fill form with existing data
         await nextTick();
         form.name = res.data.name;
+        form.description = res.data.description || "";
         form.clearErrors();
 
         console.log("Defect Type fetched successfully:", res.data);
@@ -271,6 +275,7 @@ const handleSubmit = async () => {
     // Transform data before sending
     const formData = {
         name: form.name?.trim(),
+        description: form.description?.trim(),
     };
 
     form.transform(() => formData).put(
@@ -414,7 +419,7 @@ const getLoadingStatus = () => {
 
             <!-- Form content -->
             <div v-else>
-                <div>
+                <div class="mb-2">
                     <FormModalLabel for="edit-name" required>
                         Defect Type Name
                     </FormModalLabel>
@@ -478,6 +483,74 @@ const getLoadingStatus = () => {
                         </div>
                         <div class="text-gray-500 dark:text-gray-400 text-xs">
                             {{ (form.name || "").length }}/255
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-2">
+                    <FormModalLabel for="edit-description" required>
+                        Description
+                    </FormModalLabel>
+                    <FormModalInput
+                        id="edit-description"
+                        ref="descriptionInput"
+                        v-model="form.description"
+                        type="text"
+                        placeholder="Enter defect type description"
+                        maxlength="255"
+                        required
+                        :disabled="isFormDisabled"
+                        :class="{
+                            'border-red-500 focus:border-red-500':
+                                form.errors.description,
+                            'border-gray-300 focus:border-blue-500':
+                                !form.errors.description,
+                        }"
+                        @keydown.enter.prevent="handleSubmit"
+                    />
+
+                    <!-- Error display -->
+                    <div
+                        v-if="form.errors.description"
+                        class="flex items-center mt-1 text-red-600 dark:text-red-400 text-sm"
+                    >
+                        <svg
+                            class="mr-1 w-4 h-4"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                        >
+                            <path
+                                fill-rule="evenodd"
+                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                clip-rule="evenodd"
+                            />
+                        </svg>
+                        {{ form.errors.description }}
+                    </div>
+
+                    <!-- Character count and change indicator -->
+                    <div class="flex justify-between items-center mt-1">
+                        <div class="flex items-center text-xs">
+                            <span
+                                v-if="hasChanges"
+                                class="flex items-center mr-2 text-orange-600 dark:text-orange-400"
+                            >
+                                <svg
+                                    class="mr-1 w-3 h-3"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                >
+                                    <path
+                                        fill-rule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                        clip-rule="evenodd"
+                                    />
+                                </svg>
+                                Modified
+                            </span>
+                        </div>
+                        <div class="text-gray-500 dark:text-gray-400 text-xs">
+                            {{ (form.description || "").length }}/255
                         </div>
                     </div>
                 </div>

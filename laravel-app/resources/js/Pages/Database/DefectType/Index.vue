@@ -28,11 +28,13 @@ import DefectTypeEditModal from "./Components/DefectTypeEditModal.vue";
 import DeleteItem from "../../../Shared/Dropdown/DeleteItem.vue";
 
 const props = defineProps({
-    defectTypes: { type: Array, required: true },
+    defect_types: { type: Array, required: true },
     filters: { type: Object, required: true },
     meta: { type: Object, default: () => ({}) },
     initialChecksum: { type: String, default: "" },
 });
+
+console.log("DefectType Index component initialized with props:", props);
 
 // Theme store for SweetAlert styling - removed as swal utils handle this
 
@@ -65,8 +67,13 @@ const isTableLoading = ref(false);
 const displayDefectTypes = computed(() => {
     return pollingDefectTypes.value.length > 0
         ? pollingDefectTypes.value
-        : props.defectTypes;
+        : props.defect_types;
 });
+
+console.log(
+    "Display defect types computed property initialized with data:",
+    displayDefectTypes.value
+);
 
 const displayMeta = computed(() => {
     return Object.keys(pollingMeta.value).length > 0
@@ -104,9 +111,9 @@ const {
     getStatus,
 } = usePolling({
     // Custom endpoints for this component
-    checkUrl: route("products.index.check"),
-    dataUrl: route("products.index.api"),
-    forceRefreshUrl: route("products.index.refresh"),
+    checkUrl: route("defect_types.index.check"),
+    dataUrl: route("defect_types.index.api"),
+    forceRefreshUrl: route("defect_types.index.refresh"),
 
     // Polling configuration
     interval: 20000,
@@ -130,7 +137,7 @@ const {
     // Callbacks
     onDataUpdate: (data) => {
         // Only update polling state, don't interfere with navigation
-        pollingDefectType.value = data.products || [];
+        pollingDefectTypes.value = data.defect_types || [];
         pollingFilters.value = data.filters?.options || {};
         pollingMeta.value = data.meta || {};
 
@@ -187,13 +194,13 @@ const handleCreateModalClose = () => {
 
 // Edit modal specific handlers
 const handleEditModalOpen = (slug) => {
-    editDefectType.value = slug;
+    editDefectTypeSlug.value = slug;
     isEditModalOpen.value = true;
     handleModalOpen(`edit-${slug}`);
 };
 
 const handleEditModalClose = () => {
-    const slug = editDefectType.value;
+    const slug = editDefectTypeSlug.value;
     isEditModalOpen.value = false;
     editDefectTypeSlug.value = null;
     handleModalClose(`edit-${slug}`);
@@ -215,7 +222,7 @@ const performDelete = async (product) => {
 
     const form = useForm({});
 
-    form.delete(route("products.destroy", product.slug), {
+    form.delete(route("defect_types.destroy", product.slug), {
         preserveState: true,
         preserveScroll: true,
         onSuccess: () => {
@@ -283,11 +290,11 @@ const navigateWithFilters = (customParams = {}) => {
     pollingFilters.value = {};
     pollingMeta.value = {};
 
-    router.get(route("products.index"), buildFilterParams(customParams), {
+    router.get(route("defect_types.index"), buildFilterParams(customParams), {
         preserveState: true,
         preserveScroll: true,
         replace: true,
-        only: ["products", "filters", "meta", "initialChecksum"],
+        only: ["defect_types", "filters", "meta", "initialChecksum"],
         onSuccess: (page) => {
             // Update checksum for polling
             if (page.props.initialChecksum) {
