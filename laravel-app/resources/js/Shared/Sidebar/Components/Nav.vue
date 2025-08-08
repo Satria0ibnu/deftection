@@ -127,7 +127,7 @@ import { route } from "ziggy-js";
                     :active="
                         $page.component === 'Database/Product/Index' ||
                         $page.component === 'Database/User/Index' ||
-                        $page.component === 'Database/DefectTypes/Index'
+                        $page.component === 'Database/DefectType/Index'
                     "
                 >
                     <template #title>
@@ -165,9 +165,9 @@ import { route } from "ziggy-js";
                             Users
                         </NavCollapseLink>
                         <NavCollapseLink
-                            :href="route('defect-types.index')"
+                            :href="route('defect_types.index')"
                             :active="
-                                $page.component === 'Database/DefectTypes/Index'
+                                $page.component === 'Database/DefectType/Index'
                             "
                         >
                             Defect Types
