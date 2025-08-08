@@ -49,16 +49,16 @@ import AnalysisOverview from "./Components/AnalysisOverview.vue";
         </StatsCard>
 
         <!--
-            Accuracy
+            1st model accuracy (Anomalib)
             Expected props:
-                value = totalAccuracy (both Models ig)
+                value = anomalibAccuracy (Anomalib)
             Used as:
-                <StatsCard :value="totalAccuracy" ... />
+                <StatsCard :value="anomalibAccuracy" ... />
         -->
         <StatsCard
-            title="Accuracy"
+            title="1st model accuracy"
             value="75%"
-            description="Overall accuracy of the analysis."
+            description="1st model accuracy of the analysis."
             badgeColor="secondary"
             changeRate="+0.2%"
         >
@@ -68,21 +68,21 @@ import AnalysisOverview from "./Components/AnalysisOverview.vue";
         </StatsCard>
 
         <!--
-            Throughput (How many images are processed per second)
+            2nd model accuracy (HRNet)
             Expected props:
-                value = throughputTotal
+                value = hrnetAccuracy (HRNet)
             Used as:
-                <StatsCard :value="throughputTotal" />
+                <StatsCard :value="hrnetAccuracy" />
         -->
         <StatsCard
-            title="Throughput"
-            value="2 images/s"
-            description="Average time taken per image."
+            title="2nd model accuracy"
+            value="80.2%"
+            description="2nd model accuracy of the analysis."
             badgeColor="error"
-            changeRate="+10%"
+            changeRate="+0.5%"
         >
             <template #icon>
-                <font-awesome-icon icon="fa-solid fa-gauge" />
+                <font-awesome-icon icon="fa-solid fa-bolt" />
             </template>
         </StatsCard>
     </div>
