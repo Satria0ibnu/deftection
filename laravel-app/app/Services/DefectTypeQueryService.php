@@ -29,6 +29,7 @@ class DefectTypeQueryService
                 'id' => $defectType->id,
                 'name' => $defectType->name,
                 'slug' => $defectType->slug,
+                'description' => $defectType->description,
                 'created_at' => $defectType->created_at->format('Y-m-d H:i:s'),
                 'updated_at' => $defectType->updated_at->format('Y-m-d H:i:s'),
             ]);
