@@ -113,6 +113,8 @@ def create_app():
             'timestamp': datetime.now().isoformat()
         })
     
+    # Both /scan and /scan/laravel endpoints accept is_full_scan parameter 
+    # (JSON: "is_full_scan": true, Form: -F 'is_full_scan=true') - defaults to false (light scan
     @app.route('/scan', methods=['POST'])
     def scan_image():
         """Main image scanning endpoint"""
@@ -126,6 +128,23 @@ def create_app():
                 'message': 'Error occurred during image scanning',
                 'details': str(e) if DETAILED_ERRORS else None,
                 'timestamp': datetime.now().isoformat()
+            }), 500
+        
+    @app.route('/scan/laravel', methods=['POST'])
+    def scan_image_laravel():
+        """Laravel-compatible image scanning endpoint"""
+        try:
+            return controller.scan_image_laravel(request)
+        except Exception as e:
+            print(f"Laravel scan endpoint error: {e}")
+            return jsonify({
+                'status': 'error',
+                'timestamp': datetime.now().isoformat(),
+                'data': {
+                    'error_code': ERROR_CODES['INTERNAL_ERROR'],
+                    'message': 'Error occurred during image scanning',
+                    'details': str(e) if DETAILED_ERRORS else None
+                }
             }), 500
     
     @app.route('/health', methods=['GET'])

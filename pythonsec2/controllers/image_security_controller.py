@@ -225,3 +225,180 @@ class ImageSecurityController:
                     'entropy_analysis': scan_result.get('entropy_analysis', {}),
                     'format_analysis': scan_result.get('format_analysis', {})
                 })
+        return response
+    
+    def scan_image_laravel(self, request) -> Tuple[Dict[str, Any], int]:
+        """Laravel-compatible image scanning endpoint"""
+        start_time = datetime.now()
+        
+        try:
+            # Parse request and validate (same as original)
+            file_data, filename, is_full_scan, validation_error = self._parse_scan_request(request)
+            
+            if validation_error:
+                # Convert error to Laravel format
+                return self._error_response_laravel_from_original(validation_error)
+            
+            print(f"Starting {'full' if is_full_scan else 'light'} scan for {filename} (Laravel format)")
+            
+            # Perform scan using service (same as original)
+            scan_result = self.service.scan_file(file_data, filename, is_full_scan)
+            
+            # Format response using Laravel formatter
+            response = self.format_laravel_response(scan_result, start_time, filename)
+            
+            # Log scan completion
+            risk_level = scan_result.get('risk_level', 'UNKNOWN')
+            threats_count = scan_result.get('threats_detected', 0)
+            duration = scan_result.get('scan_duration', 0)
+            
+            print(f"Laravel scan completed: {filename} - Risk: {risk_level}, Threats: {threats_count}, Duration: {duration}s")
+            
+            # Return appropriate HTTP status based on risk level
+            status_code = self._get_http_status_for_risk(risk_level)
+            return response, status_code
+        
+        except Exception as e:
+            print(f"Laravel scan error: {e}")
+            return self._error_response_laravel(
+                message=f"Internal scan error: {str(e) if DETAILED_ERRORS else 'Processing failed'}",
+                error_code=self.ERROR_CODES['INTERNAL_ERROR'],
+                status_code=500
+            )
+
+    def format_laravel_response(self, scan_result: Dict[str, Any], start_time: datetime, filename: str) -> Dict[str, Any]:
+        """Format response for Laravel compatibility"""
+        from services.security_laravel_response_service import SecurityLaravelResponseService
+        return SecurityLaravelResponseService.format_response(scan_result, start_time, filename)
+
+    def _error_response_laravel(self, message: str, error_code: str, status_code: int = 400) -> Tuple[Dict[str, Any], int]:
+        """Generate Laravel-formatted error response"""
+        return {
+            'status': 'error',
+            'timestamp': datetime.now().isoformat(),
+            'data': {
+                'error_code': error_code,
+                'message': message,
+                'hash': None,
+                'status': 'error',
+                'risk_level': 'unknown',
+                'flags': ['error'],
+                'details': {'error': message},
+                'possible_attack': [],
+                'processing_time_ms': 0
+            }
+        }, status_code
+
+    def _error_response_laravel_from_original(self, original_error: Tuple[Dict[str, Any], int]) -> Tuple[Dict[str, Any], int]:
+        """Convert original error response to Laravel format"""
+        error_dict, status_code = original_error
+        
+        return {
+            'status': 'error',
+            'timestamp': datetime.now().isoformat(),
+            'data': {
+                'error_code': error_dict.get('error_code', self.ERROR_CODES['INTERNAL_ERROR']),
+                'message': error_dict.get('message', 'Unknown error'),
+                'hash': None,
+                'status': 'error',
+                'risk_level': 'unknown',
+                'flags': ['error'],
+                'details': {'error': error_dict.get('message', 'Unknown error')},
+                'possible_attack': [],
+                'processing_time_ms': 0
+            }
+        }, status_code
+
+    def _get_http_status_for_risk(self, risk_level: str) -> int:
+        """Get HTTP status code based on risk level"""
+        risk_status_map = {
+            'CLEAN': 200,
+            'LOW': 200,
+            'MEDIUM': 200,
+            'HIGH': 200,
+            'CRITICAL': 200,  # Still 200 for successful scan, just dangerous content
+            'UNKNOWN': 200
+        }
+        return risk_status_map.get(risk_level, 200)
+
+    def _error_response(self, message: str, error_code: str, status_code: int = 400) -> Tuple[Dict[str, Any], int]:
+        """Generate error response"""
+        return {
+            'status': 'error',
+            'error_code': error_code,
+            'message': message,
+            'timestamp': datetime.now().isoformat()
+        }, status_code
+
+    def health_check(self) -> Tuple[Dict[str, Any], int]:
+        """Health check endpoint"""
+        try:
+            service_info = self.service.get_service_info()
+            
+            response = {
+                'status': 'healthy',
+                'service_info': service_info,
+                'configuration': {
+                    'max_file_size_mb': self.MAX_FILE_SIZE // (1024 * 1024),
+                    'allowed_extensions': list(self.ALLOWED_EXTENSIONS),
+                    'scan_types': ['light', 'full']
+                },
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            return response, 200
+        
+        except Exception as e:
+            return self._error_response(f"Health check failed: {str(e)}", self.ERROR_CODES['INTERNAL_ERROR'], 500)
+
+    def get_scanner_stats(self) -> Tuple[Dict[str, Any], int]:
+        """Get scanner statistics"""
+        try:
+            service_info = self.service.get_service_info()
+            
+            response = {
+                'status': 'success',
+                'scanner_statistics': {
+                    'service_info': service_info,
+                    'scan_capabilities': {
+                        'light_scan': {
+                            'description': 'Fast scan for critical threats only',
+                            'includes': [
+                                'Known malware hash checking',
+                                'Critical YARA rules (PE executables, web shells)',
+                                'Basic EXIF threat detection',
+                                'File format validation'
+                            ],
+                            'average_duration': '< 0.5 seconds'
+                        },
+                        'full_scan': {
+                            'description': 'Comprehensive security analysis',
+                            'includes': [
+                                'Complete hash analysis (MD5, SHA1, SHA256, SHA512)',
+                                'All YARA rules (malware, steganography, network threats)',
+                                'Complete EXIF analysis with privacy checks',
+                                'Advanced file structure analysis',
+                                'Entropy analysis',
+                                'Format validation and mismatch detection'
+                            ],
+                            'average_duration': '1-3 seconds'
+                        }
+                    },
+                    'threat_detection': {
+                        'categories': [
+                            'Malware (executables, web shells, ransomware)',
+                            'Steganography (hidden data, tools)',
+                            'Network threats (C2, phishing, data exfiltration)',
+                            'Advanced threats (zero-day, cryptocurrency mining)',
+                            'Privacy concerns (GPS data, metadata)',
+                            'Format manipulation (fake extensions, polyglots)'
+                        ]
+                    }
+                },
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            return response, 200
+        
+        except Exception as e:
+            return self._error_response(f"Stats retrieval failed: {str(e)}", self.ERROR_CODES['INTERNAL_ERROR'], 500)
