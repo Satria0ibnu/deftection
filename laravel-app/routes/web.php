@@ -54,6 +54,18 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/{user}', [UserController::class, 'destroy'])->name('users.destroy');
   });
 
+  // DEFECT TYPES
+  Route::prefix('database/defect-types')->group(function () {
+    // User list
+    Route::get('/', function () {
+        return Inertia::render('Database/DefectTypes/Index', [
+            'defectTypes' => [],
+            'filters' => [],
+            'meta' => [],
+        ]);
+    })->name('defect-types.index');
+  });
+
   // REPORTS
   Route::prefix('reports')->group(function () {
     // Single scan report routes
@@ -81,13 +93,13 @@ Route::middleware(['auth'])->group(function () {
   })->name('image-analysis');
 
 
-  // SCANS 
+  // SCANS
   // scans store (image analysis)
   Route::get('/image-analysis', [ScanController::class, 'create'])->name('scans.create');
   Route::post('image-analysis', [ScanController::class, 'store'])->name('scans.store');
   // Scan list (database) (admin only)
   Route::prefix('database/scans')->group(function () {
-    //   Route::get('/', [ScanController::class, 'index'])->name('scans.index');  
+    //   Route::get('/', [ScanController::class, 'index'])->name('scans.index');
     //   Route::get('/api', [ScanController::class, 'indexApi'])->middleware('throttle:60,1')->name('scans.index.api');
     //   Route::get('/check-updates', [ScanController::class, 'checkUpdates'])->middleware('throttle:120,1')->name('scans.index.check-updates');
     //   Route::get('/force-refresh', [ScanController::class, 'forceRefresh'])->middleware('throttle:60,1')->name('scans.index.forceRefresh');
@@ -124,7 +136,7 @@ Route::middleware(['auth'])->group(function () {
   });
   // Session myList
   Route::prefix('analysis/session-history')->group(function () {
-    // Route::get('/', [RealtimeController::class, 'mySessions'])->name('sessions.mysessions');
+    Route::get('/', [RealtimeController::class, 'mySessions'])->name('sessions.mysessions');
     // Route::get('/api', [RealtimeController::class, 'mySessionsApi'])->middleware('throttle:60,1')->name('sessions.mysessions.api');
     // Route::get('/check-updates', [RealtimeController::class, 'mySessionsCheck'])->middleware('throttle:120,1')->name('sessions.mysessions.check');
     // Route::get('/force-refresh', [RealtimeController::class, 'mySessionsRefresh'])->middleware('throttle:60,1')->name('sessions.mysessions.refresh');

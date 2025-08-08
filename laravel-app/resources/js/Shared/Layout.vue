@@ -21,6 +21,7 @@ const headerTitle = computed(() => {
         "History/Index": "Session History",
         "Database/Product/Index": "Products",
         "Database/User/Index": "Users",
+        "Database/DefectTypes/Index": "Defect Types",
         "Settings/Index": "Settings",
     };
 
