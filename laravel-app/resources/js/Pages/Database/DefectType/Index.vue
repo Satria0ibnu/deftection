@@ -22,17 +22,19 @@ import RowNotFound from "../../../Shared/Table/RowNotFound.vue";
 import TableFooter from "../../../Shared/Table/TableFooter.vue";
 import EllipsisDropdown from "../../../Shared/Dropdown/EllipsisDropdown.vue";
 import CreateButton from "../../../Shared/TableToolbar/CreateButton.vue";
-import ProductCreateModal from "./Components/ProductCreateModal.vue";
+import DefectTypeCreateModal from "./Components/DefectTypeCreateModal.vue";
 import EditItem from "../../../Shared/Dropdown/EditItem.vue";
-import ProductEditModal from "./Components/ProductEditModal.vue";
+import DefectTypeEditModal from "./Components/DefectTypeEditModal.vue";
 import DeleteItem from "../../../Shared/Dropdown/DeleteItem.vue";
 
 const props = defineProps({
-    products: { type: Array, required: true },
+    defect_types: { type: Array, required: true },
     filters: { type: Object, required: true },
     meta: { type: Object, default: () => ({}) },
     initialChecksum: { type: String, default: "" },
 });
+
+console.log("DefectType Index component initialized with props:", props);
 
 // Theme store for SweetAlert styling - removed as swal utils handle this
 
@@ -42,7 +44,7 @@ const filterOptions = computed(() => props.filters.options || {});
 const searchTerm = ref(currentFilters.value.search || "");
 
 // For polling updates only
-const pollingProducts = ref([]);
+const pollingDefectTypes = ref([]);
 const pollingFilters = ref({});
 const pollingMeta = ref({});
 
@@ -53,20 +55,25 @@ const openModals = ref(new Set()); // Track multiple modals if needed
 // Specific modal states
 const isCreateModalOpen = ref(false);
 const isEditModalOpen = ref(false);
-const editProductSlug = ref(null);
+const editDefectTypeSlug = ref(null);
 
 // Delete state
-const isDeletingProduct = ref(false);
+const isDeletingDefectType = ref(false);
 
 // Loading states for UI control
 const isTableLoading = ref(false);
 
 // Determine which data to show: polling data if available, otherwise props
-const displayProducts = computed(() => {
-    return pollingProducts.value.length > 0
-        ? pollingProducts.value
-        : props.products;
+const displayDefectTypes = computed(() => {
+    return pollingDefectTypes.value.length > 0
+        ? pollingDefectTypes.value
+        : props.defect_types;
 });
+
+console.log(
+    "Display defect types computed property initialized with data:",
+    displayDefectTypes.value
+);
 
 const displayMeta = computed(() => {
     return Object.keys(pollingMeta.value).length > 0
@@ -85,7 +92,7 @@ const isAnyOperationInProgress = computed(() => {
     return (
         isTableLoading.value ||
         isPollingLoading.value ||
-        isDeletingProduct.value
+        isDeletingDefectType.value
     );
 });
 
@@ -104,9 +111,9 @@ const {
     getStatus,
 } = usePolling({
     // Custom endpoints for this component
-    checkUrl: route("products.index.check"),
-    dataUrl: route("products.index.api"),
-    forceRefreshUrl: route("products.index.refresh"),
+    checkUrl: route("defect_types.index.check"),
+    dataUrl: route("defect_types.index.api"),
+    forceRefreshUrl: route("defect_types.index.refresh"),
 
     // Polling configuration
     interval: 20000,
@@ -130,7 +137,7 @@ const {
     // Callbacks
     onDataUpdate: (data) => {
         // Only update polling state, don't interfere with navigation
-        pollingProducts.value = data.products || [];
+        pollingDefectTypes.value = data.defect_types || [];
         pollingFilters.value = data.filters?.options || {};
         pollingMeta.value = data.meta || {};
 
@@ -187,20 +194,20 @@ const handleCreateModalClose = () => {
 
 // Edit modal specific handlers
 const handleEditModalOpen = (slug) => {
-    editProductSlug.value = slug;
+    editDefectTypeSlug.value = slug;
     isEditModalOpen.value = true;
     handleModalOpen(`edit-${slug}`);
 };
 
 const handleEditModalClose = () => {
-    const slug = editProductSlug.value;
+    const slug = editDefectTypeSlug.value;
     isEditModalOpen.value = false;
-    editProductSlug.value = null;
+    editDefectTypeSlug.value = null;
     handleModalClose(`edit-${slug}`);
 };
 
 // Delete functionality
-const handleDeleteProduct = async (product) => {
+const handleDeleteDefectType = async (product) => {
     // Show confirmation dialog using clean swal utils
     const result = await deleteConfirmDialog(`"${product.name}"`);
 
@@ -211,11 +218,11 @@ const handleDeleteProduct = async (product) => {
 
 // Perform the actual deletion
 const performDelete = async (product) => {
-    isDeletingProduct.value = true;
+    isDeletingDefectType.value = true;
 
     const form = useForm({});
 
-    form.delete(route("products.destroy", product.slug), {
+    form.delete(route("defect_types.destroy", product.slug), {
         preserveState: true,
         preserveScroll: true,
         onSuccess: () => {
@@ -225,16 +232,16 @@ const performDelete = async (product) => {
             handleDeleteError(errors);
         },
         onFinish: () => {
-            isDeletingProduct.value = false;
+            isDeletingDefectType.value = false;
         },
     });
 };
 
 // Handle successful deletion
 const handleDeleteSuccess = (productName) => {
-    console.log("Product deleted successfully:", productName);
+    console.log("Defect Type deleted successfully:", productName);
 
-    successToast("Product deleted successfully!");
+    successToast("Defect Type deleted successfully!");
 };
 
 // Handle deletion error
@@ -279,15 +286,15 @@ const navigateWithFilters = (customParams = {}) => {
     isTableLoading.value = true;
 
     // Clear polling data to show fresh server data
-    pollingProducts.value = [];
+    pollingDefectTypes.value = [];
     pollingFilters.value = {};
     pollingMeta.value = {};
 
-    router.get(route("products.index"), buildFilterParams(customParams), {
+    router.get(route("defect_types.index"), buildFilterParams(customParams), {
         preserveState: true,
         preserveScroll: true,
         replace: true,
-        only: ["products", "filters", "meta", "initialChecksum"],
+        only: ["defect_types", "filters", "meta", "initialChecksum"],
         onSuccess: (page) => {
             // Update checksum for polling
             if (page.props.initialChecksum) {
@@ -348,22 +355,22 @@ const sortBy = (column) => {
 };
 
 // Event handlers for child components
-const handleProductOperation = ({ type, action, data, error, message }) => {
-    console.log(`Product ${action} operation:`, { type, message });
+const handleDefectTypeOperation = ({ type, action, data, error, message }) => {
+    console.log(`Defect Type ${action} operation:`, { type, message });
 
     switch (type) {
         case "success":
             switch (action) {
                 case "create":
-                    console.log("Product created successfully:", data);
+                    console.log("Defect Type created successfully:", data);
                     break;
 
                 case "update":
-                    console.log("Product updated successfully:", data);
+                    console.log("Defect Type updated successfully:", data);
                     break;
 
                 case "fetch":
-                    console.log("Product fetched successfully:", data);
+                    console.log("Defect Type fetched successfully:", data);
                     break;
             }
             break;
@@ -441,11 +448,11 @@ const handleDropdownOpen = () => {
             />
         </div>
 
-        <TableToolbar title="Products Table" description="">
+        <TableToolbar title="Defect Types Table" description="">
             <template #left>
                 <ToolbarSearch
                     v-model="searchTerm"
-                    placeholder="Search product name or slug..."
+                    placeholder="Search defect name or slug..."
                     :disabled="isAnyOperationInProgress"
                     @input="handleSearchChange"
                 />
@@ -461,8 +468,8 @@ const handleDropdownOpen = () => {
             <template #right>
                 <CreateButton
                     v-if="isOnline"
-                    label="Add Product"
-                    title="Add Product"
+                    label="Add Defect Type"
+                    title="Add Defect Type"
                     :disabled="isAnyOperationInProgress"
                     @click="handleCreateModalOpen"
                 />
@@ -518,13 +525,8 @@ const handleDropdownOpen = () => {
                                     sortable: true,
                                 },
                                 {
-                                    label: 'Created At',
-                                    field: 'created_at',
-                                    sortable: true,
-                                },
-                                {
-                                    label: 'Updated At',
-                                    field: 'updated_at',
+                                    label: 'Description',
+                                    field: 'description',
                                     sortable: true,
                                 },
                                 { label: 'Actions', sortable: false },
@@ -543,9 +545,9 @@ const handleDropdownOpen = () => {
                 </template>
                 <template #body>
                     <tr
-                        v-for="product in displayProducts"
-                        v-if="displayProducts.length > 0"
-                        :key="product.slug || product.id || Math.random()"
+                        v-for="defectType in displayDefectTypes"
+                        v-if="displayDefectTypes.length > 0"
+                        :key="defectType.slug || defectType.id || Math.random()"
                         class="group/tr table-tr relative border-y border-transparent border-b-gray-200 dark:border-b-dark-500"
                         :class="{ 'opacity-50': isTableLoading }"
                     >
@@ -554,28 +556,21 @@ const handleDropdownOpen = () => {
                             <p
                                 class="font-medium text-gray-800 dark:text-dark-100 capitalize"
                             >
-                                {{ product?.name || "N/A" }}
+                                {{ defectType?.name || "N/A" }}
                             </p>
                         </TableCell>
 
                         <!-- Slug Column -->
                         <TableCell>
                             <p class="text-gray-800 dark:text-dark-100">
-                                {{ product?.slug || "N/A" }}
+                                {{ defectType?.slug || "N/A" }}
                             </p>
                         </TableCell>
 
-                        <!-- Created At Column -->
+                        <!-- Description Column -->
                         <TableCell>
                             <p class="text-gray-800 dark:text-dark-100">
-                                {{ product?.created_at || "N/A" }}
-                            </p>
-                        </TableCell>
-
-                        <!-- Updated At Column -->
-                        <TableCell>
-                            <p class="text-gray-800 dark:text-dark-100">
-                                {{ product?.updated_at || "N/A" }}
+                                {{ defectType?.description || "N/A" }}
                             </p>
                         </TableCell>
 
@@ -586,24 +581,28 @@ const handleDropdownOpen = () => {
                                 @click="handleDropdownOpen"
                             >
                                 <EditItem
-                                    label="Edit Product"
-                                    title="Edit Product"
+                                    label="Edit Defect Type"
+                                    title="Edit Defect Type"
                                     :disabled="isAnyOperationInProgress"
-                                    @click="handleEditModalOpen(product.slug)"
+                                    @click="
+                                        handleEditModalOpen(defectType.slug)
+                                    "
                                 />
                                 <DeleteItem
-                                    label="Delete Product"
-                                    title="Delete Product"
+                                    label="Delete Defect Type"
+                                    title="Delete Defect Type"
                                     :disabled="isAnyOperationInProgress"
-                                    @click="handleDeleteProduct(product)"
+                                    @click="handleDeleteDefectType(defectType)"
                                 />
                             </EllipsisDropdown>
                         </TableCell>
                     </tr>
 
                     <RowNotFound
-                        v-if="displayProducts.length === 0 && !isTableLoading"
-                        label="No products found"
+                        v-if="
+                            displayDefectTypes.length === 0 && !isTableLoading
+                        "
+                        label="No defect types found"
                     />
                 </template>
             </Table>
@@ -620,23 +619,23 @@ const handleDropdownOpen = () => {
             />
         </TableContainer>
 
-        <!-- Product Create Modal - Teleported to body -->
+        <!-- Defect Type Create Modal - Teleported to body -->
         <Teleport to="body">
-            <ProductCreateModal
+            <DefectTypeCreateModal
                 :is-open="isCreateModalOpen"
                 @close="handleCreateModalClose"
-                @operation="handleProductOperation"
+                @operation="handleDefectTypeOperation"
             />
         </Teleport>
 
-        <!-- Product Edit Modal - Teleported to body -->
+        <!-- Defect Type Edit Modal - Teleported to body -->
         <Teleport to="body">
-            <ProductEditModal
-                v-if="editProductSlug"
+            <DefectTypeEditModal
+                v-if="editDefectTypeSlug"
                 :is-open="isEditModalOpen"
-                :slug="editProductSlug"
+                :slug="editDefectTypeSlug"
                 @close="handleEditModalClose"
-                @operation="handleProductOperation"
+                @operation="handleDefectTypeOperation"
             />
         </Teleport>
     </Tablewrapper>

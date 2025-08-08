@@ -49,16 +49,16 @@ import AnalysisOverview from "./Components/AnalysisOverview.vue";
         </StatsCard>
 
         <!--
-            Accuracy
+            1st model accuracy (Anomalib)
             Expected props:
-                value = totalAccuracy (both Models ig)
+                value = anomalibAccuracy (Anomalib)
             Used as:
-                <StatsCard :value="totalAccuracy" ... />
+                <StatsCard :value="anomalibAccuracy" ... />
         -->
         <StatsCard
-            title="Accuracy"
+            title="1st model accuracy"
             value="75%"
-            description="Overall accuracy of the analysis."
+            description="1st model accuracy of the analysis."
             badgeColor="secondary"
             changeRate="+0.2%"
         >
@@ -68,21 +68,21 @@ import AnalysisOverview from "./Components/AnalysisOverview.vue";
         </StatsCard>
 
         <!--
-            Throughput (How many images are processed per second)
+            2nd model accuracy (HRNet)
             Expected props:
-                value = throughputTotal
+                value = hrnetAccuracy (HRNet)
             Used as:
-                <StatsCard :value="throughputTotal" />
+                <StatsCard :value="hrnetAccuracy" />
         -->
         <StatsCard
-            title="Throughput"
-            value="2 images/s"
-            description="Average time taken per image."
+            title="2nd model accuracy"
+            value="80.2%"
+            description="2nd model accuracy of the analysis."
             badgeColor="error"
-            changeRate="+10%"
+            changeRate="+0.5%"
         >
             <template #icon>
-                <font-awesome-icon icon="fa-solid fa-gauge" />
+                <font-awesome-icon icon="fa-solid fa-bolt" />
             </template>
         </StatsCard>
     </div>
@@ -187,7 +187,7 @@ import AnalysisOverview from "./Components/AnalysisOverview.vue";
                     Recent Analysis
                 </h2>
                 <a
-                    href="/history"
+                    :href="route('scans.myscans')"
                     class="pb-0.5 border-current border-b border-dotted outline-hidden font-medium text-primary-600 hover:text-primary-600/70 focus:text-primary-600/70 dark:hover:text-primary-400/70 dark:focus:text-primary-400/70 dark:text-primary-400 text-xs-plus transition-colors duration-300"
                 >
                     <span>View all</span>
@@ -218,40 +218,7 @@ import AnalysisOverview from "./Components/AnalysisOverview.vue";
                 - `result` can be used for conditional styling (green = GOOD, red = BAD)
                 - Detail view can be routed using `/view-detail-analysis/{id}`
             -->
-            <RecentAnalysisTable
-                :analyses="[
-                    {
-                        id: 1,
-                        imageName: 'product_001.jpg',
-                        result: 'GOOD',
-                        score: 0.95,
-                    },
-                    {
-                        id: 2,
-                        imageName: 'product_002.jpg',
-                        result: 'BAD',
-                        score: 0.8,
-                    },
-                    {
-                        id: 3,
-                        imageName: 'product_003.jpg',
-                        result: 'GOOD',
-                        score: 0.98,
-                    },
-                    {
-                        id: 4,
-                        imageName: 'product_004.jpg',
-                        result: 'BAD',
-                        score: 0.72,
-                    },
-                    {
-                        id: 5,
-                        imageName: 'product_005.jpg',
-                        result: 'GOOD',
-                        score: 0.92,
-                    },
-                ]"
-            />
+            <RecentAnalysisTable />
         </div>
         <div
             class="flex flex-col justify-start gap-4 p-6 border border-gray-200 dark:border-dark-700 rounded-lg"

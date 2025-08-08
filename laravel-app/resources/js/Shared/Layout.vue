@@ -13,12 +13,15 @@ const headerTitle = computed(() => {
     const pageMapping = {
         "Dashboard/Index": "Dashboard",
         "ImageAnalysis/Index": "Image Analysis",
-        "RealTimeAnalysis/Index": "Real-Time Analysis",
         "ScanHistory/Index": "Scan History",
-        "ScanAnalysis/Index": "Detail Image Analysis",
+        "DetailScan/Index": "Detail Image Analysis",
+        "RealTimeAnalysis/Index": "Real-Time Analysis",
+        "SessionHistory/Index": "Session History",
+        "DetailSession/Index": "Detail Session Analysis",
         "History/Index": "Session History",
         "Database/Product/Index": "Products",
         "Database/User/Index": "Users",
+        "Database/DefectType/Index": "Defect Types",
         "Settings/Index": "Settings",
     };
 

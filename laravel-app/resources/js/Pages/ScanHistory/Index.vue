@@ -414,6 +414,23 @@ const sortBy = (column) => {
         navigateWithFilters({ sort_by: column, sort_dir: sortDir, page: 1 });
     }
 };
+
+// --- Scroll Logic ---
+const tableRef = ref(null);
+
+const handleDropdownOpen = () => {
+    console.log("Dropdown opened, scrolling to bottom if needed");
+    setTimeout(() => {
+        const wrapper = tableRef.value?.tableWrapperRef;
+        console.log("Table wrapper:", wrapper);
+        if (wrapper) {
+            // If the content is taller than the visible area, scroll to the bottom.
+            if (wrapper.scrollHeight > wrapper.clientHeight) {
+                wrapper.scrollTop = wrapper.scrollHeight;
+            }
+        }
+    }, 60);
+};
 </script>
 
 <template>
@@ -482,7 +499,7 @@ const sortBy = (column) => {
                         />
                         <div
                             v-if="defectTypeOptions.length === 0"
-                            class="px-3 py-2 text-gray-500 text-xs"
+                            class="px-3 py-2 text-xs"
                         >
                             No defect types found
                         </div>
@@ -719,7 +736,7 @@ const sortBy = (column) => {
                         <TableCell>
                             <EllipsisDropdown
                                 :disabled="isAnyOperationInProgress"
-                                @dropdown-opened="handleDropdownOpen"
+                                @click="handleDropdownOpen"
                             >
                                 <DetailViewList
                                     :href="route('scans.show', scan.id)"
