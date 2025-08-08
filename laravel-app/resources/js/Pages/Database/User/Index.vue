@@ -469,6 +469,23 @@ const handleUserOperation = ({ type, action, data, error, message }) => {
             console.warn("Unknown operation type:", type);
     }
 };
+
+// --- Scroll Logic ---
+const tableRef = ref(null);
+
+const handleDropdownOpen = () => {
+    console.log("Dropdown opened, scrolling to bottom if needed");
+    setTimeout(() => {
+        const wrapper = tableRef.value?.tableWrapperRef;
+        console.log("Table wrapper:", wrapper);
+        if (wrapper) {
+            // If the content is taller than the visible area, scroll to the bottom.
+            if (wrapper.scrollHeight > wrapper.clientHeight) {
+                wrapper.scrollTop = wrapper.scrollHeight;
+            }
+        }
+    }, 60);
+};
 </script>
 
 <template>
@@ -589,7 +606,7 @@ const handleUserOperation = ({ type, action, data, error, message }) => {
                 </div>
             </div>
 
-            <Table>
+            <Table ref="tableRef">
                 <template #head>
                     <tr class="group/tr table-tr">
                         <TableHeaderCell
@@ -687,6 +704,7 @@ const handleUserOperation = ({ type, action, data, error, message }) => {
                         <TableCell>
                             <EllipsisDropdown
                                 :disabled="isAnyOperationInProgress"
+                                @click="handleDropdownOpen"
                             >
                                 <EditItem
                                     label="Edit User"
