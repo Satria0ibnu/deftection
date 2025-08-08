@@ -13,9 +13,11 @@ const headerTitle = computed(() => {
     const pageMapping = {
         "Dashboard/Index": "Dashboard",
         "ImageAnalysis/Index": "Image Analysis",
-        "RealTimeAnalysis/Index": "Real-Time Analysis",
         "ScanHistory/Index": "Scan History",
         "DetailScan/Index": "Detail Image Analysis",
+        "RealTimeAnalysis/Index": "Real-Time Analysis",
+        "SessionHistory/Index": "Session History",
+        "DetailSession/Index": "Detail Session Analysis",
         "History/Index": "Session History",
         "Database/Product/Index": "Products",
         "Database/User/Index": "Users",
