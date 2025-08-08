@@ -116,8 +116,8 @@ import { route } from "ziggy-js";
                             New Session
                         </NavCollapseLink>
                         <NavCollapseLink
-                            href="/history"
-                            :active="$page.component === 'History/Index'"
+                            :href="route('scans.myscans')"
+                            :active="$page.component === 'SessionHistory/Index'"
                         >
                             Session History
                         </NavCollapseLink>
@@ -126,7 +126,8 @@ import { route } from "ziggy-js";
                 <NavCollapse
                     :active="
                         $page.component === 'Database/Product/Index' ||
-                        $page.component === 'Database/User/Index'
+                        $page.component === 'Database/User/Index' ||
+                        $page.component === 'Database/DefectTypes/Index'
                     "
                 >
                     <template #title>
@@ -162,6 +163,14 @@ import { route } from "ziggy-js";
                             :active="$page.component === 'Database/User/Index'"
                         >
                             Users
+                        </NavCollapseLink>
+                        <NavCollapseLink
+                            :href="route('defect-types.index')"
+                            :active="
+                                $page.component === 'Database/DefectTypes/Index'
+                            "
+                        >
+                            Defect Types
                         </NavCollapseLink>
                     </template>
                 </NavCollapse>
