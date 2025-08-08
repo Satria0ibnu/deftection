@@ -1,8 +1,0 @@
-
-Flask
-
-yara-python
-Pillow
-pyzbar
-opencv-python
-numpy
