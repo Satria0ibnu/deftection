@@ -76,11 +76,11 @@ const props = defineProps({
                     >
                         {{ item.score }}
                     </td>
-                    <!-- route('view.detail.analysis', item.id) -->
+                    <!-- route('scans.show', item.id) -->
                     <td
                         class="group/td table-td relative dark:bg-dark-900 py-5 pl-3"
                     >
-                        <Link :href="route('scans.myscans')">
+                        <Link :href="route('scans.show', 1)">
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
                                 viewBox="0 0 24 24"
