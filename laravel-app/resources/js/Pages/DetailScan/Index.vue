@@ -191,6 +191,16 @@ const debugInfo = computed(() => ({
     propsTitle: props.title,
     scanInfo: props.scan,
 }));
+
+const handleDownload = () => {
+    // Implement download logic here
+    console.log("Download clicked for analysis ID:", analysis.value.id);
+};
+
+const handleDelete = () => {
+    // Implement delete logic here
+    console.log("Delete clicked for analysis ID:", analysis.value.id);
+};
 </script>
 
 <template>
@@ -260,13 +270,33 @@ const debugInfo = computed(() => ({
     <!-- Main Content -->
     <div v-else class="flex flex-col gap-6">
         <!-- Page Title -->
-        <div class="pb-4 border-gray-200 border-b">
-            <h1 class="font-bold text-gray-900 text-2xl">{{ title }}</h1>
-            <p class="mt-1 text-gray-600 text-sm">
-                Analysis for {{ analysis.summary?.imageName }} • Scan ID:
-                {{ analysis.id }} •
-                {{ analysis.summary?.analysisDate }}
-            </p>
+        <div class="flex justify-between pb-4 border-gray-200 border-b">
+            <div class="flex flex-col gap-1">
+                <h1 class="font-bold text-gray-900 dark:text-dark-50 text-2xl">
+                    {{ title }}
+                </h1>
+                <p class="mt-1 text-sm">
+                    Analysis for {{ analysis.summary?.imageName }} • Scan ID:
+                    {{ analysis.id }} •
+                    {{ analysis.summary?.analysisDate }}
+                </p>
+            </div>
+            <div class="flex items-end gap-3">
+                <button
+                    @click="handleDownload"
+                    class="btn-base btn gap-2 this:primary bg-this text-white hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 disabled:bg-this-light dark:disabled:bg-this-darker"
+                >
+                    <font-awesome-icon icon="fa-solid fa-download" />
+                    <span>Download</span>
+                </button>
+                <button
+                    @click="handleDelete"
+                    class="btn-base btn gap-2 text-white transition-colors bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                >
+                    <font-awesome-icon icon="fa-solid fa-trash-can" />
+                    <span>Delete</span>
+                </button>
+            </div>
         </div>
 
         <!-- Analysis Summary -->
