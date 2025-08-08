@@ -2,6 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Models\DefectType;
+use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -16,8 +18,19 @@ class DefectTypeFactory extends Factory
      */
     public function definition(): array
     {
+        $name = fake()->unique()->company();
+        $slug = Str::slug($name);
+
+        // must unique
+        while (DefectType::where('slug', $slug)->exists()) {
+            $name = fake()->unique()->company();
+            $slug = Str::slug($name);
+        }
+
         return [
-            //
+            'name' => $name,
+            'slug' => $slug,
+            'description' => fake()->sentence(2),
         ];
     }
 }
