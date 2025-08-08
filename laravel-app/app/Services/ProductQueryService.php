@@ -70,7 +70,6 @@ class ProductQueryService
             'perPage' => $validated['per_page'] ?? 10,
             'page' => $validated['page'] ?? 1,
             'status' => $validated['status'] ?? [],
-            'defectTypes' => $validated['defect_types'] ?? [],
             'dateFrom' => $validated['date_from'] ?? null,
             'dateTo' => $validated['date_to'] ?? null,
         ];
