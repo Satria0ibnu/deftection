@@ -115,7 +115,7 @@ Route::middleware(['auth'])->group(function () {
   // scans store (image analysis)
   Route::get('/image-analysis', [ScanController::class, 'create'])->name('scans.create');
   Route::post('image-analysis', [ScanController::class, 'store'])->name('scans.store');
-  // Scan list 
+  // Scan list
   Route::prefix('analysis/scan-history')->group(function () {
     Route::get('/', [ScanController::class, 'index'])->name('scans.index');
     Route::get('/api', [ScanController::class, 'indexApi'])->middleware('throttle:60,1')->name('scans.index.api');
@@ -133,9 +133,9 @@ Route::middleware(['auth'])->group(function () {
 
   // REALTIME SESSIONS
   // Realtime session store (realtime analysis)
-  Route::get('/image-analysis', [RealtimeController::class, 'create'])->name('scans.create');
-  Route::post('image-analysis', [RealtimeController::class, 'store'])->name('scans.store');
-  // Session list 
+  Route::get('real-time-analysis', [RealtimeController::class, 'create'])->name('sessions.create');
+  Route::post('real-time-analysis', [RealtimeController::class, 'store'])->name('sessions.store');
+  // Session list
   Route::prefix('analysis/session-history')->group(function () {
     Route::get('/', [RealtimeController::class, 'index'])->name('sessions.index');
     Route::get('/api', [RealtimeController::class, 'indexApi'])->middleware('throttle:60,1')->name('sessions.index.api');
