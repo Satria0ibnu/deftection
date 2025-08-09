@@ -1,17 +1,18 @@
 <?php
 
 use Inertia\Inertia;
+use App\Models\DefectType;
 use Illuminate\Support\Facades\Route;
+use App\Http\Middleware\RoleMiddleware;
 use App\Http\Controllers\ScanController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\RealtimeController;
 use App\Http\Controllers\Auth\LoginController;
-use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\DefectTypeController;
-use App\Http\Middleware\RoleMiddleware;
-use App\Models\DefectType;
+use App\Http\Controllers\RealtimeScanController;
+use App\Http\Controllers\Auth\RegisterController;
 
 Route::permanentRedirect('/', '/login');
 Route::post('/logout', [LoginController::class, 'destroy'])->middleware('auth')->name('logout');
@@ -120,35 +121,34 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/api', [ScanController::class, 'indexApi'])->middleware('throttle:60,1')->name('scans.index.api');
     Route::get('/check-updates', [ScanController::class, 'indexCheck'])->middleware('throttle:120,1')->name('scans.index.check');
     Route::get('/force-refresh', [ScanController::class, 'indexRefresh'])->middleware('throttle:60,1')->name('scans.index.refresh');
+
+    // Scan Details
     Route::get('/{scan}', [ScanController::class, 'show'])->name('scans.show');
 
     // Scan  operations
     Route::delete('/{scan}', [ScanController::class, 'destroy'])->name('scans.destroy');
   });
 
-  // Route::get('/{scan}', [ScanController::class, 'show'])->name('analysis.show');
 
 
   // REALTIME SESSIONS
-  // sessions store (realtime analysis)
-  Route::get('/realtime-detection', [RealtimeController::class, 'create'])->name('sessions.create');
-  // Route::post('realtime-detection', [RealtimeController::class, 'store'])->name('sessions.store');
-  // Session list (database) (admin only)
-  Route::prefix('database/realtime-sessions')->group(function () {
-    //   Route::get('/', [RealtimeController::class, 'index'])->name('sessions.index');
-    //   Route::get('/api', [RealtimeController::class, 'indexApi'])->middleware('throttle:60,1')->name('sessions.index.api');
-    //   Route::get('/check-updates', [RealtimeController::class, 'checkUpdates'])->middleware('throttle:120,1')->name('sessions.index.check-updates');
-    //   Route::get('/force-refresh', [RealtimeController::class, 'forceRefresh'])->middleware('throttle:60,1')->name('sessions.index.forceRefresh');
-    //   // Session list operations
-  });
-  // Session myList
+  // Realtime session store (realtime analysis)
+  Route::get('/image-analysis', [RealtimeController::class, 'create'])->name('scans.create');
+  Route::post('image-analysis', [RealtimeController::class, 'store'])->name('scans.store');
+  // Session list 
   Route::prefix('analysis/session-history')->group(function () {
-    Route::get('/', [RealtimeController::class, 'mySessions'])->name('sessions.mysessions');
-    // Route::get('/api', [RealtimeController::class, 'mySessionsApi'])->middleware('throttle:60,1')->name('sessions.mysessions.api');
-    // Route::get('/check-updates', [RealtimeController::class, 'mySessionsCheck'])->middleware('throttle:120,1')->name('sessions.mysessions.check');
-    // Route::get('/force-refresh', [RealtimeController::class, 'mySessionsRefresh'])->middleware('throttle:60,1')->name('sessions.mysessions.refresh');
+    Route::get('/', [RealtimeController::class, 'index'])->name('sessions.index');
+    Route::get('/api', [RealtimeController::class, 'indexApi'])->middleware('throttle:60,1')->name('sessions.index.api');
+    Route::get('/check-updates', [RealtimeController::class, 'indexCheck'])->middleware('throttle:120,1')->name('sessions.index.check');
+    Route::get('/force-refresh', [RealtimeController::class, 'indexRefresh'])->middleware('throttle:60,1')->name('sessions.index.refresh');
 
-    // Sessions myList operations
+    // Realtime Session Details (Realtime scan index)
+    Route::get('/{session}', [RealtimeScanController::class, 'index'])->name('sessions_scan.index');
+    // Realtime scan details
+    Route::get('/{session}/scan/{scan}', [RealtimeScanController::class, 'scan'])->name('sessions_scan.show');
+
+    // Realtime Session  operations
+    Route::delete('/{scan}', [RealtimeController::class, 'destroy'])->name('sessions.destroy');
   });
 });
 
