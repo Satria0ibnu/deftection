@@ -74,7 +74,7 @@ import { route } from "ziggy-js";
                             New Scan
                         </NavCollapseLink>
                         <NavCollapseLink
-                            :href="route('scans.myscans')"
+                            :href="route('scans.index')"
                             :active="$page.component === 'ScanHistory/Index'"
                         >
                             Scan History
@@ -116,7 +116,7 @@ import { route } from "ziggy-js";
                             New Session
                         </NavCollapseLink>
                         <NavCollapseLink
-                            :href="route('scans.myscans')"
+                            :href="route('scans.index')"
                             :active="$page.component === 'SessionHistory/Index'"
                         >
                             Session History

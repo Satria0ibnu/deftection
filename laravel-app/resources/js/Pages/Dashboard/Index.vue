@@ -187,7 +187,7 @@ import AnalysisOverview from "./Components/AnalysisOverview.vue";
                     Recent Analysis
                 </h2>
                 <a
-                    :href="route('scans.myscans')"
+                    :href="route('scans.index')"
                     class="pb-0.5 border-current border-b border-dotted outline-hidden font-medium text-primary-600 hover:text-primary-600/70 focus:text-primary-600/70 dark:hover:text-primary-400/70 dark:focus:text-primary-400/70 dark:text-primary-400 text-xs-plus transition-colors duration-300"
                 >
                     <span>View all</span>

@@ -137,7 +137,7 @@ const props = defineProps({
                 <span>Real-Time Analysis</span>
             </button>
         </Link>
-        <Link :href="route('scans.myscans')">
+        <Link :href="route('scans.index')">
             <button
                 class="gap-2 hover:bg-this-darker/[.05] focus:bg-this-darker/[.05] active:bg-this-darker/10 dark:hover:bg-this-lighter/[.05] dark:focus:bg-this-lighter/[.05] dark:active:bg-this-lighter/10 py-2 border border-this-darker dark:border-this-lighter w-full text-this-darker dark:text-this-lighter btn-base btn this:error"
             >
