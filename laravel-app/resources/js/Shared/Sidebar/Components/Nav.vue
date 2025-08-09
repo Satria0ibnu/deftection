@@ -116,7 +116,7 @@ import { route } from "ziggy-js";
                             New Session
                         </NavCollapseLink>
                         <NavCollapseLink
-                            :href="route('scans.index')"
+                            :href="route('sessions.index')"
                             :active="$page.component === 'SessionHistory/Index'"
                         >
                             Session History
