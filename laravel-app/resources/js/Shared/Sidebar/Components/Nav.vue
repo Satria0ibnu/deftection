@@ -103,7 +103,7 @@ import { route } from "ziggy-js";
                             />
                         </svg>
 
-                        <span class="truncate"> Live Monitor </span>
+                        <span class="truncate">Real-Time Session</span>
                     </template>
 
                     <template #content>
@@ -159,18 +159,18 @@ import { route } from "ziggy-js";
                             Products
                         </NavCollapseLink>
                         <NavCollapseLink
-                            :href="route('users.index')"
-                            :active="$page.component === 'Database/User/Index'"
-                        >
-                            Users
-                        </NavCollapseLink>
-                        <NavCollapseLink
                             :href="route('defect_types.index')"
                             :active="
                                 $page.component === 'Database/DefectType/Index'
                             "
                         >
                             Defect Types
+                        </NavCollapseLink>
+                        <NavCollapseLink
+                            :href="route('users.index')"
+                            :active="$page.component === 'Database/User/Index'"
+                        >
+                            Users
                         </NavCollapseLink>
                     </template>
                 </NavCollapse>
