@@ -1,32 +1,6 @@
 <script setup>
 import Sidebar from "./Sidebar/Index.vue";
 import MainHeader from "./MainHeader.vue";
-import { computed } from "vue";
-import { usePage } from "@inertiajs/vue3";
-
-const page = usePage();
-
-// Derive header title from current page component
-const headerTitle = computed(() => {
-    const component = page.component;
-
-    const pageMapping = {
-        "Dashboard/Index": "Dashboard",
-        "ImageAnalysis/Index": "Image Analysis",
-        "ScanHistory/Index": "Scan History",
-        "DetailScan/Index": "Detail Image Analysis",
-        "RealTimeAnalysis/Index": "Real-Time Analysis",
-        "SessionHistory/Index": "Session History",
-        "DetailSession/Index": "Detail Session Analysis",
-        "History/Index": "Session History",
-        "Database/Product/Index": "Products",
-        "Database/User/Index": "Users",
-        "Database/DefectType/Index": "Defect Types",
-        "Settings/Index": "Settings",
-    };
-
-    return pageMapping[component] || "Dashboard";
-});
 </script>
 
 <template>
@@ -38,17 +12,20 @@ const headerTitle = computed(() => {
         />
     </Head>
 
-    <!-- Header -->
-    <MainHeader>{{ headerTitle }}</MainHeader>
+    <div class="min-h-screen">
+        <Sidebar :user="$page.props.auth?.user"></Sidebar>
 
-    <!-- Main Content -->
-    <main class="grid grid-cols-1 transition-content main-content">
-        <div
-            class="transition-content mt-4 px-(--margin-x) pb-8 sm:mt-5 lg:mt-6"
-        >
-            <slot />
+        <div class="flex flex-col flex-1">
+            <MainHeader>{{ activeMenu }}</MainHeader>
+            <SimpleBar class="h-full">
+                <main class="grid grid-cols-1 transition-content main-content">
+                    <div
+                        class="transition-content mt-4 px-(--margin-x) pb-8 sm:mt-5 lg:mt-6"
+                    >
+                        <slot />
+                    </div>
+                </main>
+            </SimpleBar>
         </div>
-    </main>
-    <!-- Sidebar -->
-    <Sidebar :user="$page.props.auth?.user"></Sidebar>
+    </div>
 </template>
