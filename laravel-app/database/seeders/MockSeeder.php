@@ -18,10 +18,10 @@ class MockSeeder extends Seeder
     {
 
 
-        User::factory(25)->create()->each(function ($user, $index) {
+        User::factory(6)->create()->each(function ($user, $index) {
             if ($index == 0) {
                 $user->update([
-                    'name' => 'admin name ' . $index,
+                    'name' => 'admin ' . $index,
                     'role' => 'admin',
                     'email' => 'admin@example.com',
                     'password' => bcrypt('123456'),
@@ -29,25 +29,9 @@ class MockSeeder extends Seeder
             }
             if ($index == 1) {
                 $user->update([
-                    'name' => 'user name ' . $index,
+                    'name' => 'user ' . $index,
                     'role' => 'user',
                     'email' => 'user@example.com',
-                    'password' => bcrypt('123456'),
-                ]);
-            }
-            if ($index == 2) {
-                $user->update([
-                    'name' => 'satria user',
-                    'role' => 'guest',
-                    'email' => 'satriauser@example.com',
-                    'password' => bcrypt('123456'),
-                ]);
-            }
-            if ($index == 3) {
-                $user->update([
-                    'name' => 'satria admin',
-                    'role' => 'admin',
-                    'email' => 'satriaadmin@example.com',
                     'password' => bcrypt('123456'),
                 ]);
             }
@@ -55,12 +39,20 @@ class MockSeeder extends Seeder
             Scan::factory(25)->create([
                 'user_id' => $user->id,
             ])->each(function ($scan) {
+                $createdAt = fake()->dateTimeBetween('-1 month', 'now');
+
+                $scan->update([
+                    'created_at' => $createdAt,
+                    'updated_at' => $createdAt,
+                ]);
 
                 if ($scan->is_defect) {
                     $rand1 = rand(1, 5);
 
                     ScanDefect::factory($rand1)->create([
                         'scan_id' => $scan->id,
+                        'created_at' => $createdAt,
+                        'updated_at' => $createdAt
                     ]);
                 }
 
@@ -73,10 +65,14 @@ class MockSeeder extends Seeder
                         'flags' => null,
                         'details' => null,
                         'possible_attack' => null,
+                        'created_at' => $createdAt,
+                        'updated_at' => $createdAt
                     ]);
                 } elseif ($rand2 == 1) {
                     ScanThreat::factory()->create([
                         'scan_id' => $scan->id,
+                        'created_at' => $createdAt,
+                        'updated_at' => $createdAt
                     ]);
                 }
             });
