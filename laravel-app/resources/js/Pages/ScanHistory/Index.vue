@@ -669,8 +669,8 @@ if (props.userCan.viewAllScans) {
         </div>
 
         <TableToolbar
-            title="Analysis History"
-            description="History of your analysis"
+            title="Scan History"
+            description="History of your scans with detailed results."
         >
             <template #left>
                 <ToolbarSearch
