@@ -12,6 +12,7 @@ class RealtimeController extends Controller
     public function index()
     {
         //
+        return Inertia::render('SessionHistory/Index');
     }
 
     // page for realtime detection
