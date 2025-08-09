@@ -6,6 +6,7 @@ import { route } from "ziggy-js";
 import { useForm } from "@inertiajs/vue3";
 import { successToast, errorToast, deleteConfirmDialog } from "@/utils/swal";
 import { usePolling } from "@/composables/usePolling";
+import { Popover } from "@headlessui/vue";
 
 // Import shared components
 import Table from "../../Shared/Table/Table.vue";
@@ -13,6 +14,7 @@ import Tablewrapper from "../../Shared/Table/Tablewrapper.vue";
 import TableToolbar from "../../Shared/Table/TableToolbar.vue";
 import TableContainer from "../../Shared/Table/TableContainer.vue";
 import ToolbarSearch from "../../Shared/TableToolbar/ToolbarSearch.vue";
+import FilterDateRange from "../../Shared/TableToolbar/FilterDateRange.vue";
 import TableHeaderCell from "../../Shared/Table/TableHeaderCell.vue";
 import ForceRefreshButton from "../../Shared/Table/ForceRefreshButton.vue";
 import LiveMonitorToggle from "../../Shared/Table/LiveMonitorToggle.vue";
@@ -22,6 +24,10 @@ import TableFooter from "../../Shared/Table/TableFooter.vue";
 import EllipsisDropdown from "../../Shared/Dropdown/EllipsisDropdown.vue";
 import DetailViewList from "../../Shared/Dropdown/ViewItem.vue";
 import DeleteItem from "../../Shared/Dropdown/DeleteItem.vue";
+import FilterPopoverButton from "../../Shared/Popover/FilterPopoverButton.vue";
+import FilterPopoverPanel from "../../Shared/Popover/FilterPopoverPanel.vue";
+import FilterPopoverCheckbox from "../../Shared/Popover/FilterPopoverCheckbox.vue";
+import FilterResetButton from "../../Shared/TableToolbar/FilterResetButton.vue";
 
 // --- Props ---
 // This page receives its data from the RealtimeController@index method.
@@ -165,6 +171,61 @@ const handleDeleteSession = async (session) => {
                 <ToolbarSearch
                     v-model="searchTerm"
                     placeholder="Search by Session ID..."
+                />
+
+                <FilterDateRange
+                    :filters="currentFilters"
+                    @applyFilters="navigateWithFilters"
+                />
+
+                <!-- Status Filter -->
+                <Popover class="relative">
+                    <FilterPopoverButton
+                        label="Status"
+                        :selected-options="selectedStatusCount"
+                        :disabled="isAnyOperationInProgress"
+                    >
+                        <template #icon>
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                fill="currentColor"
+                                class="size-4"
+                            >
+                                <path
+                                    fill-rule="evenodd"
+                                    d="M3.792 2.938A49.069 49.069 0 0 1 12 2.25c2.797 0 5.54.236 8.209.688a1.857 1.857 0 0 1 1.541 1.836v1.044a3 3 0 0 1-.879 2.121l-6.182 6.182a1.5 1.5 0 0 0-.439 1.061v2.927a3 3 0 0 1-1.658 2.684l-1.757.878A.75.75 0 0 1 9.75 21v-5.818a1.5 1.5 0 0 0-.44-1.06L3.13 7.938a3 3 0 0 1-.879-2.121V4.774c0-.897.64-1.683 1.542-1.836Z"
+                                    clip-rule="evenodd"
+                                />
+                            </svg>
+                        </template>
+                    </FilterPopoverButton>
+                    <FilterPopoverPanel
+                        :show-clear-button="selectedStatusCount > 0"
+                        :selected-options="selectedStatusCount"
+                        @click-clear="clearStatusFilters"
+                    >
+                        <FilterPopoverCheckbox
+                            v-for="status in statusOptions"
+                            :key="status.value"
+                            v-model:checked="status.selected"
+                            :id="`status-${status.value}`"
+                            :value="status.value"
+                            :label="status.label"
+                            :count="status.count"
+                            :icon="status.value === 'good' ? 'check' : 'cross'"
+                            :disabled="isAnyOperationInProgress"
+                            @change="handleFilterChange"
+                        />
+                    </FilterPopoverPanel>
+                </Popover>
+
+                <!-- Clear Filter -->
+                <FilterResetButton
+                    v-if="hasActiveFilters"
+                    label="Reset Filters"
+                    :disabled="isAnyOperationInProgress"
+                    @click="resetAllFilters"
                 />
             </template>
         </TableToolbar>
