@@ -5,7 +5,7 @@ import { useDebounceFn } from "@vueuse/core";
 import { route } from "ziggy-js";
 import { useForm } from "@inertiajs/vue3";
 import { successToast, errorToast, deleteConfirmDialog } from "@/utils/swal";
-import { Popover } from "@headlessui/vue";
+import { usePolling } from "@/composables/usePolling";
 
 // Import shared components
 import Table from "../../Shared/Table/Table.vue";
@@ -14,69 +14,83 @@ import TableToolbar from "../../Shared/Table/TableToolbar.vue";
 import TableContainer from "../../Shared/Table/TableContainer.vue";
 import ToolbarSearch from "../../Shared/TableToolbar/ToolbarSearch.vue";
 import TableHeaderCell from "../../Shared/Table/TableHeaderCell.vue";
-import FilterResetButton from "../../Shared/TableToolbar/FilterResetButton.vue";
+import ForceRefreshButton from "../../Shared/Table/ForceRefreshButton.vue";
+import LiveMonitorToggle from "../../Shared/Table/LiveMonitorToggle.vue";
 import TableCell from "../../Shared/Table/TableCell.vue";
 import RowNotFound from "../../Shared/Table/RowNotFound.vue";
 import TableFooter from "../../Shared/Table/TableFooter.vue";
 import EllipsisDropdown from "../../Shared/Dropdown/EllipsisDropdown.vue";
 import DetailViewList from "../../Shared/Dropdown/ViewItem.vue";
 import DeleteItem from "../../Shared/Dropdown/DeleteItem.vue";
-import CreateButton from "../../Shared/TableToolbar/CreateButton.vue";
 
 // --- Props ---
+// This page receives its data from the RealtimeController@index method.
 const props = defineProps({
-    // sessions: { type: Object, required: true },
-    // filters: { type: Object, required: true },
-    // meta: { type: Object, default: () => ({}) },
+    sessions: { type: Object, required: true },
+    filters: { type: Object, required: true },
+    meta: { type: Object, default: () => ({}) },
+    initialChecksum: { type: String, default: "" },
 });
 
-// --- Mock Data ---
-const mockSessions = ref([
-    {
-        id: "SESS-001",
-        date: "2025-07-22",
-        duration: "45 minutes",
-        total_scans: 152,
-        defect_rate: 5.2,
-        status: "Completed",
-    },
-    {
-        id: "SESS-002",
-        date: "2025-07-21",
-        duration: "1 hour 12 minutes",
-        total_scans: 340,
-        defect_rate: 7.8,
-        status: "Completed",
-    },
-    {
-        id: "SESS-003",
-        date: "2025-07-21",
-        duration: "22 minutes",
-        total_scans: 88,
-        defect_rate: 2.1,
-        status: "Completed",
-    },
-    {
-        id: "SESS-004",
-        date: "2025-07-20",
-        duration: "3 hours 5 minutes",
-        total_scans: 890,
-        defect_rate: 10.5,
-        status: "Interrupted",
-    },
-    {
-        id: "SESS-005",
-        date: "2025-07-20",
-        duration: "58 minutes",
-        total_scans: 210,
-        defect_rate: 4.0,
-        status: "Completed",
-    },
-]);
-
 // --- State ---
-const searchTerm = ref("");
-const displaySessions = ref(mockSessions.value);
+const currentFilters = computed(() => props.filters?.current || {});
+const searchTerm = ref(currentFilters.value.search || "");
+const isTableLoading = ref(false);
+
+// --- Polling State ---
+const pollingSessions = ref([]);
+const pollingMeta = ref({});
+const displaySessions = computed(() => {
+    return pollingSessions.value.length > 0
+        ? pollingSessions.value.data
+        : props.sessions?.data || [];
+});
+
+// FIX: Provide a safe fallback object to prevent errors when props are not available.
+const displayMeta = computed(() => {
+    if (Object.keys(pollingMeta.value).length > 0) {
+        return pollingMeta.value;
+    }
+    if (props.sessions) {
+        return props.sessions;
+    }
+    // Fallback for mock data mode
+    return {
+        total: 0,
+        from: 0,
+        to: 0,
+        links: [],
+    };
+});
+
+// --- Polling Logic ---
+const {
+    isPolling,
+    isLoading: isPollingLoading,
+    isManuallyPaused,
+    isOnline,
+    visibility,
+    togglePolling,
+    forceRefresh,
+    initializeChecksum,
+} = usePolling({
+    checkUrl: route("sessions.index.check"),
+    dataUrl: route("sessions.index.api"),
+    forceRefreshUrl: route("sessions.index.refresh"),
+    interval: 20000,
+    enabled: true,
+    onDataUpdate: (data) => {
+        pollingSessions.value = data.sessions || [];
+        pollingMeta.value = data.sessions || {};
+    },
+    onError: (error) => {
+        console.error("Session polling error:", error);
+    },
+});
+
+onMounted(() => {
+    initializeChecksum(props.initialChecksum);
+});
 
 // --- Helper Functions ---
 const getStatusClass = (status) => {
@@ -85,32 +99,64 @@ const getStatusClass = (status) => {
     return "text-gray-500";
 };
 
-const handleViewDetails = (sessionId) => {
-    console.log(`Navigating to scans for session: ${sessionId}`);
-    // router.get(route('scans.history', { session_id: sessionId }));
+// --- Navigation & Actions ---
+const navigateWithFilters = (customParams = {}) => {
+    isTableLoading.value = true;
+    const params = {
+        search: searchTerm.value || undefined,
+        page: 1,
+        ...customParams,
+    };
+    router.get(route("sessions.index"), params, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        only: ["sessions", "filters", "meta", "initialChecksum"],
+        onSuccess: (page) => initializeChecksum(page.props.initialChecksum),
+        onFinish: () => {
+            isTableLoading.value = false;
+        },
+    });
 };
 
-const handleDeleteSession = (session) => {
-    console.log(`Deleting session: ${session.id}`);
-};
+const debouncedSearch = useDebounceFn(() => navigateWithFilters(), 300);
+watch(searchTerm, debouncedSearch);
 
-// --- Scroll Logic ---
-const tableRef = ref(null);
+const goToPage = (page) => navigateWithFilters({ page });
+const changePerPage = (perPage) =>
+    navigateWithFilters({ per_page: perPage, page: 1 });
 
-const handleDropdownOpen = () => {
-    setTimeout(() => {
-        const wrapper = tableRef.value?.tableWrapperRef;
-        if (wrapper) {
-            if (wrapper.scrollHeight > wrapper.clientHeight) {
-                wrapper.scrollTop = wrapper.scrollHeight;
-            }
-        }
-    }, 60);
+const handleDeleteSession = async (session) => {
+    const result = await deleteConfirmDialog(`session "${session.id}"`);
+    if (result.isConfirmed) {
+        router.delete(route("sessions.destroy", session.id), {
+            preserveScroll: true,
+            onSuccess: () => successToast("Session deleted successfully!"),
+            onError: () => errorToast("Failed to delete session."),
+        });
+    }
 };
 </script>
 
 <template>
     <Tablewrapper>
+        <div class="flex justify-between items-center mb-4">
+            <LiveMonitorToggle
+                :isPolling="isPolling"
+                :isPollingLoading="isPollingLoading"
+                :isManuallyPaused="isManuallyPaused"
+                :isOnline="isOnline"
+                :visibility="visibility"
+                @click="togglePolling"
+            />
+            <ForceRefreshButton
+                :isPollingLoading="isPollingLoading"
+                :isOnline="isOnline"
+                :disabled="isTableLoading"
+                @click="forceRefresh"
+            />
+        </div>
+
         <TableToolbar
             title="Session History"
             description="History of your real-time detection sessions"
@@ -121,18 +167,10 @@ const handleDropdownOpen = () => {
                     placeholder="Search by Session ID..."
                 />
             </template>
-
-            <template #right>
-                <CreateButton
-                    @click="() => router.get(route('sessions.create'))"
-                    title="Create a new session"
-                    label="New Session"
-                />
-            </template>
         </TableToolbar>
 
         <TableContainer>
-            <Table ref="tableRef">
+            <Table>
                 <template #head>
                     <tr class="group/tr table-tr">
                         <TableHeaderCell label="Session ID" />
@@ -150,7 +188,6 @@ const handleDropdownOpen = () => {
                         :key="session.id"
                         class="group/tr table-tr border-y border-transparent border-b-gray-200 dark:border-b-dark-500"
                     >
-                        <!-- Session ID Column -->
                         <TableCell>
                             <p
                                 class="font-medium text-gray-800 dark:text-dark-100"
@@ -158,22 +195,16 @@ const handleDropdownOpen = () => {
                                 {{ session.id }}
                             </p>
                         </TableCell>
-
-                        <!-- Date Column -->
                         <TableCell>
                             <p class="text-gray-800 dark:text-dark-100">
                                 {{ session.date }}
                             </p>
                         </TableCell>
-
-                        <!-- Duration Column -->
                         <TableCell>
                             <p class="text-gray-800 dark:text-dark-100">
                                 {{ session.duration }}
                             </p>
                         </TableCell>
-
-                        <!-- Total Scans Column -->
                         <TableCell>
                             <p
                                 class="font-mono text-gray-800 dark:text-dark-100"
@@ -181,8 +212,6 @@ const handleDropdownOpen = () => {
                                 {{ session.total_scans }}
                             </p>
                         </TableCell>
-
-                        <!-- Defect Rate Column -->
                         <TableCell>
                             <p
                                 class="font-mono font-semibold"
@@ -195,8 +224,6 @@ const handleDropdownOpen = () => {
                                 {{ session.defect_rate.toFixed(1) }}%
                             </p>
                         </TableCell>
-
-                        <!-- Status Column -->
                         <TableCell>
                             <p
                                 class="font-semibold"
@@ -205,24 +232,24 @@ const handleDropdownOpen = () => {
                                 {{ session.status }}
                             </p>
                         </TableCell>
-
-                        <!-- Actions Column -->
                         <TableCell>
-                            <EllipsisDropdown @click="handleDropdownOpen">
+                            <EllipsisDropdown>
+                                <!-- This now correctly links to the list of scans for this session -->
                                 <DetailViewList
                                     label="View Scans"
-                                    title="View all scans for this session"
-                                    :href="route('scans.myscans')"
+                                    :href="
+                                        route('sessions_scan.index', {
+                                            session: session.id,
+                                        })
+                                    "
                                 />
                                 <DeleteItem
                                     label="Delete Session"
-                                    title="Delete this session and all its scans"
                                     @click="handleDeleteSession(session)"
                                 />
                             </EllipsisDropdown>
                         </TableCell>
                     </tr>
-
                     <RowNotFound
                         v-if="displaySessions.length === 0"
                         label="No sessions found"
@@ -230,7 +257,12 @@ const handleDropdownOpen = () => {
                 </template>
             </Table>
 
-            <!-- <TableFooter :meta="displayMeta" ... /> -->
+            <TableFooter
+                :meta="displayMeta"
+                :currentFilters="currentFilters"
+                @goToPage="goToPage"
+                @changePerPage="changePerPage"
+            />
         </TableContainer>
     </Tablewrapper>
 </template>
