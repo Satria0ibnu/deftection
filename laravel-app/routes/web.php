@@ -10,6 +10,7 @@ use App\Http\Controllers\RealtimeController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\DefectTypeController;
+use App\Http\Middleware\RoleMiddleware;
 use App\Models\DefectType;
 
 Route::permanentRedirect('/', '/login');
@@ -74,11 +75,11 @@ Route::middleware(['auth'])->group(function () {
   Route::prefix('database/defect-types')->group(function () {
     // User list
     Route::get('/', function () {
-        return Inertia::render('Database/DefectTypes/Index', [
-            'defectTypes' => [],
-            'filters' => [],
-            'meta' => [],
-        ]);
+      return Inertia::render('Database/DefectTypes/Index', [
+        'defectTypes' => [],
+        'filters' => [],
+        'meta' => [],
+      ]);
     })->name('defect-types.index');
   });
 
@@ -113,26 +114,16 @@ Route::middleware(['auth'])->group(function () {
   // scans store (image analysis)
   Route::get('/image-analysis', [ScanController::class, 'create'])->name('scans.create');
   Route::post('image-analysis', [ScanController::class, 'store'])->name('scans.store');
-  // Scan list (database) (admin only)
-  Route::prefix('database/scans')->group(function () {
-    //   Route::get('/', [ScanController::class, 'index'])->name('scans.index');
-    //   Route::get('/api', [ScanController::class, 'indexApi'])->middleware('throttle:60,1')->name('scans.index.api');
-    //   Route::get('/check-updates', [ScanController::class, 'checkUpdates'])->middleware('throttle:120,1')->name('scans.index.check-updates');
-    //   Route::get('/force-refresh', [ScanController::class, 'forceRefresh'])->middleware('throttle:60,1')->name('scans.index.forceRefresh');
-    Route::get('/{scan}', [ScanController::class, 'show'])->name('scans.show'); // only current auth user or admin
-    //   // Scan list operations
-    //   Route::delete('/{scan}', [ScanController::class, 'destroy'])->name('scans.destroy');
-  });
-  // Scan myList (analysis)
+  // Scan list 
   Route::prefix('analysis/scan-history')->group(function () {
-    Route::get('/', [ScanController::class, 'myScans'])->name('scans.myscans');
-    Route::get('/api', [ScanController::class, 'myScansApi'])->middleware('throttle:60,1')->name('scans.myscans.api');
-    Route::get('/check-updates', [ScanController::class, 'myScansCheck'])->middleware('throttle:120,1')->name('scans.myscans.check');
-    Route::get('/force-refresh', [ScanController::class, 'myScansRefresh'])->middleware('throttle:60,1')->name('scans.myscans.refresh');
-    // Route::get('/{scan}', [ScanController::class, 'showMyScan'])->name('scans.show-myscan');
+    Route::get('/', [ScanController::class, 'index'])->name('scans.index');
+    Route::get('/api', [ScanController::class, 'indexApi'])->middleware('throttle:60,1')->name('scans.index.api');
+    Route::get('/check-updates', [ScanController::class, 'indexCheck'])->middleware('throttle:120,1')->name('scans.index.check');
+    Route::get('/force-refresh', [ScanController::class, 'indexRefresh'])->middleware('throttle:60,1')->name('scans.index.refresh');
+    Route::get('/{scan}', [ScanController::class, 'show'])->name('scans.show');
 
-    // Scan myList operations
-    Route::delete('/{scan}', [ScanController::class, 'destroyMyScan'])->name('scans.destroy-myscan');
+    // Scan  operations
+    Route::delete('/{scan}', [ScanController::class, 'destroy'])->name('scans.destroy');
   });
 
   // Route::get('/{scan}', [ScanController::class, 'show'])->name('analysis.show');

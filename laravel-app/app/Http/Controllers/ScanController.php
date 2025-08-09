@@ -16,9 +16,6 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
-
-
-
 class ScanController extends Controller
 {
     public function __construct(
@@ -26,16 +23,8 @@ class ScanController extends Controller
         protected ScanDetailService $scanDetailService
     ) {}
 
-
     // shows all scans 
-    public function index()
-    {
-        //
-
-    }
-
-    // Show user's scans history
-    public function myScans(Request $request)
+    public function index(Request $request)
     {
         try {
             // Get validated filters
@@ -48,8 +37,17 @@ class ScanController extends Controller
             $defectTypes = $this->scanHistoryService->getDefectTypesWithCounts();
             $statusCounts = $this->scanHistoryService->getStatusCounts();
 
+            // Get user and role options only for authorized users
+            $userOptions = auth()->user()->can('filterByUser', Scan::class)
+                ? $this->scanHistoryService->getUsersWithCounts()
+                : [];
+            $rolesOptions = auth()->user()->can('filterByUser', Scan::class)
+                ? $this->scanHistoryService->getRolesWithCounts()
+                : [];
+
             // Generate initial checksum using the STABLE method
             $initialChecksum = $this->scanHistoryService->getStableDataChecksum(auth()->id());
+
 
             return Inertia::render('ScanHistory/Index', [
                 'scans' => $scans->items(),
@@ -58,8 +56,14 @@ class ScanController extends Controller
                     'options' => [
                         'defectTypes' => $defectTypes,
                         'status' => $statusCounts,
+                        'users' => $userOptions,
+                        'roles' => $rolesOptions, // Fixed: pass roles correctly
                         'perPageOptions' => [5, 10, 25, 50, 100],
                     ]
+                ],
+                'userCan' => [
+                    'viewAllScans' => auth()->user()->can('viewAny', Scan::class),
+                    'filterByUser' => auth()->user()->can('filterByUser', Scan::class),
                 ],
                 'meta' => [
                     'total' => $scans->total(),
@@ -87,8 +91,14 @@ class ScanController extends Controller
                     'options' => [
                         'defectTypes' => [],
                         'status' => [],
+                        'users' => [],
+                        'roles' => [],
                         'perPageOptions' => [5, 10, 25, 50, 100],
                     ]
+                ],
+                'userCan' => [
+                    'viewAllScans' => auth()->user()->can('viewAny', Scan::class),
+                    'filterByUser' => auth()->user()->can('filterByUser', Scan::class),
                 ],
                 'error' => 'Failed to load scan history. Please try again.',
                 'meta' => [
@@ -105,7 +115,7 @@ class ScanController extends Controller
     }
 
 
-    public function myScansCheck(Request $request)
+    public function indexCheck(Request $request)
     {
         $startTime = microtime(true);
 
@@ -135,7 +145,7 @@ class ScanController extends Controller
         }
     }
 
-    public function myScansApi(Request $request)
+    public function indexApi(Request $request)
     {
         $startTime = microtime(true);
 
@@ -150,6 +160,14 @@ class ScanController extends Controller
             $defectTypes = $this->scanHistoryService->getDefectTypesWithCounts();
             $statusCounts = $this->scanHistoryService->getStatusCounts();
 
+            // Get user and role options only for authorized users
+            $userOptions = auth()->user()->can('filterByUser', Scan::class)
+                ? $this->scanHistoryService->getUsersWithCounts()
+                : [];
+            $rolesOptions = auth()->user()->can('filterByUser', Scan::class)
+                ? $this->scanHistoryService->getRolesWithCounts()
+                : [];
+
             // Get current STABLE checksum
             $currentChecksum = $this->scanHistoryService->getStableDataChecksum(auth()->id());
 
@@ -160,8 +178,14 @@ class ScanController extends Controller
                     'options' => [
                         'defectTypes' => $defectTypes,
                         'status' => $statusCounts,
+                        'users' => $userOptions,
+                        'roles' => $rolesOptions, // Fixed: include roles in API response
                         'perPageOptions' => [5, 10, 25, 50, 100],
                     ]
+                ],
+                'userCan' => [
+                    'viewAllScans' => auth()->user()->can('viewAny', Scan::class),
+                    'filterByUser' => auth()->user()->can('filterByUser', Scan::class),
                 ],
                 'meta' => [
                     'total' => $scans->total(),
@@ -191,11 +215,11 @@ class ScanController extends Controller
         }
     }
 
-    public function myScansRefresh(Request $request)
+    public function indexRefresh(Request $request)
     {
         try {
             // This is essentially the same as pollData but ensures fresh data
-            return $this->myScansApi($request);
+            return $this->indexApi($request);
         } catch (\Exception $e) {
             Log::error('Error in force refresh: ' . $e->getMessage());
             return response()->json(['error' => 'Failed to refresh data'], 500);
@@ -208,11 +232,6 @@ class ScanController extends Controller
     public function show(Scan $scan)
     {
         try {
-            // Optional: Check authorization
-            // if ($scan->user_id !== auth()->id()) {
-            //     abort(403, 'Unauthorized to view this scan.');
-            // }
-
             // Transform scan data using the service
             $analysisData = $this->scanDetailService->transformScanForAnalysis($scan);
 
@@ -491,41 +510,13 @@ class ScanController extends Controller
         }
     }
 
-
-    // delete only my scans
-    public function destroyMyScan(Scan $scan)
-    {
-        // Check if the scan belongs to the authenticated user
-        if ($scan->user_id !== auth()->id()) {
-            abort(403, 'Unauthorized to delete this scan.');
-        }
-
-        // Store scan details for logging before deletion
-        $scanData = [
-            'scan_id' => $scan->id,
-            'filename' => $scan->filename,
-            'original_path' => $scan->original_path,
-            'annotated_path' => $scan->annotated_path,
-            'is_defect' => $scan->is_defect,
-            'anomaly_score' => $scan->anomaly_score,
-            'user_id' => auth()->id(),
-            'deleted_at' => now()->toISOString()
-        ];
-
-        // Delete the scan ( cascade delete related scan_defects and scan_threats)
-        $scan->delete();
-
-        // Log successful scan deletion
-        Log::info('Scan deleted successfully', $scanData);
-
-        return redirect()
-            ->back()
-            ->with('success', 'Scan deleted successfully.');
-    }
-
-    // delete a specific scan
+    // delete a scans
     public function destroy(Scan $scan)
     {
+        if (!$this->authorize('delete', $scan)) {
+            abort(403, 'Unauthorized action.');
+        }
+
         // Store scan details for logging before deletion
         $scanData = [
             'scan_id' => $scan->id,

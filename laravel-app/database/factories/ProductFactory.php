@@ -21,6 +21,7 @@ class ProductFactory extends Factory
 
         $name = fake()->unique()->company();
         $slug = Str::slug($name);
+        $createdAt = fake()->dateTimeBetween('-1 month', 'now');
 
         // must unique
         while (Product::where('slug', $slug)->exists()) {
@@ -31,6 +32,8 @@ class ProductFactory extends Factory
         return [
             'name' => $name,
             'slug' => $slug,
+            'created_at' => $createdAt,
+            'updated_at' => $createdAt
         ];
     }
 }
