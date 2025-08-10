@@ -3,6 +3,14 @@ import NavLink from "./NavLink.vue";
 import NavCollapse from "./NavCollapse.vue";
 import NavCollapseLink from "./NavCollapseLink.vue";
 import { route } from "ziggy-js";
+import { usePage } from "@inertiajs/vue3";
+// import { onMounted } from "vue";
+
+const role = usePage().props.auth.user.role;
+
+// onMounted(() => {
+//     console.log(role);
+// });
 </script>
 <template>
     <nav class="pt-3">
@@ -129,6 +137,7 @@ import { route } from "ziggy-js";
                         $page.component === 'Database/User/Index' ||
                         $page.component === 'Database/DefectType/Index'
                     "
+                    v-if="role === 'admin'"
                 >
                     <template #title>
                         <svg
