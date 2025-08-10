@@ -55,21 +55,30 @@ class SettingsController extends Controller
 
     public function clearData()
     {
-        // // Temporarily disable foreign key checks
-        // DB::statement('SET FOREIGN_KEY_CHECKS=0;');
 
-        // // Truncate the tables
-        // Scan::truncate();
-        // RealtimeSession::truncate();
-        // DB::table('scan_defects')->truncate();
-
-        // // Re-enable foreign key checks
-        // DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        $this->authorize('deleteAny', RealtimeSession::class);
+        $this->authorize('deleteAny', Scan::class);
 
         RealtimeSession::query()->delete();
         Scan::query()->delete();
 
         // Redirect back with a success message.
         return back()->with('success', 'All analysis data has been cleared.');
+    }
+
+    public function clearMyData()
+    {
+        $userId = auth()->id();
+
+        $this->authorize('delete', new RealtimeSession(['user_id' => $userId]));
+        RealtimeSession::where('user_id', $userId)->delete();
+
+        $this->authorize('delete', new Scan(['user_id' => $userId]));
+        Scan::where('user_id', $userId)->delete();
+
+
+
+        // Redirect back with a success message.
+        return back()->with('success', 'Your analysis data has been cleared.');
     }
 }

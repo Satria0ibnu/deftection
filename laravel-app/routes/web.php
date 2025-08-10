@@ -121,6 +121,7 @@ Route::middleware(['auth'])->group(function () {
 
     // Clear Data
     Route::delete('/clear-data', [SettingsController::class, 'clearData'])->name('clear_all_data');
+    Route::delete('/clear-my-data', [SettingsController::class, 'clearMyData'])->name('clear_my_data');
   });
 
 

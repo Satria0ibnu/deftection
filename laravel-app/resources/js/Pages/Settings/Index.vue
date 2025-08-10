@@ -184,17 +184,17 @@ const handleConfirmDangerZoneReset = () => {
         <!-- Tab Navigation -->
         <div class="mb-6">
             <div
-                class="flex flex-col gap-4 md:flex-row md:justify-between md:items-end md:border-b md:border-gray-200 md:dark:border-dark-700"
+                class="flex md:flex-row flex-col md:justify-between md:items-end gap-4 md:border-gray-200 md:dark:border-dark-700 md:border-b"
             >
                 <!-- Mobile version -- Dropdown -->
                 <div class="md:hidden">
                     <label for="tabs" class="sr-only">Select a tab</label>
                     <div class="input-root undefined">
-                        <div class="input-wrapper relative">
+                        <div class="relative input-wrapper">
                             <select
                                 id="tabs"
                                 v-model="activeTab"
-                                class="drop-down-tab form-select-base form-select block w-full mt-1 text-sm ltr:pr-9 rtl:pl-9 peer border-gray-300 hover:border-gray-400 focus:border-primary-600 dark:border-dark-450 dark:hover:border-dark-400 dark:focus:border-primary-500"
+                                class="peer block mt-1 ltr:pr-9 rtl:pl-9 border-gray-300 hover:border-gray-400 focus:border-primary-600 dark:hover:border-dark-400 dark:focus:border-primary-500 dark:border-dark-450 w-full text-sm form-select-base drop-down-tab form-select"
                             >
                                 <option
                                     v-for="tab in tabs"
@@ -205,7 +205,7 @@ const handleConfirmDangerZoneReset = () => {
                                 </option>
                             </select>
                             <div
-                                class="suffix ltr:right-0 rtl:left-0 pointer-events-none absolute top-0 flex h-full w-9 items-center justify-center transition-colors text-gray-400 peer-focus:text-primary-600 dark:text-dark-300 dark:peer-focus:text-primary-500"
+                                class="top-0 ltr:right-0 rtl:left-0 absolute flex justify-center items-center w-9 h-full text-gray-400 dark:text-dark-300 dark:peer-focus:text-primary-500 peer-focus:text-primary-600 transition-colors pointer-events-none suffix"
                             >
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
@@ -228,12 +228,12 @@ const handleConfirmDangerZoneReset = () => {
 
                 <!-- Desktop version -- Tabs -->
                 <div class="hidden md:block">
-                    <nav class="flex -mb-px space-x-6" aria-label="Tabs">
+                    <nav class="flex space-x-6 -mb-px" aria-label="Tabs">
                         <button
                             v-for="tab in tabs"
                             :key="tab.id"
                             @click="activeTab = tab.id"
-                            class="btn-base shrink-0 gap-2"
+                            class="gap-2 btn-base shrink-0"
                             :class="[
                                 activeTab === tab.id
                                     ? 'whitespace-nowrap border-b-2 px-3 py-2 font-medium  border-primary-600 text-primary-600 dark:border-primary-500 dark:text-primary-400'
@@ -250,11 +250,11 @@ const handleConfirmDangerZoneReset = () => {
                 <!-- Action buttons for unsaved changes -->
                 <div
                     v-if="hasUnsavedChanges"
-                    class="max-md:hidden flex items-center self-end gap-3 md:self-auto md:pb-2"
+                    class="max-md:hidden flex items-center self-end md:self-auto gap-3 md:pb-2"
                 >
                     <button
                         @click="resetUnsavedChanges"
-                        class="btn-base btn gap-2 bg-gray-150 text-gray-900 hover:bg-gray-200 focus:bg-gray-200 active:bg-gray-200/80 dark:bg-surface-2 dark:text-dark-50 dark:hover:bg-surface-1 dark:focus:bg-surface-1 dark:active:bg-surface-1/90"
+                        class="gap-2 bg-gray-150 hover:bg-gray-200 focus:bg-gray-200 active:bg-gray-200/80 dark:active:bg-surface-1/90 dark:bg-surface-2 dark:hover:bg-surface-1 dark:focus:bg-surface-1 text-gray-900 dark:text-dark-50 btn-base btn"
                     >
                         <font-awesome-icon
                             icon="fa-solid fa-arrow-rotate-left"
@@ -264,18 +264,18 @@ const handleConfirmDangerZoneReset = () => {
                     <button
                         @click="saveSettings"
                         :disabled="isSaving"
-                        class="btn-base btn gap-2 this:primary bg-this text-white hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 disabled:bg-this-light dark:disabled:bg-this-darker max-w-lg"
+                        class="gap-2 bg-this hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 disabled:bg-this-light dark:disabled:bg-this-darker max-w-lg text-white btn-base btn this:primary"
                     >
                         <span
                             v-if="isSaving"
-                            class="flex items-center justify-center gap-2"
+                            class="flex justify-center items-center gap-2"
                         >
                             <div
-                                class="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"
+                                class="border-2 border-white border-t-transparent rounded-full w-4 h-4 animate-spin"
                             ></div>
                             Saving...
                         </span>
-                        <span v-else class="truncate flex items-center gap-2">
+                        <span v-else class="flex items-center gap-2 truncate">
                             <font-awesome-icon icon="fa-solid fa-floppy-disk" />
                             Save Settings
                         </span>
@@ -299,11 +299,11 @@ const handleConfirmDangerZoneReset = () => {
         <!-- Small Screen Buttons for unsaved changes -->
         <div
             v-if="hasUnsavedChanges"
-            class="md:hidden mt-6 pt-6 flex justify-end items-center gap-3 border-t border-gray-200 dark:border-dark-700"
+            class="md:hidden flex justify-end items-center gap-3 mt-6 pt-6 border-gray-200 dark:border-dark-700 border-t"
         >
             <button
                 @click="resetUnsavedChanges"
-                class="btn-base btn gap-2 bg-gray-150 text-gray-900 hover:bg-gray-200 focus:bg-gray-200 active:bg-gray-200/80 dark:bg-surface-2 dark:text-dark-50 dark:hover:bg-surface-1 dark:focus:bg-surface-1 dark:active:bg-surface-1/90"
+                class="gap-2 bg-gray-150 hover:bg-gray-200 focus:bg-gray-200 active:bg-gray-200/80 dark:active:bg-surface-1/90 dark:bg-surface-2 dark:hover:bg-surface-1 dark:focus:bg-surface-1 text-gray-900 dark:text-dark-50 btn-base btn"
             >
                 <font-awesome-icon icon="fa-solid fa-arrow-rotate-left" />
                 Reset Changes
@@ -311,14 +311,14 @@ const handleConfirmDangerZoneReset = () => {
             <button
                 @click="saveSettings"
                 :disabled="isSaving"
-                class="btn-base btn gap-2 this:primary bg-this text-white hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 disabled:bg-this-light dark:disabled:bg-this-darker w-36"
+                class="gap-2 bg-this hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 disabled:bg-this-light dark:disabled:bg-this-darker w-36 text-white btn-base btn this:primary"
             >
                 <span
                     v-if="isSaving"
-                    class="flex items-center justify-center gap-2"
+                    class="flex justify-center items-center gap-2"
                 >
                     <div
-                        class="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"
+                        class="border-2 border-white border-t-transparent rounded-full w-4 h-4 animate-spin"
                     ></div>
                     Saving...
                 </span>

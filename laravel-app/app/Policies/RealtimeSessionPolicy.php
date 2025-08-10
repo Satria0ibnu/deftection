@@ -50,6 +50,11 @@ class RealtimeSessionPolicy
         return $user->role === 'admin' || $realtimeSession->user_id === $user->id;
     }
 
+    public function deleteAny(User $user): bool
+    {
+        return $user->role === 'admin';
+    }
+
     /**
      * Determine whether the user can filter by user (admin only).
      */
