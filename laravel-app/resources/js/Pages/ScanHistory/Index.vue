@@ -5,7 +5,12 @@ import { useDebounceFn } from "@vueuse/core";
 import { usePolling } from "@/composables/usePolling";
 import { route } from "ziggy-js";
 import { useForm } from "@inertiajs/vue3";
-import { successToast, errorToast, deleteConfirmDialog } from "@/utils/swal";
+import {
+    successToast,
+    errorToast,
+    deleteConfirmDialog,
+    exportConfirmDialog,
+} from "@/utils/swal";
 import { Popover } from "@headlessui/vue";
 
 // Import child components
@@ -401,56 +406,71 @@ const performBatchExport = async () => {
 
         // Build export parameters based on current filters
         const exportParams = buildFilterParams({
-            // Don't include pagination for export
+            // Exclude pagination and search for export
             page: undefined,
             per_page: undefined,
+            search: undefined, // Exclude search for batch export
         });
-
-        // Show loading toast
-        const loadingToast = successToast(
-            "Generating report... Please wait",
-            10000
-        );
 
         console.log("Batch export initiated with params:", exportParams);
 
-        // Use Inertia GET method for the export
-        router.get(route("reports.batch.generate"), exportParams, {
-            preserveState: true,
-            preserveScroll: true,
-            openInNewTab: true,
-            onSuccess: () => {
-                // Close loading toast and show success
-                loadingToast.close();
-                successToast("Report generated successfully!");
-                console.log("Batch export completed successfully");
-            },
-            onError: (errors) => {
-                // Close loading toast and show error
-                loadingToast.close();
-                console.error("Batch export failed:", errors);
+        // Create a form for the export request
+        const form = document.createElement("form");
+        form.method = "GET";
+        form.action = route("reports.batch.generate");
+        form.target = "_blank"; // Open in new tab
 
-                let errorMessage =
-                    "Failed to generate batch report. Please try again.";
-
-                // Check for specific error messages
-                if (errors.message) {
-                    errorMessage = errors.message;
-                } else if (errors.error) {
-                    errorMessage = errors.error;
-                } else if (typeof errors === "string") {
-                    errorMessage = errors;
+        // Add parameters as hidden inputs
+        Object.keys(exportParams).forEach((key) => {
+            const value = exportParams[key];
+            if (value !== undefined && value !== null) {
+                if (Array.isArray(value)) {
+                    // Handle arrays (like defect_types, status, users, roles)
+                    value.forEach((item) => {
+                        const input = document.createElement("input");
+                        input.type = "hidden";
+                        input.name = `${key}[]`;
+                        input.value = item;
+                        form.appendChild(input);
+                    });
+                } else {
+                    // Handle single values
+                    const input = document.createElement("input");
+                    input.type = "hidden";
+                    input.name = key;
+                    input.value = value;
+                    form.appendChild(input);
                 }
-
-                errorToast(errorMessage);
-            },
-            onFinish: () => {
-                isExportingReport.value = false;
-            },
+            }
         });
+
+        // Add CSRF token if available
+        const csrfToken = document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute("content");
+        if (csrfToken) {
+            const csrfInput = document.createElement("input");
+            csrfInput.type = "hidden";
+            csrfInput.name = "_token";
+            csrfInput.value = csrfToken;
+            form.appendChild(csrfInput);
+        }
+
+        // Append form to body, submit, then remove
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+
+        // Show success message
+        successToast(
+            "Report generation started! The download will begin shortly.",
+            10000
+        );
+        console.log("Batch export form submitted successfully");
     } catch (error) {
         console.error("Batch export request failed:", error);
         errorToast("Failed to initiate batch report generation.");
+    } finally {
         isExportingReport.value = false;
     }
 };
@@ -496,7 +516,7 @@ const navigateWithFilters = (customParams = {}) => {
 
     const params = buildFilterParams(customParams);
 
-    console.log("Navigating with params:", params);
+    // console.log("Navigating with params:", params);
 
     router.get(route("scans.index"), params, {
         preserveState: true,
@@ -504,7 +524,7 @@ const navigateWithFilters = (customParams = {}) => {
         replace: true,
         only: ["scans", "filters", "meta", "initialChecksum"],
         onSuccess: (page) => {
-            console.log("Navigation success, new props:", page.props);
+            // console.log("Navigation success, new props:", page.props);
 
             // Update checksum for polling
             if (page.props.initialChecksum) {
@@ -516,7 +536,7 @@ const navigateWithFilters = (customParams = {}) => {
                 initializeFilters();
             }, 50);
 
-            console.log("Navigation successful, data updated");
+            // console.log("Navigation successful, data updated");
         },
         onError: (errors) => {
             console.error("Navigation failed:", errors);
