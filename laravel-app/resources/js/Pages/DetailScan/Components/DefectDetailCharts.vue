@@ -242,39 +242,43 @@ const doughnutChartOptions = computed(() => ({
 
             <!-- Bar Chart -->
             <div
-                class="p-4 border border-gray-200 rounded-lg dark:border-dark-600"
+                class="flex flex-col p-4 border border-gray-200 rounded-lg dark:border-dark-600"
             >
                 <h5
                     class="mb-2 font-medium text-center text-gray-700 dark:text-dark-200"
                 >
                     Defect Confidence Levels
                 </h5>
-                <div class="h-full">
-                    <VueApexCharts
-                        type="bar"
-                        height="400"
-                        :options="barChartOptions"
-                        :series="barChartSeries"
-                    />
+                <div class="flex flex-1">
+                    <div class="w-full self-center">
+                        <VueApexCharts
+                            type="bar"
+                            height="400"
+                            :options="barChartOptions"
+                            :series="barChartSeries"
+                        />
+                    </div>
                 </div>
             </div>
 
             <!-- Right Side: Donut Chart -->
             <div
-                class="p-4 border border-gray-200 rounded-lg dark:border-dark-600"
+                class="flex flex-col p-4 border border-gray-200 rounded-lg dark:border-dark-600"
             >
                 <h5
                     class="mb-2 font-medium text-center text-gray-700 dark:text-dark-200"
                 >
                     Area Coverage Distribution
                 </h5>
-                <div class="h-full">
-                    <VueApexCharts
-                        type="donut"
-                        height="400"
-                        :options="doughnutChartOptions"
-                        :series="doughnutChartSeries"
-                    />
+                <div class="flex flex-1">
+                    <div class="w-full self-center">
+                        <VueApexCharts
+                            type="donut"
+                            height="400"
+                            :options="doughnutChartOptions"
+                            :series="doughnutChartSeries"
+                        />
+                    </div>
                 </div>
             </div>
         </div>
