@@ -7,6 +7,7 @@ import SessionControls from "./Components/SessionControls.vue";
 import LiveStatistics from "./Components/LiveStatistics.vue";
 import ScreenshotGallery from "./Components/ScreenshotGallery.vue";
 import RecentDetections from "./Components/RecentDetections.vue";
+import SessionEndModal from "./Components/Modals/SessionEndModal.vue"; // Import the new modal
 
 // --- Component Refs ---
 const cameraFeedRef = ref(null);
@@ -26,13 +27,16 @@ const stats = reactive({
 });
 const allScreenshots = ref([]);
 
+// --- Modal State ---
+const isModalVisible = ref(false);
+const modalState = ref("processing"); // 'processing' or 'finished'
+
 // --- Computed Properties ---
 const detectionRate = computed(() => {
     if (stats.totalFrames === 0) return 0;
     return stats.defectiveProducts / stats.totalFrames;
 });
 
-// A computed property to get the most recent DEFECTS for the sidebar feed
 const recentDetections = computed(() => {
     return allScreenshots.value.filter((s) => s.type === "Defect").slice(0, 5);
 });
@@ -88,10 +92,52 @@ const simulateApiCall = () => {
     });
 };
 
+// --- Event Handlers ---
+const handleDetectionStarted = () => {
+    console.log("Detection has started.");
+    // You could reset stats here if you want each "start" to be a new session
+    // resetSession();
+};
+
+const handleDetectionStopped = () => {
+    console.log("Detection stopped. Processing session results...");
+    isModalVisible.value = true;
+    modalState.value = "processing";
+
+    // Simulate a delay for processing the session report
+    setTimeout(() => {
+        modalState.value = "finished";
+        console.log("Session report ready.");
+    }, 2000); // 2-second delay
+};
+
+const handleManualCapture = (screenshotData) => {
+    addScreenshot(screenshotData.blob, "Manual", screenshotData.timestamp);
+};
+
+// --- Modal Action Handlers ---
+const handleStartNewSession = () => {
+    resetSession();
+    isModalVisible.value = false;
+    // Optional: automatically restart the camera feed for the new session
+    /*************  ✨ Windsurf Command ⭐  *************/
+    /**
+     * Handles the "View Details" button in the session end modal.
+     * Simulates navigation to a session details page.
+     * In a real app, you would use Vue Router to navigate to the details page.
+     * @example router.push('/session-details/' + someSessionId)
+     */
+    /*******  372da33e-ad14-4199-9a8c-4129551cd590  *******/ // cameraFeedRef.value?.startStream();
+};
+
+const handleViewDetails = () => {
+    console.log("Navigating to session details page...");
+    // In a real app, you would use Vue Router to navigate to a details page
+    // For example: router.push('/session-details/' + someSessionId);
+    isModalVisible.value = false;
+};
+
 // --- Helper Functions ---
-/**
- * FIX: The first argument is the image blob, not the whole data object.
- */
 const addScreenshot = (blob, type, timestamp) => {
     const screenshot = {
         id: `${type}-${timestamp.getTime()}`,
@@ -103,11 +149,6 @@ const addScreenshot = (blob, type, timestamp) => {
     stats.screenshots++;
 };
 
-const handleManualCapture = (screenshotData) => {
-    // The blob from manual capture now correctly includes the overlay
-    addScreenshot(screenshotData.blob, "Manual", screenshotData.timestamp);
-};
-
 const resetSession = () => {
     stats.totalFrames = 0;
     stats.goodProducts = 0;
@@ -116,12 +157,14 @@ const resetSession = () => {
     allScreenshots.value.forEach((img) => URL.revokeObjectURL(img.url));
     allScreenshots.value = [];
     currentDetections.value = [];
+    isModalVisible.value = false; // Ensure modal is hidden on reset
     console.log("Session has been reset.");
 };
 </script>
 
 <template>
-    <div class="w-full">
+    <!-- Added `relative` to contain the absolutely positioned modal -->
+    <div class="w-full relative">
         <div class="gap-6 grid grid-cols-1 lg:grid-cols-3">
             <!-- Main Content: Camera Feed -->
             <div class="lg:col-span-2">
@@ -177,5 +220,15 @@ const resetSession = () => {
                 />
             </div>
         </div>
+
+        <!-- Session End Modal -->
+        <SessionEndModal
+            :is-visible="isModalVisible"
+            :state="modalState"
+            :stats="stats"
+            @start-new="handleStartNewSession"
+            @view-details="handleViewDetails"
+            @close="isModalVisible = false"
+        />
     </div>
 </template>

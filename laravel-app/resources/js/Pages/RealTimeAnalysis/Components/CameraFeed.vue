@@ -25,10 +25,11 @@ const boundingBoxCanvasRef = ref(null);
 // --- Component State ---
 const stream = ref(null);
 const isCameraActive = ref(false);
+const isPaused = ref(false); // NEW: State to handle pause/resume
 const errorMessage = ref("");
 const scanTimer = ref(null);
 const isScanning = computed(
-    () => props.autoScanEnabled && isCameraActive.value
+    () => props.autoScanEnabled && isCameraActive.value && !isPaused.value
 );
 
 // --- Drawing Logic ---
@@ -62,7 +63,8 @@ watch(() => props.detections, drawBoundingBoxes, { deep: true });
 
 // --- Core Camera Methods ---
 const startDetection = async () => {
-    if (stream.value) stopDetection();
+    if (stream.value) stopDetection(false); // Clean up previous stream silently
+
     errorMessage.value = "";
     const constraints = {
         video: {
@@ -78,6 +80,7 @@ const startDetection = async () => {
             videoRef.value.play();
             videoRef.value.onplay = () => {
                 isCameraActive.value = true;
+                isPaused.value = false; // Ensure not paused on start
                 emit("started");
                 drawBoundingBoxes();
             };
@@ -90,23 +93,38 @@ const startDetection = async () => {
     }
 };
 
-const stopDetection = () => {
+const stopDetection = (shouldEmit = true) => {
     stopScanLoop();
     if (stream.value) stream.value.getTracks().forEach((track) => track.stop());
     if (videoRef.value) videoRef.value.srcObject = null;
     const canvas = boundingBoxCanvasRef.value;
     if (canvas)
         canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+
     isCameraActive.value = false;
-    emit("stopped");
+    isPaused.value = false; // Reset paused state on stop
+
+    if (shouldEmit) {
+        emit("stopped");
+    }
 };
 
 // --- Capture & Scanning Logic ---
+const pauseSession = () => {
+    isPaused.value = true;
+    stopScanLoop();
+    console.log("Session paused.");
+};
 
-/**
- * NEW: Helper function to correctly create a merged screenshot.
- */
-const captureFrameWithOverlay = () => {
+const resumeSession = () => {
+    isPaused.value = false;
+    startScanLoop();
+    console.log("Session resumed.");
+};
+
+const saveAnalyzedFrame = async () => {
+    // This function is exposed to the parent but is no longer tied to a button.
+    // It remains available for programmatic use if needed.
     return new Promise((resolve) => {
         if (!isCameraActive.value) {
             resolve(null);
@@ -124,28 +142,10 @@ const captureFrameWithOverlay = () => {
     });
 };
 
-/**
- * UPDATED: The manual capture button now uses the correct function.
- */
-const captureFrame = async () => {
-    const blob = await captureFrameWithOverlay();
-    if (blob) {
-        emit("capture", { blob, timestamp: new Date() });
-    }
-};
-
-/**
- * NEW: This function is exposed to the parent to call after analysis.
- */
-const saveAnalyzedFrame = async () => {
-    return await captureFrameWithOverlay();
-};
-
-// Expose the new method to the parent component.
 defineExpose({ saveAnalyzedFrame });
 
 const captureAndEmitForAnalysis = () => {
-    if (!isCameraActive.value) return;
+    if (!isCameraActive.value || isPaused.value) return;
     const canvas = snapshotCanvasRef.value;
     const video = videoRef.value;
     canvas.width = video.videoWidth;
@@ -162,7 +162,7 @@ const captureAndEmitForAnalysis = () => {
 
 const startScanLoop = () => {
     stopScanLoop();
-    if (props.scanInterval > 0) {
+    if (props.autoScanEnabled && props.scanInterval > 0) {
         scanTimer.value = setInterval(
             captureAndEmitForAnalysis,
             props.scanInterval
@@ -176,16 +176,12 @@ const stopScanLoop = () => {
 };
 
 // --- Watchers ---
-watch(
-    () => props.autoScanEnabled,
-    (nv) => {
-        if (nv && isCameraActive.value) startScanLoop();
-        else stopScanLoop();
+watch(isScanning, (isNowScanning) => {
+    if (isNowScanning) {
+        startScanLoop();
+    } else {
+        stopScanLoop();
     }
-);
-watch(isCameraActive, (nv) => {
-    if (nv && props.autoScanEnabled) startScanLoop();
-    else stopScanLoop();
 });
 watch(
     () => props.scanInterval,
@@ -199,7 +195,8 @@ watch(
         if (nv !== ov && isCameraActive.value) startDetection();
     }
 );
-onUnmounted(stopDetection);
+
+onUnmounted(() => stopDetection(false));
 </script>
 
 <template>
@@ -230,29 +227,40 @@ onUnmounted(stopDetection);
                 </div>
             </div>
             <div class="flex space-x-2">
+                <!-- UPDATED: Dynamic Start/Pause/Resume Button -->
                 <button
+                    v-if="!isCameraActive"
                     @click="startDetection"
-                    :disabled="isCameraActive"
-                    class="btn-base btn gap-2 this:success bg-this text-white hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 disabled:bg-this-light dark:disabled:bg-this-darker"
+                    class="btn-base btn gap-2 this:success bg-this text-white hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90"
                 >
                     <font-awesome-icon icon="fa-solid fa-play" />
                     Start Session
                 </button>
                 <button
-                    @click="stopDetection"
+                    v-else-if="!isPaused"
+                    @click="pauseSession"
+                    class="btn-base btn gap-2 this:warning bg-this text-white hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90"
+                >
+                    <font-awesome-icon icon="fa-solid fa-pause" />
+                    Pause Session
+                </button>
+                <button
+                    v-else
+                    @click="resumeSession"
+                    class="btn-base btn gap-2 this:success bg-this text-white hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90"
+                >
+                    <font-awesome-icon icon="fa-solid fa-play" />
+                    Resume
+                </button>
+
+                <!-- Stop Button -->
+                <button
+                    @click="stopDetection(true)"
                     :disabled="!isCameraActive"
                     class="btn-base btn gap-2 this:error bg-this text-white hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 disabled:bg-this-light dark:disabled:bg-this-darker"
                 >
                     <font-awesome-icon icon="fa-solid fa-stop" />
                     Stop Session
-                </button>
-                <button
-                    @click="captureFrame"
-                    :disabled="!isCameraActive"
-                    class="btn-base btn gap-2 this:primary bg-this text-white hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 disabled:bg-this-light dark:disabled:bg-this-darker"
-                >
-                    <font-awesome-icon icon="fa-solid fa-camera" />
-                    Capture
                 </button>
             </div>
         </div>
@@ -275,14 +283,29 @@ onUnmounted(stopDetection);
             >
             </canvas>
 
-            <!-- Placeholder shown when the camera is off or there's an error -->
+            <!-- Paused State Overlay -->
+            <div
+                v-if="isPaused"
+                class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-black bg-opacity-70 backdrop-blur-sm"
+            >
+                <font-awesome-icon
+                    icon="fa-solid fa-pause"
+                    size="3x"
+                    class="text-white"
+                />
+                <p class="mt-4 text-2xl font-medium text-white">
+                    Session Paused
+                </p>
+            </div>
+
+            <!-- Placeholder shown when the camera is off -->
             <div
                 v-if="!isCameraActive"
                 class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-gray-200 dark:bg-dark-800 bg-opacity-80"
             >
                 <font-awesome-icon icon="fa-solid fa-video-slash" size="2xl" />
                 <p
-                    class="mt-4 mb-2 text-lg font-medium text-gray-700 hover:text-primary-600 focus:text-primary-600 dark:text-dark-100 dark:hover:text-primary-400 dark:focus:text-primary-400"
+                    class="mt-4 mb-2 text-lg font-medium text-gray-700 dark:text-dark-100"
                 >
                     Camera feed will appear here
                 </p>
