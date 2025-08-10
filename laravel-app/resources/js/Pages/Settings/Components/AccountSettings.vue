@@ -154,7 +154,7 @@ const submitPassword = () => {
                         />
                     </div>
                 </div>
-                <div class="mt-6">
+                <div class="mt-6 flex justify-end">
                     <button
                         type="submit"
                         class="btn-base btn this:error bg-this text-white hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 disabled:bg-this-light dark:disabled:bg-this-darker"
