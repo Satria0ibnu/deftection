@@ -245,7 +245,6 @@ class ScanController extends Controller
                 'scan_id' => $scan->id,
                 'user_id' => auth()->id(),
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
             ]);
 
             return redirect()->back()->with('error', 'Failed to load scan details. Please try again.');

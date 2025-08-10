@@ -3,174 +3,294 @@ import { computed } from "vue";
 import VueApexCharts from "vue3-apexcharts";
 
 // --- Props ---
-// This component will receive the performance data from the parent.
 const props = defineProps({
     performanceData: {
         type: Object,
         required: true,
-        // Mock data for visualization
         default: () => ({
             timeBreakdown: {
-                preprocessing: 0.12,
-                aiInference: 0.75,
-                postprocessing: 0.08,
+                preprocessing: 0.483,
+                anomalyInference: 0.902,
+                classificationInference: 0.119, // Only show if defect
+                postprocessing: 0.918,
             },
-            modelPerformance: {
-                accuracy: 99,
-                precision: 85,
-                reliability: 95,
-                speed: 70,
-            },
+            isDefect: false, // To determine if we show classification
         }),
     },
 });
 
 // --- ApexCharts Configuration ---
 
-// --- Pie Chart for Time Breakdown ---
-const pieChartSeries = computed(() => {
+// --- Bar Chart for Processing Performance ---
+const barChartSeries = computed(() => {
     const data = props.performanceData.timeBreakdown;
-    return [data.preprocessing, data.aiInference, data.postprocessing];
-});
+    const times = [
+        data.preprocessing * 1000, // Convert to ms
+        data.anomalyInference * 1000,
+        data.postprocessing * 1000,
+    ];
 
-const pieChartOptions = computed(() => ({
-    chart: {
-        type: "pie",
-    },
-    labels: ["Preprocessing", "AI Inference", "Post-processing"],
-    colors: ["#3B82F6", "#10B981", "#F59E0B"], // Blue, Green, Amber
-    dataLabels: {
-        enabled: false,
-    },
-    legend: {
-        position: "bottom",
-        labels: {
-            colors: "#D1D5DB", // gray-300 for dark mode text
-        },
-    },
-    tooltip: {
-        theme: "dark",
-        y: {
-            formatter: (val) => `${val.toFixed(2)}s`,
-            title: {
-                formatter: (seriesName) => `${seriesName}:`,
-            },
-        },
-    },
-}));
+    if (props.performanceData.isDefect) {
+        times.splice(2, 0, data.classificationInference * 1000); // Insert classification at index 2
+    }
 
-// --- Radar Chart for AI Model Performance ---
-const radarChartSeries = computed(() => {
-    const data = props.performanceData.modelPerformance;
     return [
         {
-            name: "Performance Score",
-            data: [data.accuracy, data.precision, data.reliability, data.speed],
+            name: "Time (ms)",
+            data: times,
         },
     ];
 });
 
-const radarChartOptions = computed(() => ({
-    chart: {
-        type: "radar",
-        toolbar: { show: false },
-    },
-    xaxis: {
-        categories: ["Accuracy", "Precision", "Reliability", "Speed"],
-        labels: {
-            style: {
-                colors: ["#D1D5DB", "#D1D5DB", "#D1D5DB", "#D1D5DB"], // gray-300
+const barChartOptions = computed(() => {
+    const categories = props.performanceData.isDefect
+        ? [
+              "Preprocessing",
+              "Anomaly Inference",
+              "Classification Inference",
+              "Postprocessing",
+          ]
+        : ["Preprocessing", "Anomaly Inference", "Postprocessing"];
+
+    return {
+        chart: {
+            type: "bar",
+            toolbar: { show: false },
+        },
+        plotOptions: {
+            bar: {
+                horizontal: false,
+                columnWidth: "55%",
+                borderRadius: 4,
             },
         },
-    },
-    yaxis: {
-        show: true,
-        min: 0,
-        max: 100,
-        tickAmount: 5,
-        labels: {
-            style: {
-                colors: "#9CA3AF", // gray-400
-            },
-            formatter: (val) => val.toFixed(0),
+        dataLabels: {
+            enabled: false,
         },
-    },
-    stroke: {
-        width: 2,
-        colors: ["#3B82F6"], // Blue
-    },
-    fill: {
-        opacity: 0.1,
-        colors: ["#3B82F6"],
-    },
-    markers: {
-        size: 4,
-        colors: ["#FFF"],
-        strokeColors: "#3B82F6",
-        strokeWidth: 2,
-    },
-    tooltip: {
-        theme: "dark",
-        y: {
-            formatter: (val) => val.toFixed(0),
+        stroke: {
+            show: true,
+            width: 2,
+            colors: ["transparent"],
         },
-    },
-    plotOptions: {
-        radar: {
-            polygons: {
-                strokeColors: "#4B5563", // gray-600
-                connectorColors: "#4B5563",
+        xaxis: {
+            categories: categories,
+            labels: {
+                style: {
+                    colors: "#D1D5DB",
+                },
             },
         },
-    },
-}));
+        yaxis: {
+            title: {
+                text: "Time (ms)",
+                style: {
+                    color: "#D1D5DB",
+                },
+            },
+            labels: {
+                style: {
+                    colors: "#9CA3AF",
+                },
+                formatter: (val) => val.toFixed(1),
+            },
+        },
+        fill: {
+            opacity: 1,
+            colors: props.performanceData.isDefect
+                ? ["#3B82F6", "#10B981", "#EF4444", "#F59E0B"]
+                : ["#3B82F6", "#10B981", "#F59E0B"],
+        },
+        tooltip: {
+            theme: "dark",
+            y: {
+                formatter: (val) => `${val.toFixed(1)}ms`,
+            },
+        },
+        grid: {
+            borderColor: "#4B5563",
+        },
+    };
+});
+
+// Calculate percentages for display
+const percentages = computed(() => {
+    const data = props.performanceData.timeBreakdown;
+    const total =
+        data.preprocessing +
+        data.anomalyInference +
+        data.postprocessing +
+        (props.performanceData.isDefect ? data.classificationInference : 0);
+
+    const result = {
+        preprocessing: ((data.preprocessing / total) * 100).toFixed(1),
+        anomalyInference: ((data.anomalyInference / total) * 100).toFixed(1),
+        postprocessing: ((data.postprocessing / total) * 100).toFixed(1),
+    };
+
+    if (props.performanceData.isDefect) {
+        result.classificationInference = (
+            (data.classificationInference / total) *
+            100
+        ).toFixed(1);
+    }
+
+    return result;
+});
 </script>
 
 <template>
     <div
-        class="px-6 py-5 bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-dark-800 dark:shadow-none dark:border-none"
+        class="bg-white dark:bg-dark-800 shadow-sm dark:shadow-none px-6 py-5 border border-gray-200 dark:border-none rounded-lg"
     >
         <h3
-            class="flex items-center mb-6 gap-4 text-lg font-semibold text-gray-900 dark:text-dark-50"
+            class="flex items-center gap-4 mb-6 font-semibold text-gray-900 dark:text-dark-50 text-lg"
         >
             <font-awesome-icon icon="fa-solid fa-chart-pie" />
-            Analysis Performance Metrics
+            Processing Performance Analysis
         </h3>
 
-        <div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
+        <div class="gap-8 grid grid-cols-1 lg:grid-cols-2">
             <!-- Left Side: Pie Chart -->
             <div
-                class="p-4 border border-gray-200 rounded-lg dark:border-dark-600"
+                class="p-4 border border-gray-200 dark:border-dark-600 rounded-lg"
             >
                 <h5
-                    class="mb-4 font-medium text-center text-gray-700 dark:text-dark-200"
+                    class="mb-4 font-medium text-gray-700 dark:text-dark-200 text-center"
                 >
-                    Processing Time Breakdown
+                    Processing Time Table
                 </h5>
-                <VueApexCharts
-                    type="pie"
-                    height="420"
-                    :options="pieChartOptions"
-                    :series="pieChartSeries"
-                />
+                <table
+                    class="divide-y divide-gray-200 dark:divide-dark-600 min-w-full"
+                >
+                    <thead class="bg-gray-50 dark:bg-dark-700">
+                        <tr>
+                            <th
+                                class="px-6 py-3 font-medium text-gray-500 dark:text-dark-300 text-xs text-left uppercase tracking-wider"
+                            >
+                                Processing Stage
+                            </th>
+                            <th
+                                class="px-6 py-3 font-medium text-gray-500 dark:text-dark-300 text-xs text-left uppercase tracking-wider"
+                            >
+                                Time (ms)
+                            </th>
+                            <th
+                                class="px-6 py-3 font-medium text-gray-500 dark:text-dark-300 text-xs text-left uppercase tracking-wider"
+                            >
+                                Percentage
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody
+                        class="bg-white dark:bg-dark-800 divide-y divide-gray-200 dark:divide-dark-600"
+                    >
+                        <tr>
+                            <td
+                                class="px-6 py-4 text-gray-900 dark:text-dark-100 text-sm whitespace-nowrap"
+                            >
+                                Preprocessing
+                            </td>
+                            <td
+                                class="px-6 py-4 text-gray-900 dark:text-dark-100 text-sm whitespace-nowrap"
+                            >
+                                {{
+                                    (
+                                        performanceData.timeBreakdown
+                                            .preprocessing * 1000
+                                    ).toFixed(1)
+                                }}
+                            </td>
+                            <td
+                                class="px-6 py-4 text-gray-900 dark:text-dark-100 text-sm whitespace-nowrap"
+                            >
+                                {{ percentages.preprocessing }}%
+                            </td>
+                        </tr>
+                        <tr>
+                            <td
+                                class="px-6 py-4 text-gray-900 dark:text-dark-100 text-sm whitespace-nowrap"
+                            >
+                                Anomaly Inference
+                            </td>
+                            <td
+                                class="px-6 py-4 text-gray-900 dark:text-dark-100 text-sm whitespace-nowrap"
+                            >
+                                {{
+                                    (
+                                        performanceData.timeBreakdown
+                                            .anomalyInference * 1000
+                                    ).toFixed(1)
+                                }}
+                            </td>
+                            <td
+                                class="px-6 py-4 text-gray-900 dark:text-dark-100 text-sm whitespace-nowrap"
+                            >
+                                {{ percentages.anomalyInference }}%
+                            </td>
+                        </tr>
+                        <tr v-if="performanceData.isDefect">
+                            <td
+                                class="px-6 py-4 text-gray-900 dark:text-dark-100 text-sm whitespace-nowrap"
+                            >
+                                Classification Inference
+                            </td>
+                            <td
+                                class="px-6 py-4 text-gray-900 dark:text-dark-100 text-sm whitespace-nowrap"
+                            >
+                                {{
+                                    (
+                                        performanceData.timeBreakdown
+                                            .classificationInference * 1000
+                                    ).toFixed(1)
+                                }}
+                            </td>
+                            <td
+                                class="px-6 py-4 text-gray-900 dark:text-dark-100 text-sm whitespace-nowrap"
+                            >
+                                {{ percentages.classificationInference }}%
+                            </td>
+                        </tr>
+                        <tr>
+                            <td
+                                class="px-6 py-4 text-gray-900 dark:text-dark-100 text-sm whitespace-nowrap"
+                            >
+                                Postprocessing
+                            </td>
+                            <td
+                                class="px-6 py-4 text-gray-900 dark:text-dark-100 text-sm whitespace-nowrap"
+                            >
+                                {{
+                                    (
+                                        performanceData.timeBreakdown
+                                            .postprocessing * 1000
+                                    ).toFixed(1)
+                                }}
+                            </td>
+                            <td
+                                class="px-6 py-4 text-gray-900 dark:text-dark-100 text-sm whitespace-nowrap"
+                            >
+                                {{ percentages.postprocessing }}%
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
 
-            <!-- Right Side: Radar Chart -->
+            <!-- Right Side: Bar Chart -->
             <div
-                class="flex flex-col border border-gray-200 rounded-lg dark:border-dark-600"
+                class="p-4 border border-gray-200 dark:border-dark-600 rounded-lg"
             >
                 <h5
-                    class="pt-4 font-medium text-center text-gray-700 dark:text-dark-200"
+                    class="mb-4 font-medium text-gray-700 dark:text-dark-200 text-center"
                 >
-                    AI Model Performance
+                    Processing Time Distribution
                 </h5>
-                <div class="">
-                    <VueApexCharts
-                        type="radar"
-                        :options="radarChartOptions"
-                        :series="radarChartSeries"
-                    />
-                </div>
+                <VueApexCharts
+                    type="bar"
+                    height="350"
+                    :options="barChartOptions"
+                    :series="barChartSeries"
+                />
             </div>
         </div>
     </div>

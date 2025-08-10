@@ -2,91 +2,61 @@
 import { ref, computed } from "vue";
 
 // --- Props ---
-// This component will receive a single object with all the summary data.
 const props = defineProps({
     summary: {
         type: Object,
-        // The default function provides the mock data for visualization.
         default: () => ({
             imageName: "work.png",
             originalSize: "16x16",
             analysisDate: "09/07/2025, 09:43:49",
-            processingTime: "0.000s",
+            scannedBy: "User Name", // Added scanned by info
             finalDecision: "GOOD",
             anomalyScore: 0.6734,
-            confidenceLevel: "Medium",
+            anomalyConfidenceLevel: "Medium", // Changed from confidenceLevel
             status: "Completed",
-            processingSpeed: 1.0,
-            aiConfidence: 67,
-            analysisQuality: "Medium",
+            // Removed processingTime from here, moved to performance card
+            // Performance metrics moved to separate card
+            totalProcessingTime: "2.421s",
+            preprocessingTime: "0.483s",
+            anomalyInferenceTime: "0.902s",
+            classificationInferenceTime: "0.119s", // Only show if defect
+            postprocessingTime: "0.918s",
         }),
     },
 });
 
 // --- Computed Properties ---
-
-// Determines the color of the confidence level bar based on the score.
 const confidenceTextClass = computed(() => {
-    const score = props.summary.anomalyScore;
-    if (score > 0.75)
-        return {
-            score: "high",
-            color: "success",
-        };
-    if (score > 0.5)
-        return {
-            score: "medium",
-            color: "warning",
-        };
-    return {
-        score: "low",
-        color: "error",
-    };
+    const level = props.summary.anomalyConfidenceLevel?.toLowerCase();
+    if (level === "very high" || level === "high")
+        return { score: "high", color: "success" };
+    if (level === "medium") return { score: "medium", color: "warning" };
+    return { score: "low", color: "error" };
 });
 
-const confidenceAIClass = computed(() => {
-    const score = props.summary.aiConfidence;
-    if (score > 75)
-        return {
-            score: "high",
-            color: "success",
-        };
-    if (score > 50)
-        return {
-            score: "medium",
-            color: "warning",
-        };
-    return {
-        score: "low",
-        color: "error",
-    };
+const isDefectScan = computed(() => {
+    return props.summary.finalDecision === "DEFECT";
 });
 </script>
 
 <template>
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <!-- Card 1: Image Information -->
+    <div class="gap-6 grid grid-cols-1 lg:grid-cols-3">
+        <!-- Card 1: Image Information (Updated) -->
         <div
-            class="px-6 py-5 bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-dark-800 dark:shadow-none dark:border-none"
+            class="bg-white dark:bg-dark-800 shadow-sm dark:shadow-none px-6 py-5 border border-gray-200 dark:border-none rounded-lg"
         >
             <h3
-                class="flex items-center mb-6 gap-4 text-lg font-semibold text-gray-900 dark:text-dark-50"
+                class="flex items-center gap-4 mb-6 font-semibold text-gray-900 dark:text-dark-50 text-lg"
             >
                 <font-awesome-icon icon="fa-solid fa-image" />
                 Image Information
             </h3>
             <div class="space-y-5">
                 <div class="flex justify-between">
-                    <span class="font-medium text-gray-800 dark:text-dark-100">
-                        Image Name
-                    </span>
-                    <span class="text-right">{{ summary.imageName }}</span>
-                </div>
-                <div class="flex justify-between">
                     <span class="font-medium text-gray-800 dark:text-dark-100"
-                        >Original Size</span
+                        >Image Name</span
                     >
-                    <span class="text-right">{{ summary.originalSize }}</span>
+                    <span class="text-right">{{ summary.imageName }}</span>
                 </div>
                 <div class="flex justify-between">
                     <span class="font-medium text-gray-800 dark:text-dark-100"
@@ -96,41 +66,39 @@ const confidenceAIClass = computed(() => {
                 </div>
                 <div class="flex justify-between">
                     <span class="font-medium text-gray-800 dark:text-dark-100"
-                        >Processing Time</span
+                        >Scanned By</span
                     >
-                    <div
-                        class="badge-base badge this:info text-this-darker bg-this-darker/[0.07] dark:text-this-lighter dark:bg-this-lighter/10 border border-this-darker/20 dark:border-this-lighter/20"
-                    >
-                        {{ summary.processingTime }}
-                    </div>
+                    <span class="text-right">{{
+                        summary.scannedBy || "Unknown"
+                    }}</span>
                 </div>
             </div>
         </div>
 
-        <!-- Card 2: Detection Results -->
+        <!-- Card 2: Detection Results (Updated) -->
         <div
-            class="px-6 py-5 bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-dark-800 dark:shadow-none dark:border-none"
+            class="bg-white dark:bg-dark-800 shadow-sm dark:shadow-none px-6 py-5 border border-gray-200 dark:border-none rounded-lg"
         >
             <h3
-                class="flex items-center mb-6 gap-4 text-lg font-semibold text-gray-900 dark:text-dark-50"
+                class="flex items-center gap-4 mb-6 font-semibold text-gray-900 dark:text-dark-50 text-lg"
             >
                 <font-awesome-icon icon="fa-solid fa-magnifying-glass" />
                 Detection Results
             </h3>
             <div class="space-y-4 text-sm">
-                <div class="flex items-center justify-between">
+                <div class="flex justify-between items-center">
                     <span class="font-medium text-gray-800 dark:text-dark-100"
                         >Final Decision</span
                     >
                     <div
                         v-if="summary.finalDecision === 'GOOD'"
-                        class="badge-base badge this:success text-this-darker bg-this-darker/[0.07] dark:text-this-lighter dark:bg-this-lighter/10 border border-this-darker/20 dark:border-this-lighter/20"
+                        class="bg-this-darker/[0.07] dark:bg-this-lighter/10 border border-this-darker/20 dark:border-this-lighter/20 text-this-darker dark:text-this-lighter badge-base badge this:success"
                     >
                         {{ summary.finalDecision }}
                     </div>
                     <div
                         v-else
-                        class="badge-base badge this:error text-this-darker bg-this-darker/[0.07] dark:text-this-lighter dark:bg-this-lighter/10 border border-this-darker/20 dark:border-this-lighter/20"
+                        class="bg-this-darker/[0.07] dark:bg-this-lighter/10 border border-this-darker/20 dark:border-this-lighter/20 text-this-darker dark:text-this-lighter badge-base badge this:error"
                     >
                         DEFECT
                     </div>
@@ -140,21 +108,21 @@ const confidenceAIClass = computed(() => {
                         >Anomaly Score</span
                     >
                     <div
-                        class="badge-base badge text-this-darker bg-this-darker/[0.07] dark:text-this-lighter dark:bg-this-lighter/10 border border-this-darker/20 dark:border-this-lighter/20 uppercase"
+                        class="bg-this-darker/[0.07] dark:bg-this-lighter/10 border border-this-darker/20 dark:border-this-lighter/20 text-this-darker dark:text-this-lighter uppercase badge-base badge"
                         :class="`this:${confidenceTextClass.color}`"
                     >
-                        {{ summary.anomalyScore.toFixed(4) }}
+                        {{ summary.anomalyScore?.toFixed(4) || "0.0000" }}
                     </div>
                 </div>
                 <div class="flex justify-between">
                     <span class="font-medium text-gray-800 dark:text-dark-100"
-                        >Confidence Level</span
+                        >Anomaly Confidence</span
                     >
                     <div
-                        class="badge-base badge text-this-darker bg-this-darker/[0.07] dark:text-this-lighter dark:bg-this-lighter/10 border border-this-darker/20 dark:border-this-lighter/20 uppercase"
+                        class="bg-this-darker/[0.07] dark:bg-this-lighter/10 border border-this-darker/20 dark:border-this-lighter/20 text-this-darker dark:text-this-lighter uppercase badge-base badge"
                         :class="`this:${confidenceTextClass.color}`"
                     >
-                        {{ confidenceTextClass.score }}
+                        {{ summary.anomalyConfidenceLevel || "Unknown" }}
                     </div>
                 </div>
                 <div class="flex justify-between">
@@ -162,7 +130,7 @@ const confidenceAIClass = computed(() => {
                         >Status</span
                     >
                     <div
-                        class="badge-base badge this:success text-this-darker bg-this-darker/[0.07] dark:text-this-lighter dark:bg-this-lighter/10 border border-this-darker/20 dark:border-this-lighter/20 uppercase"
+                        class="bg-this-darker/[0.07] dark:bg-this-lighter/10 border border-this-darker/20 dark:border-this-lighter/20 text-this-darker dark:text-this-lighter uppercase badge-base badge this:success"
                     >
                         {{ summary.status }}
                     </div>
@@ -170,47 +138,65 @@ const confidenceAIClass = computed(() => {
             </div>
         </div>
 
-        <!-- Card 3: Performance Metrics -->
+        <!-- Card 3: Processing Performance (Updated) -->
         <div
-            class="px-6 py-5 bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-dark-800 dark:shadow-none dark:border-none"
+            class="bg-white dark:bg-dark-800 shadow-sm dark:shadow-none px-6 py-5 border border-gray-200 dark:border-none rounded-lg"
         >
             <h3
-                class="flex items-center mb-6 gap-4 text-lg font-semibold text-gray-900 dark:text-dark-50"
+                class="flex items-center gap-4 mb-6 font-semibold text-gray-900 dark:text-dark-50 text-lg"
             >
-                <font-awesome-icon icon="fa-solid fa-chart-column" />
-                Performance Metrics
+                <font-awesome-icon icon="fa-solid fa-clock" />
+                Processing Performance
             </h3>
             <div class="space-y-4 text-sm">
                 <div class="flex justify-between">
                     <span class="font-medium text-gray-800 dark:text-dark-100"
-                        >Processing Speed</span
+                        >Total Time</span
                     >
                     <div
-                        class="badge-base badge this:info text-this-darker bg-this-darker/[0.07] dark:text-this-lighter dark:bg-this-lighter/10 border border-this-darker/20 dark:border-this-lighter/20 uppercase"
+                        class="bg-this-darker/[0.07] dark:bg-this-lighter/10 border border-this-darker/20 dark:border-this-lighter/20 text-this-darker dark:text-this-lighter badge-base badge this:info"
                     >
-                        {{ summary.processingSpeed.toFixed(1) }} FPS
+                        {{ summary.totalProcessingTime || "0.000s" }}
                     </div>
                 </div>
                 <div class="flex justify-between">
                     <span class="font-medium text-gray-800 dark:text-dark-100"
-                        >AI Confidence</span
+                        >Preprocessing</span
                     >
                     <div
-                        class="badge-base badge text-this-darker bg-this-darker/[0.07] dark:text-this-lighter dark:bg-this-lighter/10 border border-this-darker/20 dark:border-this-lighter/20"
-                        :class="`this:${confidenceAIClass.color}`"
+                        class="bg-this-darker/[0.07] dark:bg-this-lighter/10 border border-this-darker/20 dark:border-this-lighter/20 text-this-darker dark:text-this-lighter badge-base badge this:secondary"
                     >
-                        {{ summary.aiConfidence }}%
+                        {{ summary.preprocessingTime || "0.000s" }}
                     </div>
                 </div>
                 <div class="flex justify-between">
                     <span class="font-medium text-gray-800 dark:text-dark-100"
-                        >Analysis Quality</span
+                        >Anomaly Inference</span
                     >
                     <div
-                        class="badge-base badge text-this-darker bg-this-darker/[0.07] dark:text-this-lighter dark:bg-this-lighter/10 border border-this-darker/20 dark:border-this-lighter/20 uppercase"
-                        :class="`this:${confidenceAIClass.color}`"
+                        class="bg-this-darker/[0.07] dark:bg-this-lighter/10 border border-this-darker/20 dark:border-this-lighter/20 text-this-darker dark:text-this-lighter badge-base badge this:secondary"
                     >
-                        {{ confidenceAIClass.score }}
+                        {{ summary.anomalyInferenceTime || "0.000s" }}
+                    </div>
+                </div>
+                <div v-if="isDefectScan" class="flex justify-between">
+                    <span class="font-medium text-gray-800 dark:text-dark-100"
+                        >Classification</span
+                    >
+                    <div
+                        class="bg-this-darker/[0.07] dark:bg-this-lighter/10 border border-this-darker/20 dark:border-this-lighter/20 text-this-darker dark:text-this-lighter badge-base badge this:secondary"
+                    >
+                        {{ summary.classificationInferenceTime || "0.000s" }}
+                    </div>
+                </div>
+                <div class="flex justify-between">
+                    <span class="font-medium text-gray-800 dark:text-dark-100"
+                        >Postprocessing</span
+                    >
+                    <div
+                        class="bg-this-darker/[0.07] dark:bg-this-lighter/10 border border-this-darker/20 dark:border-this-lighter/20 text-this-darker dark:text-this-lighter badge-base badge this:secondary"
+                    >
+                        {{ summary.postprocessingTime || "0.000s" }}
                     </div>
                 </div>
             </div>
