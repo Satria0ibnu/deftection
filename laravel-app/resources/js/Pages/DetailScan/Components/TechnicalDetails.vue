@@ -15,14 +15,12 @@ const props = defineProps({
                 Postprocessing: "0.918s",
                 "Model Used": "HRNet + Anomalib",
             },
-            // Updated metrics - removed model performance, added scan-specific metrics
             scanMetrics: {
                 "Anomaly Score": 0.862,
                 "Anomaly Confidence Level": "Low",
                 "Anomaly Threshold": 0.622,
                 "Classification Avg Confidence": 0.053, // Only for defects
             },
-            // Threat analysis data (new)
             threatData: {
                 status: "SUSPICIOUS",
                 riskLevel: "MEDIUM",
@@ -65,46 +63,6 @@ const formattedRawData = computed(() => {
     return JSON.stringify(props.details.rawData, null, 2);
 });
 
-// Helper to get progress bar color based on value type
-const getMetricColor = (key, value) => {
-    if (key.includes("Anomaly Score") || key.includes("Classification")) {
-        if (value > 0.75) return "bg-red-500";
-        if (value > 0.5) return "bg-yellow-500";
-        return "bg-green-500";
-    }
-    return "bg-blue-500";
-};
-
-// Convert values to display format
-const formatMetricValue = (key, value) => {
-    if (typeof value === "number") {
-        if (
-            key.includes("Score") ||
-            key.includes("Confidence") ||
-            key.includes("Threshold")
-        ) {
-            return (value * 100).toFixed(1) + "%";
-        }
-        return value.toString();
-    }
-    return value;
-};
-
-// Get percentage for progress bar
-const getMetricPercentage = (key, value) => {
-    if (typeof value === "number") {
-        if (
-            key.includes("Score") ||
-            key.includes("Confidence") ||
-            key.includes("Threshold")
-        ) {
-            return value * 100;
-        }
-        return Math.min(value, 100);
-    }
-    return 0;
-};
-
 // Filter parameters for defect scans
 const filteredParameters = computed(() => {
     const params = { ...props.details.parameters };
@@ -114,14 +72,114 @@ const filteredParameters = computed(() => {
     return params;
 });
 
-// Filter metrics for defect scans
+// Filter metrics for defect scans, removing the confidence level to be displayed separately
 const filteredMetrics = computed(() => {
     const metrics = { ...props.details.scanMetrics };
     if (!props.details.isDefect && metrics["Classification Avg Confidence"]) {
         delete metrics["Classification Avg Confidence"];
     }
+    // Remove confidence level so it's not rendered with a progress bar
+    delete metrics["Anomaly Confidence Level"];
     return metrics;
 });
+
+// New computed property to style the anomaly confidence level text as a badge
+const anomalyConfidenceStyle = computed(() => {
+    const level = props.details.scanMetrics["Anomaly Confidence Level"];
+
+    // Handle cases where level might be missing or not a string
+    if (typeof level !== "string") {
+        return { text: "N/A", class: "text-gray-500" };
+    }
+
+    const baseClass = "px-2 py-1 rounded-sm font-medium text-xs";
+
+    // Convert to lowercase for case-insensitive matching
+    switch (level.toLowerCase()) {
+        case "high":
+            return {
+                text: "High",
+                class: `${baseClass} bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-400`,
+            };
+        case "medium":
+            return {
+                text: "Medium",
+                class: `${baseClass} bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-400`,
+            };
+        case "low":
+            return {
+                text: "Low",
+                class: `${baseClass} bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-400`,
+            };
+        default:
+            return { text: "N/A", class: "text-gray-500" };
+    }
+});
+
+// --- Helper Functions ---
+
+/**
+ * Formats the metric value for display.
+ * Converts string numbers to numbers, then formats to 3 decimal places.
+ */
+const formatMetricValue = (key, value) => {
+    // Attempt to parse the value as a float. This handles both numbers and string-numbers.
+    const num = parseFloat(value);
+
+    // Check if the result is a valid number (not NaN).
+    // This will be true for numbers (e.g., 0.862) and numeric strings ("0.862"),
+    // but false for non-numeric strings (e.g., "Low").
+    if (!isNaN(num)) {
+        return num.toFixed(3);
+    }
+
+    // If it's not a number, return the original value.
+    return value;
+};
+
+/**
+ * Determines the display color of the progress bar based on the metric's meaning.
+ */
+const getMetricColor = (key, value) => {
+    switch (key) {
+        case "Anomaly Score":
+            // Higher score is more critical
+            if (value > 0.8) return "bg-red-500";
+            if (value > 0.6) return "bg-yellow-500";
+            return "bg-green-500";
+
+        case "Classification Avg Confidence":
+            // For defects, higher confidence is better (more certain)
+            if (value > 0.8) return "bg-green-500";
+            if (value > 0.5) return "bg-yellow-500";
+            return "bg-red-500";
+
+        case "Anomaly Threshold":
+            // Use a neutral color for a threshold setting
+            return "bg-blue-500";
+
+        default:
+            // Fallback for any other metrics
+            return "bg-gray-400";
+    }
+};
+
+/**
+ * Calculates the width of the progress bar as a percentage.
+ */
+const getMetricPercentage = (key, value) => {
+    switch (key) {
+        case "Anomaly Score":
+        case "Anomaly Threshold":
+        case "Classification Avg Confidence":
+            // Convert decimal (0 to 1) to a percentage
+            return (value || 0) * 100;
+
+        default:
+            // Fallback for any other numeric metrics
+            return typeof value === "number" ? value * 100 : 0;
+    }
+};
 </script>
 
 <template>
@@ -171,6 +229,14 @@ const filteredMetrics = computed(() => {
                             Scan Analysis Metrics
                         </h2>
                         <div class="space-y-4">
+                            <div class="flex justify-between mb-2 text-sm">
+                                <span class="truncate"
+                                    >Anomaly Confidence Level</span
+                                >
+                                <span :class="anomalyConfidenceStyle.class">
+                                    {{ anomalyConfidenceStyle.text }}
+                                </span>
+                            </div>
                             <div
                                 v-for="(value, key) in filteredMetrics"
                                 :key="key"
@@ -226,7 +292,7 @@ const filteredMetrics = computed(() => {
             <h3
                 class="flex items-center gap-4 mb-6 font-semibold text-gray-900 dark:text-dark-50 text-lg"
             >
-                <font-awesome-icon icon="fa-solid fa-shield-exclamation" />
+                <font-awesome-icon icon="fa-solid fa-shield" />
                 Security Threat Analysis
             </h3>
 

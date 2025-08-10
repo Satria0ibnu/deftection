@@ -1,34 +1,30 @@
 <script setup>
-import { useForm } from "@inertiajs/vue3";
+import { computed } from "vue";
 
 // --- Props ---
-// This component will receive the current detection settings from the parent page.
+// This component receives the current detection settings from the parent page.
 const props = defineProps({
     settings: {
         type: Object,
-        // Mock data for visualization
-        default: () => ({
-            anomalyThreshold: 0.7,
-            defectThreshold: 0.85,
-            autoSave: true,
-            generateVisualizations: true,
-            exportFormat: "pdf",
-        }),
+        required: true,
     },
 });
 
-// --- Form Management ---
-// Initialize the form with the settings data.
-const form = useForm({
-    anomalyThreshold: props.settings.anomalyThreshold,
-    defectThreshold: props.settings.defectThreshold,
-    autoSave: props.settings.autoSave,
-    generateVisualizations: props.settings.generateVisualizations,
-    exportFormat: props.settings.exportFormat,
-});
+// --- Emits ---
+// Defines the event that will be sent to the parent component.
+const emit = defineEmits(["update:settings"]);
 
-// The main "Save Settings" button is in the parent Index.vue.
-// In a real app, the parent would read this form's data when saving.
+// --- Local Computed Form ---
+// This computed property acts as a two-way binding. It reads from the prop
+// but emits an event when a change is made, rather than modifying the prop directly.
+const form = computed({
+    get() {
+        return props.settings;
+    },
+    set(newSettings) {
+        emit("update:settings", newSettings);
+    },
+});
 </script>
 
 <template>

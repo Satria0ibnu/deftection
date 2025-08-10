@@ -8,7 +8,6 @@ const props = defineProps({
     goodProducts: { type: Number, default: 0 },
     defectiveProducts: { type: Number, default: 0 },
     detectionRate: { type: Number, default: 0 }, // Should be a value between 0 and 1
-    screenshots: { type: Number, default: 0 },
 });
 
 // --- Expose Method ---
@@ -59,12 +58,6 @@ defineExpose({
                 <span>Detection Rate</span>
                 <span class="text-warning dark:text-warning-lighter">
                     {{ (detectionRate * 100).toFixed(0) }}%
-                </span>
-            </div>
-            <div class="flex items-center justify-between">
-                <span>Screenshots</span>
-                <span class="text-info dark:text-info-lighter">
-                    {{ screenshots }}
                 </span>
             </div>
         </div>

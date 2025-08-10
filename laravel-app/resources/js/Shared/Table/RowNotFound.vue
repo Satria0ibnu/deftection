@@ -4,7 +4,7 @@ defineProps({ label: { type: String, default: "No results found" } });
 </script>
 <template>
     <tr>
-        <td colspan="6" class="px-6 py-12 text-center">
+        <td colspan="10" class="px-6 py-12 text-center">
             <div class="">
                 <svg
                     class="mx-auto w-12 h-12"

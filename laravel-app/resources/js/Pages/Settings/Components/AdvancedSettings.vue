@@ -1,40 +1,29 @@
 <script setup>
-import { useForm } from "@inertiajs/vue3";
+import { computed, onMounted } from "vue";
 
 // --- Props ---
 const props = defineProps({
     settings: {
         type: Object,
-        // Mock data for visualization
-        default: () => ({
-            systemInfo: {
-                "System Version": "v2.0.0",
-                "API Status": "Unknown",
-                "Models Loaded": "Yes",
-                Database: "Connected",
-            },
-            performance: {
-                maxConcurrentAnalyses: 2,
-                cacheDuration: 24,
-            },
-            dataManagement: {
-                autoCleanup: true,
-                backupToCloud: false,
-            },
-        }),
+        required: true,
     },
 });
 
+console.log("AdvancedSettings props:", props.settings);
+console.log("Current settings:", JSON.stringify(props.settings, null, 2));
+
 // --- Emits ---
 // Defines events for the dangerous actions. The parent component will handle these.
-const emit = defineEmits(["clear-data", "reset-settings"]);
+const emit = defineEmits(["update:settings"]);
 
 // --- Form Management ---
-const form = useForm({
-    maxConcurrentAnalyses: props.settings.performance.maxConcurrentAnalyses,
-    cacheDuration: props.settings.performance.cacheDuration,
-    autoCleanup: props.settings.dataManagement.autoCleanup,
-    backupToCloud: props.settings.dataManagement.backupToCloud,
+const form = computed({
+    get() {
+        return props.settings.performance;
+    },
+    set(newSettings) {
+        emit("update:settings", newSettings);
+    },
 });
 
 // Helper to get status text color
@@ -143,6 +132,7 @@ const getStatusColor = (status) => {
                         v-model.number="form.cacheDuration"
                         type="number"
                         id="cacheDuration"
+                        max="24"
                         class="mt-1 max-w-xs form-input-base form-input peer border-gray-300 hover:border-gray-400 focus:border-primary-600 dark:border-dark-450 dark:hover:border-dark-400 dark:focus:border-primary-500"
                     />
                     <p class="mt-1 text-xs text-gray-400 dark:text-dark-300">
@@ -213,3 +203,13 @@ const getStatusColor = (status) => {
         </div>
     </div>
 </template>
+
+<style scoped>
+.dark #maxConcurrent {
+    --bg-color: rgb(21, 22, 26);
+}
+
+#maxConcurrent {
+    --bg-color: rgb(255, 255, 255);
+}
+</style>

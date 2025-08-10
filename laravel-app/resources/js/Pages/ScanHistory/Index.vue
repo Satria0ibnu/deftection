@@ -689,8 +689,8 @@ if (props.userCan.viewAllScans) {
         </div>
 
         <TableToolbar
-            title="Analysis History"
-            description="History of your analysis"
+            title="Scan History"
+            description="History of your scans with detailed results."
         >
             <template #left>
                 <ToolbarSearch
@@ -714,7 +714,13 @@ if (props.userCan.viewAllScans) {
                         label="Defect Type"
                         :selected-options="selectedDefectTypesCount"
                         :disabled="isAnyOperationInProgress"
-                    />
+                    >
+                        <template #icon>
+                            <font-awesome-icon
+                                icon="fa-solid fa-triangle-exclamation"
+                            />
+                        </template>
+                    </FilterPopoverButton>
                     <FilterPopoverPanel
                         :show-clear-button="selectedDefectTypesCount > 0"
                         :selected-options="selectedDefectTypesCount"
@@ -746,7 +752,22 @@ if (props.userCan.viewAllScans) {
                         label="Status"
                         :selected-options="selectedStatusCount"
                         :disabled="isAnyOperationInProgress"
-                    />
+                    >
+                        <template #icon>
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                fill="currentColor"
+                                class="size-4"
+                            >
+                                <path
+                                    fill-rule="evenodd"
+                                    d="M3.792 2.938A49.069 49.069 0 0 1 12 2.25c2.797 0 5.54.236 8.209.688a1.857 1.857 0 0 1 1.541 1.836v1.044a3 3 0 0 1-.879 2.121l-6.182 6.182a1.5 1.5 0 0 0-.439 1.061v2.927a3 3 0 0 1-1.658 2.684l-1.757.878A.75.75 0 0 1 9.75 21v-5.818a1.5 1.5 0 0 0-.44-1.06L3.13 7.938a3 3 0 0 1-.879-2.121V4.774c0-.897.64-1.683 1.542-1.836Z"
+                                    clip-rule="evenodd"
+                                />
+                            </svg>
+                        </template>
+                    </FilterPopoverButton>
                     <FilterPopoverPanel
                         :show-clear-button="selectedStatusCount > 0"
                         :selected-options="selectedStatusCount"
@@ -773,7 +794,11 @@ if (props.userCan.viewAllScans) {
                         label="User"
                         :selected-options="selectedUsersCount"
                         :disabled="isAnyOperationInProgress"
-                    />
+                    >
+                        <template #icon>
+                            <font-awesome-icon icon="fa-solid fa-user" />
+                        </template>
+                    </FilterPopoverButton>
                     <FilterPopoverPanel
                         :show-clear-button="selectedUsersCount > 0"
                         :selected-options="selectedUsersCount"
@@ -805,7 +830,11 @@ if (props.userCan.viewAllScans) {
                         label="Role"
                         :selected-options="selectedRolesCount"
                         :disabled="isAnyOperationInProgress"
-                    />
+                    >
+                        <template #icon>
+                            <font-awesome-icon icon="fa-solid fa-key" />
+                        </template>
+                    </FilterPopoverButton>
                     <FilterPopoverPanel
                         :show-clear-button="selectedRolesCount > 0"
                         :selected-options="selectedRolesCount"

@@ -114,7 +114,15 @@ const props = defineProps({
                         clip-rule="evenodd"
                     />
                 </svg>
-                <span>Image Analysis</span>
+                <span>New Scan (Image)</span>
+            </button>
+        </Link>
+        <Link :href="route('scans.index')">
+            <button
+                class="gap-2 hover:bg-this-darker/[.05] focus:bg-this-darker/[.05] active:bg-this-darker/10 dark:hover:bg-this-lighter/[.05] dark:focus:bg-this-lighter/[.05] dark:active:bg-this-lighter/10 py-2 border border-this-darker dark:border-this-lighter w-full text-this-darker dark:text-this-lighter btn-base btn this:primary"
+            >
+                <font-awesome-icon icon="fa-solid fa-clock-rotate-left" />
+                <span>Scan History (Image)</span>
             </button>
         </Link>
         <Link :href="route('sessions.create')">
@@ -134,21 +142,21 @@ const props = defineProps({
                     />
                 </svg>
 
-                <span>Real-Time Analysis</span>
+                <span>New Session (Real-Time)</span>
             </button>
         </Link>
         <Link :href="route('scans.index')">
             <button
-                class="gap-2 hover:bg-this-darker/[.05] focus:bg-this-darker/[.05] active:bg-this-darker/10 dark:hover:bg-this-lighter/[.05] dark:focus:bg-this-lighter/[.05] dark:active:bg-this-lighter/10 py-2 border border-this-darker dark:border-this-lighter w-full text-this-darker dark:text-this-lighter btn-base btn this:error"
+                class="gap-2 hover:bg-this-darker/[.05] focus:bg-this-darker/[.05] active:bg-this-darker/10 dark:hover:bg-this-lighter/[.05] dark:focus:bg-this-lighter/[.05] dark:active:bg-this-lighter/10 py-2 border border-this-darker dark:border-this-lighter w-full text-this-darker dark:text-this-lighter btn-base btn this:success"
             >
                 <font-awesome-icon icon="fa-solid fa-clock-rotate-left" />
 
-                <span>History Analysis</span>
+                <span>Session History (Real-Time)</span>
             </button>
         </Link>
         <Link :href="route('settings')">
             <button
-                class="gap-2 hover:bg-this-darker/[.05] focus:bg-this-darker/[.05] active:bg-this-darker/10 dark:hover:bg-this-lighter/[.05] dark:focus:bg-this-lighter/[.05] dark:active:bg-this-lighter/10 py-2 border border-this-darker dark:border-this-lighter w-full text-this-darker dark:text-this-lighter btn-base btn this:secondary"
+                class="gap-2 hover:bg-this-darker/[.05] focus:bg-this-darker/[.05] active:bg-this-darker/10 dark:hover:bg-this-lighter/[.05] dark:focus:bg-this-lighter/[.05] dark:active:bg-this-lighter/10 py-2 border border-this-darker dark:border-this-lighter w-full text-this-darker dark:text-this-lighter btn-base btn this:error"
             >
                 <font-awesome-icon icon="fa-solid fa-cogs" />
 
