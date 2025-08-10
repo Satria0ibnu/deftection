@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, reactive, onMounted, watch } from "vue";
 import { useForm } from "@inertiajs/vue3";
+import { router } from "@inertiajs/vue3";
 
 // --- Import Components & Utils ---
 import AccountSettings from "./Components/AccountSettings.vue";
@@ -22,6 +23,7 @@ const props = defineProps({
 const activeTab = ref("account");
 const pristineSettings = ref("");
 const isDangerZoneResetModalVisible = ref(false);
+const isClearDataModalVisible = ref(false);
 
 // --- Default Settings Data (for resetting) ---
 const defaultSettings = {
@@ -148,7 +150,21 @@ const resetUnsavedChanges = () => {
 
 // --- "Danger Zone" Event Handlers ---
 const handleClearData = () => {
-    console.log("EVENT: Clear all analysis data");
+    isClearDataModalVisible.value = true;
+};
+
+const handleConfirmClearData = () => {
+    router.delete(route("settings.clear_all_data"), {
+        onSuccess: () => {
+            // The success message will come from the backend redirect
+            isClearDataModalVisible.value = false;
+            successToast("All analysis data has been cleared.");
+        },
+        onError: (errors) => {
+            console.error("Failed to clear data:", errors);
+            // Optionally show an error toast here
+        },
+    });
 };
 
 const handleResetSettings = () => {
@@ -323,6 +339,17 @@ const handleConfirmDangerZoneReset = () => {
             icon="fa-solid fa-triangle-exclamation"
             @close="isDangerZoneResetModalVisible = false"
             @confirm="handleConfirmDangerZoneReset"
+        />
+
+        <ConfirmationModal
+            :show="isClearDataModalVisible"
+            title="Clear All Analysis Data?"
+            message="Are you sure you want to permanently delete all scan and session history? This action cannot be undone."
+            confirm-text="Yes, Clear All Data"
+            variant="error"
+            icon="fa-solid fa-trash"
+            @close="isClearDataModalVisible = false"
+            @confirm="handleConfirmClearData"
         />
     </div>
 </template>
