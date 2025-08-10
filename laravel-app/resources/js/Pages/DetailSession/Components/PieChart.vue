@@ -50,7 +50,7 @@ const pieChartOptions = computed(() => ({
                 type="pie"
                 :options="pieChartOptions"
                 :series="pieChartSeries"
-                height="380"
+                height="450"
             />
         </div>
     </div>
