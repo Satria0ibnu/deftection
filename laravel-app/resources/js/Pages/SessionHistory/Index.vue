@@ -814,7 +814,7 @@ if (props.userCan.viewAllSessions) {
                                     label="View Scans"
                                     :href="
                                         route('sessions_scan.index', {
-                                            session: session.id,
+                                            realtimeSession: session.id,
                                         })
                                     "
                                     title="View Session Scans"

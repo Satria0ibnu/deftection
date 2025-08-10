@@ -236,9 +236,8 @@ class RealtimeController extends Controller
             // Delete the session (this will cascade to related RealtimeScans and RealtimeScanDefects)
             $realtimeSession->delete();
 
-            return response()->json([
+            return redirect()->back()->with([
                 'message' => 'Session deleted successfully',
-                'timestamp' => now()->toISOString()
             ]);
         } catch (\Exception $e) {
             Log::error('Error deleting realtime session: ' . $e->getMessage(), [
@@ -246,10 +245,9 @@ class RealtimeController extends Controller
                 'user_id' => auth()->id(),
             ]);
 
-            return response()->json([
+            return redirect()->back()->with([
                 'error' => 'Failed to delete session',
-                'timestamp' => now()->toISOString()
-            ], 500);
+            ]);
         }
     }
 }

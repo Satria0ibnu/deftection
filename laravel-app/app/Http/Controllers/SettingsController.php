@@ -55,16 +55,19 @@ class SettingsController extends Controller
 
     public function clearData()
     {
-        // Temporarily disable foreign key checks
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        // // Temporarily disable foreign key checks
+        // DB::statement('SET FOREIGN_KEY_CHECKS=0;');
 
-        // Truncate the tables
-        Scan::truncate();
-        RealtimeSession::truncate();
-        DB::table('scan_defects')->truncate();
+        // // Truncate the tables
+        // Scan::truncate();
+        // RealtimeSession::truncate();
+        // DB::table('scan_defects')->truncate();
 
-        // Re-enable foreign key checks
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        // // Re-enable foreign key checks
+        // DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+
+        RealtimeSession::query()->delete();
+        Scan::query()->delete();
 
         // Redirect back with a success message.
         return back()->with('success', 'All analysis data has been cleared.');
