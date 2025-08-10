@@ -118,6 +118,9 @@ Route::middleware(['auth'])->group(function () {
 
     // Detection Settings
     Route::patch('/detection-settings', [SettingsController::class, 'update'])->name('detection_settings.update');
+
+    // Clear Data
+    Route::delete('/clear-data', [SettingsController::class, 'clearData'])->name('clear_all_data');
   });
 
 
