@@ -18,7 +18,7 @@ class RealtimeSessionFactory extends Factory
     public function definition(): array
     {
         $sessionStart = $this->faker->dateTimeBetween('-1 month', 'now');
-        $sessionStatus = $this->faker->randomElement(['completed', 'aborted', 'in_progress']);
+        $sessionStatus = $this->faker->randomElement(['completed', 'aborted', 'active', 'paused']);
 
         // If session is completed, set end time and calculate duration
         $sessionEnd = null;

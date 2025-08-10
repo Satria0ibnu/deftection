@@ -11,7 +11,7 @@ use App\Services\RealtimeSessionQueryService;
 class RealtimeController extends Controller
 {
     public function __construct(
-        protected RealtimeSessionQueryService $realtimeSessionQueryService
+        protected RealtimeSessionQueryService    $realtimeSessionQueryService
     ) {}
 
     // list all realtime sessions

@@ -19,6 +19,8 @@ class RealtimeSessionQueryService
         $canViewAll = auth()->user()->can('viewAny', RealtimeSession::class);
 
         $query = RealtimeSession::query()
+            // Join with users table for user information
+            ->leftJoin('users', 'realtime_sessions.user_id', '=', 'users.id')
             ->select([
                 'realtime_sessions.id',
                 'realtime_sessions.session_status',
@@ -28,12 +30,14 @@ class RealtimeSessionQueryService
                 'realtime_sessions.defect_rate',
                 'realtime_sessions.created_at',
                 'realtime_sessions.updated_at',
+                'users.name as username',
+                'users.role as user_role',
                 DB::raw('DATE(realtime_sessions.session_start) as session_date'),
                 DB::raw('CASE 
                     WHEN realtime_sessions.session_status = "completed" THEN "completed"
                     WHEN realtime_sessions.session_status = "active" THEN "active"
                     WHEN realtime_sessions.session_status = "paused" THEN "paused"
-                    WHEN realtime_sessions.session_status = "stopped" THEN "stopped"
+                    WHEN realtime_sessions.session_status = "aborted" THEN "aborted"
                     ELSE "unknown"
                 END as status')
             ])
@@ -74,6 +78,8 @@ class RealtimeSessionQueryService
         $sortColumn = $filters['sortBy'];
         if (in_array($sortColumn, ['id', 'session_start', 'duration_seconds', 'total_frames_processed', 'defect_rate', 'session_status', 'created_at', 'updated_at'])) {
             $sortColumn = 'realtime_sessions.' . $sortColumn;
+        } elseif ($sortColumn === 'user') {
+            $sortColumn = 'users.name';
         }
         $query->orderBy($sortColumn, $filters['sortDir']);
 
@@ -87,6 +93,8 @@ class RealtimeSessionQueryService
                 'defect_rate' => number_format($session->defect_rate ?? 0, 2) . '%',
                 'status' => ucfirst($session->status),
                 'session_start' => $session->session_start,
+                'username' => $session->username,
+                'user_role' => $session->user_role,
                 'created_at' => $session->created_at->toISOString(),
                 'updated_at' => $session->updated_at->toISOString(),
             ]);
@@ -225,14 +233,15 @@ class RealtimeSessionQueryService
      */
     public function filters(Request $request): array
     {
+
         // Validate request parameters
         $validated = $request->validate([
-            'sort_by' => 'nullable|string|in:id,session_start,duration_seconds,total_frames_processed,defect_rate,session_status,created_at,updated_at',
+            'sort_by' => 'nullable|string|in:' . implode(',', RealtimeSession::$sortable),
             'sort_dir' => 'nullable|string|in:asc,desc',
             'per_page' => 'nullable|integer|min:1|max:100',
             'page' => 'nullable|integer|min:1',
             'session_statuses' => 'nullable|array',
-            'session_statuses.*' => 'string|in:active,paused,completed,stopped',
+            'session_statuses.*' => 'string|in:completed,aborted,active,paused',
             'users' => 'nullable|array',
             'users.*' => 'integer|exists:users,id',
             'roles' => 'nullable|array',
