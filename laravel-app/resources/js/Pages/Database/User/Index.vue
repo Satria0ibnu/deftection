@@ -528,7 +528,11 @@ const handleDropdownOpen = () => {
                         label="Role"
                         :selected-options="selectedRolesCount"
                         :disabled="isAnyOperationInProgress"
-                    />
+                    >
+                        <template #icon>
+                            <font-awesome-icon icon="fa-solid fa-key" />
+                        </template>
+                    </FilterPopoverButton>
                     <FilterPopoverPanel
                         :show-clear-button="selectedRolesCount > 0"
                         :selected-options="selectedRolesCount"
