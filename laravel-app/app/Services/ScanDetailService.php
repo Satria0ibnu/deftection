@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\Scan;
+use App\Models\DefectType;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 class ScanDetailService
 {
@@ -12,89 +14,235 @@ class ScanDetailService
      */
     public function transformScanForAnalysis(Scan $scan): array
     {
-        // Load relationships
-        $scan->load(['scanDefects', 'scanThreat', 'user']);
+        try {
+            Log::info('Starting scan transformation', [
+                'scan_id' => $scan->id,
+                'filename' => $scan->filename,
+                'is_defect' => $scan->is_defect,
+            ]);
 
-        // Calculate derived values
+            // Load relationships with error handling
+            $this->loadScanRelationships($scan);
+
+            // Calculate derived values with validation
+            $calculations = $this->performCalculations($scan);
+
+            // Get image URLs with validation
+            $imageUrls = $this->getImageUrls($scan);
+
+            // Process defects data with explanations
+            $defects = $this->transformDefectsWithExplanations($scan->scanDefects);
+
+            $result = [
+                'id' => $scan->id,
+                'status' => $calculations['status'],
+                'summary' => $this->buildSummary($scan, $calculations),
+                'visuals' => $this->buildVisuals($calculations['status'], $imageUrls),
+                'defects' => $defects,
+                'performance' => $this->buildPerformance($scan, $calculations),
+                'technical' => $this->buildTechnical($scan, $calculations, $defects),
+            ];
+
+            Log::info('Scan transformation completed successfully', [
+                'scan_id' => $scan->id,
+                'status' => $result['status'],
+                'defects_count' => count($defects),
+                'has_threat' => !is_null($scan->scanThreat),
+            ]);
+
+            return $result;
+        } catch (\Exception $e) {
+            Log::error('Error during scan transformation', [
+                'scan_id' => $scan->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Load scan relationships with error handling
+     */
+    private function loadScanRelationships(Scan $scan): void
+    {
+        try {
+            $scan->load(['scanDefects', 'scanThreat', 'user']);
+
+            Log::debug('Scan relationships loaded', [
+                'scan_id' => $scan->id,
+                'defects_count' => $scan->scanDefects->count(),
+                'has_threat' => !is_null($scan->scanThreat),
+                'has_user' => !is_null($scan->user),
+            ]);
+        } catch (\Exception $e) {
+            Log::warning('Failed to load some scan relationships', [
+                'scan_id' => $scan->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Perform all calculations needed for the analysis
+     */
+    private function performCalculations(Scan $scan): array
+    {
         $totalProcessingTime = $this->calculateTotalProcessingTime($scan);
         $aiInferenceTime = $this->calculateAiInferenceTime($scan);
         $status = $scan->is_defect ? 'defect' : 'good';
-        $aiConfidence = round($scan->anomaly_score * 100);
-        $confidenceLevel = $this->getConfidenceLevel($scan->anomaly_score);
-        $analysisQuality = $this->getAnalysisQuality($confidenceLevel);
-        $processingSpeed = $this->calculateProcessingSpeed($totalProcessingTime);
 
-        // Get image URLs
-        $originalImageUrl = $scan->original_path ? Storage::url($scan->original_path) : '';
-        $analyzedImageUrl = $scan->annotated_path ? Storage::url($scan->annotated_path) : '';
-
-        // Process defects data
-        $defects = $this->transformDefects($scan->scanDefects);
+        // Use database anomaly_confidence_level if available, otherwise calculate
+        $anomalyConfidenceLevel = $scan->anomaly_confidence_level ?? $this->getConfidenceLevel($scan->anomaly_score ?? 0);
 
         return [
-            'id' => $scan->id,
+            'totalProcessingTime' => $totalProcessingTime,
+            'aiInferenceTime' => $aiInferenceTime,
             'status' => $status,
-            'summary' => $this->buildSummary($scan, $totalProcessingTime, $confidenceLevel, $analysisQuality, $processingSpeed, $aiConfidence),
-            'visuals' => $this->buildVisuals($status, $originalImageUrl, $analyzedImageUrl),
-            'defects' => $defects,
-            'performance' => $this->buildPerformance($scan, $aiInferenceTime),
-            'technical' => $this->buildTechnical($scan, $totalProcessingTime, $aiInferenceTime, $aiConfidence, $defects),
+            'anomalyConfidenceLevel' => $anomalyConfidenceLevel,
         ];
     }
 
     /**
-     * Calculate total processing time in milliseconds
+     * Calculate total processing time in milliseconds with null safety
      */
     private function calculateTotalProcessingTime(Scan $scan): float
     {
-        return ($scan->preprocessing_time_ms ?? 0) +
+        $total = ($scan->preprocessing_time_ms ?? 0) +
             ($scan->anomaly_inference_time_ms ?? 0) +
             ($scan->classification_inference_time_ms ?? 0) +
             ($scan->postprocessing_time_ms ?? 0);
+
+        return max(0, $total);
     }
 
     /**
-     * Calculate AI inference time (anomaly + classification)
+     * Calculate AI inference time (anomaly + classification) with null safety
      */
     private function calculateAiInferenceTime(Scan $scan): float
     {
-        return ($scan->anomaly_inference_time_ms ?? 0) +
+        $total = ($scan->anomaly_inference_time_ms ?? 0) +
             ($scan->classification_inference_time_ms ?? 0);
+
+        return max(0, $total);
     }
 
     /**
-     * Calculate processing speed (scans per second)
+     * Determine confidence level based on anomaly score (fallback method)
      */
-    private function calculateProcessingSpeed(float $totalProcessingTime): float
+    private function getConfidenceLevel(?float $anomalyScore): string
     {
-        return $totalProcessingTime > 0 ? round(1000 / $totalProcessingTime, 1) : 0;
-    }
+        $score = $anomalyScore ?? 0;
 
-    /**
-     * Determine confidence level based on anomaly score
-     */
-    private function getConfidenceLevel(float $anomalyScore): string
-    {
         return match (true) {
-            $anomalyScore >= 0.8 => 'Very High',
-            $anomalyScore >= 0.7 => 'High',
-            $anomalyScore >= 0.5 => 'Medium',
-            $anomalyScore >= 0.3 => 'Low',
+            $score >= 0.8 => 'Very High',
+            $score >= 0.7 => 'High',
+            $score >= 0.5 => 'Medium',
+            $score >= 0.3 => 'Low',
             default => 'Very Low'
         };
     }
 
     /**
-     * Determine analysis quality based on confidence level
+     * Get image URLs with error handling and validation
      */
-    private function getAnalysisQuality(string $confidenceLevel): string
+    private function getImageUrls(Scan $scan): array
     {
-        return match ($confidenceLevel) {
-            'Very High', 'High' => 'High',
-            'Medium' => 'Medium',
-            'Low', 'Very Low' => 'Low',
-            default => 'Medium'
-        };
+        $originalImageUrl = '';
+        $analyzedImageUrl = '';
+
+        try {
+            if ($scan->original_path && Storage::disk('public')->exists($scan->original_path)) {
+                $originalImageUrl = Storage::url($scan->original_path);
+            }
+
+            if ($scan->annotated_path && Storage::disk('public')->exists($scan->annotated_path)) {
+                $analyzedImageUrl = Storage::url($scan->annotated_path);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error processing image URLs', [
+                'scan_id' => $scan->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return [
+            'original' => $originalImageUrl,
+            'analyzed' => $analyzedImageUrl,
+        ];
+    }
+
+    /**
+     * Transform defects collection with explanations from DefectType table
+     */
+    private function transformDefectsWithExplanations($scanDefects): array
+    {
+        try {
+            if (!$scanDefects || $scanDefects->isEmpty()) {
+                return [];
+            }
+
+            // Get all defect types for explanation lookup
+            $defectTypes = DefectType::all()->keyBy('slug');
+
+            $defects = $scanDefects->map(function ($defect) use ($defectTypes) {
+                try {
+                    // Format label and find matching defect type
+                    $formattedLabel = $this->formatDefectLabel($defect->label ?? 'Unknown');
+                    $defectTypeSlug = str_replace(' ', '_', strtolower($defect->label ?? ''));
+
+                    // Look for explanation in DefectType table
+                    $explanation = null;
+                    if (isset($defectTypes[$defectTypeSlug])) {
+                        $explanation = $defectTypes[$defectTypeSlug]->description;
+                    } else {
+                        // Try alternative matching methods
+                        foreach ($defectTypes as $defectType) {
+                            if (
+                                strtolower($defectType->name) === strtolower($formattedLabel) ||
+                                strtolower($defectType->slug) === strtolower($defect->label)
+                            ) {
+                                $explanation = $defectType->description;
+                                break;
+                            }
+                        }
+                    }
+
+                    return [
+                        'name' => $formattedLabel,
+                        'confidence' => round(($defect->confidence_score ?? 0) * 100),
+                        'coverage' => round($defect->area_percentage ?? 0, 1),
+                        'severity' => $defect->severity_level ?? 'Unknown',
+                        'location' => $defect->box_location ?? null,
+                        'explanation' => $explanation ?? 'No detailed explanation available for this defect type.',
+                        'regions' => 1
+                    ];
+                } catch (\Exception $e) {
+                    Log::warning('Error transforming individual defect', [
+                        'defect_id' => $defect->id ?? 'unknown',
+                        'error' => $e->getMessage(),
+                    ]);
+
+                    return [
+                        'name' => 'Unknown Defect',
+                        'confidence' => 0,
+                        'coverage' => 0,
+                        'severity' => 'Unknown',
+                        'location' => null,
+                        'explanation' => 'Error processing defect information.',
+                        'regions' => 1
+                    ];
+                }
+            })->toArray();
+
+            return $defects;
+        } catch (\Exception $e) {
+            Log::error('Error transforming defects collection', [
+                'error' => $e->getMessage(),
+            ]);
+            return [];
+        }
     }
 
     /**
@@ -117,171 +265,174 @@ class ScanDetailService
             if (!file_exists($fullPath)) return 'Unknown';
 
             $imageInfo = getimagesize($fullPath);
-            if (!$imageInfo) return 'Unknown';
+            if (!$imageInfo || !isset($imageInfo[0]) || !isset($imageInfo[1])) {
+                return 'Unknown';
+            }
 
             return $imageInfo[0] . 'x' . $imageInfo[1];
         } catch (\Exception $e) {
+            Log::warning('Error getting image dimensions', [
+                'path' => $imagePath,
+                'error' => $e->getMessage(),
+            ]);
             return 'Unknown';
         }
     }
 
     /**
-     * Transform defects collection for frontend
+     * Build summary section data (updated structure)
      */
-    private function transformDefects($scanDefects): array
+    private function buildSummary(Scan $scan, array $calculations): array
     {
-        return $scanDefects->map(function ($defect) {
+        try {
             return [
-                'name' => $this->formatDefectLabel($defect->label),
-                'confidence' => round($defect->confidence_score * 100),
-                'coverage' => round($defect->area_percentage, 1),
-                'regions' => 1 // Assuming each defect record represents one region
+                'imageName' => $scan->filename ?? 'Unknown',
+                'originalSize' => $this->getImageDimensions($scan->original_path),
+                'analysisDate' => $scan->created_at ? $scan->created_at->format('d/m/Y, H:i:s') : 'Unknown',
+                'scannedBy' => $scan->user ? $scan->user->name . ' (' . $scan->user->email . ')' : 'Unknown User',
+                'finalDecision' => $scan->is_defect ? 'DEFECT' : 'GOOD',
+                'anomalyScore' => round($scan->anomaly_score ?? 0, 4),
+                'anomalyConfidenceLevel' => $calculations['anomalyConfidenceLevel'], // This is anomaly confidence, not AI confidence
+                'status' => 'Completed',
+                // Processing time information moved to performance card
+                'totalProcessingTime' => number_format($calculations['totalProcessingTime'] / 1000, 3) . 's',
+                'preprocessingTime' => number_format(($scan->preprocessing_time_ms ?? 0) / 1000, 3) . 's',
+                'anomalyInferenceTime' => number_format(($scan->anomaly_inference_time_ms ?? 0) / 1000, 3) . 's',
+                'classificationInferenceTime' => number_format(($scan->classification_inference_time_ms ?? 0) / 1000, 3) . 's',
+                'postprocessingTime' => number_format(($scan->postprocessing_time_ms ?? 0) / 1000, 3) . 's',
             ];
-        })->toArray();
-    }
-
-    /**
-     * Build summary section data
-     */
-    private function buildSummary(
-        Scan $scan,
-        float $totalProcessingTime,
-        string $confidenceLevel,
-        string $analysisQuality,
-        float $processingSpeed,
-        int $aiConfidence
-    ): array {
-        return [
-            'imageName' => $scan->filename,
-            'originalSize' => $this->getImageDimensions($scan->original_path),
-            'analysisDate' => $scan->created_at->format('d/m/Y, H:i:s'),
-            'processingTime' => number_format($totalProcessingTime / 1000, 3) . 's',
-            'finalDecision' => $scan->is_defect ? 'DEFECT' : 'GOOD',
-            'anomalyScore' => round($scan->anomaly_score, 4),
-            'confidenceLevel' => $confidenceLevel,
-            'status' => 'Completed',
-            'processingSpeed' => $processingSpeed,
-            'aiConfidence' => $aiConfidence,
-            'analysisQuality' => $analysisQuality,
-        ];
+        } catch (\Exception $e) {
+            Log::error('Error building summary', [
+                'scan_id' => $scan->id,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
     }
 
     /**
      * Build visuals section data
      */
-    private function buildVisuals(string $status, string $originalImageUrl, string $analyzedImageUrl): array
+    private function buildVisuals(string $status, array $imageUrls): array
     {
         return [
             'status' => $status,
-            'originalImageUrl' => $originalImageUrl,
-            'analyzedImageUrl' => $status === 'defect' ? $analyzedImageUrl : '',
+            'originalImageUrl' => $imageUrls['original'],
+            'analyzedImageUrl' => $status === 'defect' ? $imageUrls['analyzed'] : '',
         ];
     }
 
     /**
-     * Build performance section data
+     * Build performance section data (updated structure)
      */
-    private function buildPerformance(Scan $scan, float $aiInferenceTime): array
+    private function buildPerformance(Scan $scan, array $calculations): array
     {
-        return [
-            'timeBreakdown' => [
-                'preprocessing' => round(($scan->preprocessing_time_ms ?? 0) / 1000, 3),
-                'aiInference' => round($aiInferenceTime / 1000, 3),
-                'postprocessing' => round(($scan->postprocessing_time_ms ?? 0) / 1000, 3),
-            ],
-            'modelPerformance' => $this->getModelPerformanceMetrics($scan)
-        ];
-    }
+        try {
+            return [
+                'timeBreakdown' => [
+                    'preprocessing' => round(($scan->preprocessing_time_ms ?? 0) / 1000, 3),
+                    'anomalyInference' => round(($scan->anomaly_inference_time_ms ?? 0) / 1000, 3),
+                    'classificationInference' => round(($scan->classification_inference_time_ms ?? 0) / 1000, 3),
+                    'postprocessing' => round(($scan->postprocessing_time_ms ?? 0) / 1000, 3),
+                ],
+                'isDefect' => $scan->is_defect, // To determine if we show classification inference
+            ];
+        } catch (\Exception $e) {
+            Log::error('Error building performance data', [
+                'scan_id' => $scan->id,
+                'error' => $e->getMessage(),
+            ]);
 
-    /**
-     * Build technical section data
-     */
-    private function buildTechnical(
-        Scan $scan,
-        float $totalProcessingTime,
-        float $aiInferenceTime,
-        int $aiConfidence,
-        array $defects
-    ): array {
-        return [
-            'parameters' => [
-                'Total Processing Time' => number_format($totalProcessingTime / 1000, 3) . 's',
-                'Image Preprocessing' => number_format(($scan->preprocessing_time_ms ?? 0) / 1000, 3) . 's',
-                'AI Inference' => number_format($aiInferenceTime / 1000, 3) . 's',
-                'Result Processing' => number_format(($scan->postprocessing_time_ms ?? 0) / 1000, 3) . 's',
-                'Model Used' => config('app.ai_model_name', 'HRNet + Anomalib'),
-            ],
-            'metrics' => [
-                'Anomaly Detection' => $aiConfidence,
-                'Classification Accuracy' => $this->getClassificationAccuracy($scan),
-                'Overall Confidence' => $this->getOverallConfidence($scan),
-            ],
-            'rawData' => [
-                'analysis_date' => $scan->created_at->format('Y-m-d H:i:s'),
-                'anomaly_score' => $scan->anomaly_score,
-                'final_decision' => $scan->is_defect ? 'DEFECT' : 'GOOD',
-                'id' => $scan->id,
-                'image_name' => $scan->filename,
-                'defects' => collect($defects)->pluck('name')->toArray(),
-            ],
-        ];
-    }
-
-    /**
-     * Calculate model performance metrics based on scan data
-     */
-    private function getModelPerformanceMetrics(Scan $scan): array
-    {
-        $confidenceScore = $scan->anomaly_score;
-        $hasDefects = $scan->is_defect;
-
-        // Base metrics - you can adjust these algorithms based on your requirements
-        $accuracy = $hasDefects ?
-            min(95, 80 + ($confidenceScore * 20)) :
-            min(99, 85 + ($confidenceScore * 15));
-
-        $precision = $hasDefects ?
-            min(95, 70 + ($confidenceScore * 25)) :
-            min(98, 85 + ($confidenceScore * 13));
-
-        $reliability = min(98, 80 + ($confidenceScore * 18));
-
-        // Speed based on processing time
-        $totalTime = $this->calculateTotalProcessingTime($scan);
-        $speed = $totalTime > 0 ? min(100, max(10, 100 - ($totalTime / 10))) : 90;
-
-        return [
-            'accuracy' => round($accuracy),
-            'precision' => round($precision),
-            'reliability' => round($reliability),
-            'speed' => round($speed),
-        ];
-    }
-
-    /**
-     * Calculate classification accuracy
-     */
-    private function getClassificationAccuracy(Scan $scan): int
-    {
-        // Calculate average confidence from defects if any
-        if ($scan->scanDefects->count() > 0) {
-            $avgConfidence = $scan->scanDefects->avg('confidence_score');
-            return round($avgConfidence * 100);
+            return [
+                'timeBreakdown' => [
+                    'preprocessing' => 0,
+                    'anomalyInference' => 0,
+                    'classificationInference' => 0,
+                    'postprocessing' => 0,
+                ],
+                'isDefect' => false,
+            ];
         }
-
-        // For good scans, base it on anomaly score
-        return round((1 - $scan->anomaly_score) * 100);
     }
 
     /**
-     * Calculate overall confidence
+     * Build technical section data (updated structure)
      */
-    private function getOverallConfidence(Scan $scan): int
+    private function buildTechnical(Scan $scan, array $calculations, array $defects): array
     {
-        $anomalyConfidence = $scan->anomaly_score * 100;
-        $classificationAccuracy = $this->getClassificationAccuracy($scan);
+        try {
+            // Build parameters (classification only for defects)
+            $parameters = [
+                'Total Processing Time' => number_format($calculations['totalProcessingTime'] / 1000, 3) . 's',
+                'Image Preprocessing' => number_format(($scan->preprocessing_time_ms ?? 0) / 1000, 3) . 's',
+                'Anomaly Inference' => number_format(($scan->anomaly_inference_time_ms ?? 0) / 1000, 3) . 's',
+                'Postprocessing' => number_format(($scan->postprocessing_time_ms ?? 0) / 1000, 3) . 's',
+                'Model Used' => config('app.ai_model_name', 'HRNet + Anomalib'),
+            ];
 
-        // Weighted average
-        return round(($anomalyConfidence * 0.6) + ($classificationAccuracy * 0.4));
+            if ($scan->is_defect) {
+                // Insert classification inference before postprocessing
+                $tempParams = $parameters;
+                unset($tempParams['Postprocessing']);
+                $tempParams['Classification Inference'] = number_format(($scan->classification_inference_time_ms ?? 0) / 1000, 3) . 's';
+                $tempParams['Postprocessing'] = $parameters['Postprocessing'];
+                $parameters = $tempParams;
+            }
+
+            // Build scan metrics (updated structure)
+            $scanMetrics = [
+                'Anomaly Score' => $scan->anomaly_score ?? 0,
+                'Anomaly Confidence Level' => $calculations['anomalyConfidenceLevel'],
+                'Anomaly Threshold' => $scan->anomaly_threshold ?? 0,
+            ];
+
+            // Add classification confidence only for defects
+            if ($scan->is_defect && $scan->scanDefects->count() > 0) {
+                $avgClassificationConfidence = $scan->scanDefects->avg('confidence_score');
+                $scanMetrics['Classification Avg Confidence'] = $avgClassificationConfidence ?? 0;
+            }
+
+            // Process threat data if available
+            $threatData = null;
+            $hasThreat = false;
+
+            if ($scan->scanThreat) {
+                $hasThreat = true;
+                $threatData = [
+                    'status' => strtoupper($scan->scanThreat->status ?? 'unknown'),
+                    'riskLevel' => strtoupper($scan->scanThreat->risk_level ?? 'unknown'),
+                    'fileHash' => $scan->scanThreat->hash ?? 'N/A',
+                    'scanTime' => number_format(($scan->scanThreat->processing_time_ms ?? 0), 1) . 'ms',
+                    'securityFlags' => $scan->scanThreat->flags ?? [],
+                    'detailedAnalysis' => $scan->scanThreat->details ?? [],
+                    'possibleAttacks' => $scan->scanThreat->possible_attack ?? [],
+                ];
+            }
+
+            return [
+                'parameters' => $parameters,
+                'scanMetrics' => $scanMetrics,
+                'threatData' => $threatData,
+                'isDefect' => $scan->is_defect,
+                'hasThreat' => $hasThreat,
+                'rawData' => [
+                    'analysis_date' => $scan->created_at ? $scan->created_at->format('Y-m-d H:i:s') : null,
+                    'anomaly_score' => $scan->anomaly_score ?? 0,
+                    'anomaly_confidence_level' => $calculations['anomalyConfidenceLevel'],
+                    'anomaly_threshold' => $scan->anomaly_threshold ?? 0,
+                    'final_decision' => $scan->is_defect ? 'DEFECT' : 'GOOD',
+                    'id' => $scan->id,
+                    'image_name' => $scan->filename ?? 'Unknown',
+                    'defects' => collect($defects)->pluck('name')->toArray(),
+                    'threat_status' => $scan->scanThreat?->status ?? null,
+                ],
+            ];
+        } catch (\Exception $e) {
+            Log::error('Error building technical data', [
+                'scan_id' => $scan->id,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
     }
 }

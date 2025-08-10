@@ -4,12 +4,14 @@ namespace App\Policies;
 
 use App\Models\Scan;
 use App\Models\User;
-use Illuminate\Auth\Access\Response;
+use Illuminate\Auth\Access\HandlesAuthorization;
 
 class ScanPolicy
 {
+    use HandlesAuthorization;
+
     /**
-     * Determine whether the user can view any models.
+     * Determine whether the user can view any scans.
      */
     public function viewAny(User $user): bool
     {
@@ -17,53 +19,52 @@ class ScanPolicy
     }
 
     /**
-     * Determine whether the user can view the model.
+     * Determine whether the user can view the scan.
      */
     public function view(User $user, Scan $scan): bool
     {
-        // Admins can view any scan
-        // Users can only view their own
         return $user->role === 'admin' || $scan->user_id === $user->id;
     }
 
+    /**
+     * Determine whether the user can delete the scan.
+     */
+    public function delete(User $user, Scan $scan): bool
+    {
+        return $user->role === 'admin' || $scan->user_id === $user->id;
+    }
+
+    /**
+     * Determine whether the user can filter by user (admin only).
+     */
     public function filterByUser(User $user): bool
     {
         return $user->role === 'admin';
     }
 
     /**
-     * Determine whether the user can create models.
+     * Determine whether the user can generate a report for a specific scan.
      */
-    public function create(User $user): bool
+    public function generateReport(User $user, Scan $scan): bool
     {
-        return true;
+        // User can generate report for their own scans, admin can generate for any scan
+        return $user->role === 'admin' || $scan->user_id === $user->id;
     }
 
     /**
-     * Determine whether the user can update the model.
+     * Determine whether the user can generate batch reports for any user.
      */
-    public function update(User $user, Scan $scan): bool
-    {
-        return false;
-    }
-
-    /**
-     * Determine whether the user can delete the model.
-     */
-    public function delete(User $user, Scan $scan): bool
-    {
-        return $user->role === 'admin' || $scan->user_id === $user->id;;
-    }
-
-
     public function generateAnyReport(User $user): bool
     {
         return $user->role === 'admin';
     }
 
-    public function generateReport(User $user, Scan $scan): bool
+    /**
+     * Determine whether the user can generate batch reports.
+     * Users can generate batch reports for their own data, admins for any data.
+     */
+    public function generateBatchReport(User $user): bool
     {
-        // Admins can generate reports for any scan, users can only generate reports for their own
-        return $user->role === 'admin' || $scan->user_id === $user->id;
+        return true;
     }
 }

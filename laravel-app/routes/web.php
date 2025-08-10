@@ -85,18 +85,26 @@ Route::middleware(['auth'])->group(function () {
   });
 
   // REPORTS
-  Route::prefix('reports')->group(function () {
-    // Single scan report routes
-    Route::get('/scan/{scan}/generate', [ReportController::class, 'generateSingleReport'])
-      ->name('reports.single.generate');
-    Route::get('/scan/{scan}/preview', [ReportController::class, 'previewSingleReport'])
-      ->name('reports.single.preview');
+  Route::prefix('reports')->name('reports.')->group(function () {
 
-    // Future batch report routes (for later implementation)
-    Route::get('/batch/generate', [ReportController::class, 'generateBatchReport'])
-      ->name('reports.batch.generate');
-    Route::get('/batch/preview', [ReportController::class, 'previewBatchReport'])
-      ->name('reports.batch.preview');
+    // Single scan report
+    Route::get('single/{scan}', [ReportController::class, 'generateSingleReport'])
+      ->name('single.generate')
+      ->middleware('can:generateReport,scan');
+
+    // Batch report - requires authentication, authorization handled in controller
+    Route::get('batch', [ReportController::class, 'generateBatchReport'])
+      ->name('batch.generate')
+      ->middleware('can:generateBatchReport,App\Models\Scan');
+
+    // // Preview routes ( for test)
+    // Route::get('preview/single/{scan}', [ReportController::class, 'previewSingleReport'])
+    //   ->name('single.preview')
+    //   ->middleware('can:generateReport,scan');
+
+    // Route::get('preview/batch', [ReportController::class, 'previewBatchReport'])
+    //   ->name('batch.preview')
+    //   ->middleware('can:generateBatchReport,App\Models\Scan');
   });
 
   //SETTINGS
