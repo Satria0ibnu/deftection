@@ -121,6 +121,15 @@ watch(
     }
 );
 
+watch(
+    () => form.description,
+    (newValue) => {
+        if (form.errors.description && newValue?.trim()) {
+            form.clearErrors("description");
+        }
+    }
+);
+
 // Fetch defect type data
 const fetchDefectType = async () => {
     if (isFetching.value) {
