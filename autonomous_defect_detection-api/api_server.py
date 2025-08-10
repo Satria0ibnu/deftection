@@ -1,7 +1,5 @@
 # api_server.py - Clean API endpoints only
 """
-Clean JSON API Server for Defect Detection System
-Contains only endpoint definitions and routing
 All business logic moved to services layer
 """
 
