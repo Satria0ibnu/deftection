@@ -112,7 +112,7 @@ const userInitials = computed(() => {
                 <Nav />
 
                 <!-- Account Section -->
-                <Link :href="route('settings')">
+                <Link :href="route('settings.index')">
                     <div
                         class="flex items-center p-4 pb-0 gap-3 cursor-pointer transition-all duration-300 group"
                     >
