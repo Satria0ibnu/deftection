@@ -10,19 +10,7 @@ from flask_cors import CORS
 from werkzeug.exceptions import RequestEntityTooLarge
 
 # Import simplified configuration
-from config import (
-    FLASK_HOST,
-    FLASK_PORT,
-    FLASK_DEBUG,
-    SECRET_KEY,
-    MAX_FILE_SIZE,
-    ALLOWED_EXTENSIONS,
-    ERROR_CODES,
-    DEBUG_MODE,
-    DETAILED_ERRORS,
-    get_config_summary,
-    validate_configuration
-)
+from config import *
 
 # Import controller
 from controllers.image_security_controller import ImageSecurityController
@@ -113,6 +101,8 @@ def create_app():
             'timestamp': datetime.now().isoformat()
         })
     
+    # Both /scan and /scan/laravel endpoints accept is_full_scan parameter 
+    # (JSON: "is_full_scan": true, Form: -F 'is_full_scan=true') - defaults to false (light scan
     @app.route('/scan', methods=['POST'])
     def scan_image():
         """Main image scanning endpoint"""
@@ -126,6 +116,23 @@ def create_app():
                 'message': 'Error occurred during image scanning',
                 'details': str(e) if DETAILED_ERRORS else None,
                 'timestamp': datetime.now().isoformat()
+            }), 500
+        
+    @app.route('/scan/laravel', methods=['POST'])
+    def scan_image_laravel():
+        """Laravel-compatible image scanning endpoint"""
+        try:
+            return controller.scan_image_laravel(request)
+        except Exception as e:
+            print(f"Laravel scan endpoint error: {e}")
+            return jsonify({
+                'status': 'error',
+                'timestamp': datetime.now().isoformat(),
+                'data': {
+                    'error_code': ERROR_CODES['INTERNAL_ERROR'],
+                    'message': 'Error occurred during image scanning',
+                    'details': str(e) if DETAILED_ERRORS else None
+                }
             }), 500
     
     @app.route('/health', methods=['GET'])
@@ -183,25 +190,60 @@ def create_app():
     # ===========================
     
     if DEBUG_MODE:
+
         @app.route('/debug/config', methods=['GET'])
         def debug_config():
             """Debug endpoint for detailed configuration"""
             from config import YARA_RULES_DIR, MALWARE_HASH_FILE
             
-            return jsonify({
-                'flask_config': dict(app.config),
-                'security_config': {
-                    'allowed_extensions': list(ALLOWED_EXTENSIONS),
-                    'max_file_size': MAX_FILE_SIZE,
-                    'error_codes': ERROR_CODES
-                },
-                'paths': {
-                    'yara_rules_dir': str(YARA_RULES_DIR),
-                    'malware_hash_file': str(MALWARE_HASH_FILE)
-                },
-                'debug_mode': DEBUG_MODE,
-                'timestamp': datetime.now().isoformat()
-            })
+            try:
+                # Convert Flask config to JSON-serializable format
+                flask_config = {}
+                for key, value in app.config.items():
+                    if isinstance(value, (str, int, float, bool, type(None))):
+                        flask_config[key] = value
+                    elif hasattr(value, '__str__'):
+                        flask_config[key] = str(value)
+                    else:
+                        flask_config[key] = f"<{type(value).__name__}>"
+                
+                return jsonify({
+                    'flask_config': flask_config,
+                    'security_config': {
+                        'allowed_extensions': list(ALLOWED_EXTENSIONS),
+                        'max_file_size': MAX_FILE_SIZE,
+                        'max_file_size_mb': round(MAX_FILE_SIZE / (1024 * 1024), 2),
+                        'min_file_size': MIN_FILE_SIZE,
+                        'error_codes': ERROR_CODES
+                    },
+                    'paths': {
+                        'yara_rules_dir': str(YARA_RULES_DIR),
+                        'malware_hash_file': str(MALWARE_HASH_FILE),
+                        'yara_rules_dir_exists': YARA_RULES_DIR.exists(),
+                        'malware_hash_file_exists': MALWARE_HASH_FILE.exists()
+                    },
+                    'scan_settings': {
+                        'light_scan_timeout': LIGHT_SCAN_TIMEOUT,
+                        'full_scan_timeout': FULL_SCAN_TIMEOUT,
+                        'hash_algorithms': HASH_ALGORITHMS,
+                        'risk_levels': RISK_LEVELS
+                    },
+                    'environment': {
+                        'debug_mode': DEBUG_MODE,
+                        'detailed_errors': DETAILED_ERRORS,
+                        'flask_host': FLASK_HOST,
+                        'flask_port': FLASK_PORT,
+                        'flask_debug': FLASK_DEBUG
+                    },
+                    'timestamp': datetime.now().isoformat()
+                })
+            
+            except Exception as e:
+                return jsonify({
+                    'status': 'error',
+                    'message': f'Error retrieving debug configuration: {str(e)}',
+                    'timestamp': datetime.now().isoformat()
+                }), 500
         
         @app.route('/debug/test', methods=['POST'])
         def debug_test():
