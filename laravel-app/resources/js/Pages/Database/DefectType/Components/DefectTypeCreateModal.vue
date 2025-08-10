@@ -78,6 +78,15 @@ watch(
     }
 );
 
+watch(
+    () => form.description,
+    (newValue) => {
+        if (form.errors.description && newValue?.trim()) {
+            form.clearErrors("description");
+        }
+    }
+);
+
 // Reset form completely
 const resetForm = () => {
     form.reset();
