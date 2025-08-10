@@ -27,6 +27,11 @@ class RealtimeScanDefect extends Model
         'created_at',
         'updated_at'
     ];
+    protected $casts = [
+        'box_location' => 'array',
+        'confidence_score' => 'decimal:5',
+        'area_percentage' => 'decimal:2',
+    ];
     public function realtimeScan()
     {
         return $this->belongsTo(RealtimeScan::class);
