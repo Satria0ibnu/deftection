@@ -1,5 +1,6 @@
 <script setup>
-import { ref, computed, reactive, onMounted, watch } from "vue"; // Import onMounted and watch
+import { ref, computed, reactive, onMounted, watch } from "vue";
+import { useForm } from "@inertiajs/vue3";
 
 // --- Import Components & Utils ---
 import AccountSettings from "./Components/AccountSettings.vue";
@@ -8,34 +9,33 @@ import AdvancedSettings from "./Components/AdvancedSettings.vue";
 import ConfirmationModal from "./Components/Modals/ConfirmationModal.vue";
 import { successToast } from "@/utils/swal";
 
+// --- Props ---
+// NEW: Define the props that will be passed from the Laravel backend.
+const props = defineProps({
+    savedSettings: {
+        type: Object,
+        required: true,
+    },
+});
+
 // --- State ---
 const activeTab = ref("account");
-const isResetModalVisible = ref(false);
-const isSaving = ref(false);
-
-// NEW: A ref to store the "clean" state of the settings.
 const pristineSettings = ref("");
+const isDangerZoneResetModalVisible = ref(false);
 
-// --- Default Settings Data ---
+// --- Default Settings Data (for resetting) ---
 const defaultSettings = {
     detection: {
         anomalyThreshold: 0.75,
         defectThreshold: 0.85,
         exportFormat: "pdf",
     },
-    advanced: {
-        maxConcurrentAnalyses: 2,
-        cacheDuration: 24,
-    },
 };
 
 // --- Live Settings Data ---
+// MODIFIED: Initialize the settings with the data passed from the server.
 const settings = reactive({
-    account: {
-        name: "navin",
-        username: "navin",
-    },
-    detection: JSON.parse(JSON.stringify(defaultSettings.detection)),
+    detection: JSON.parse(JSON.stringify(props.savedSettings.detection)),
     advanced: {
         systemInfo: {
             "System Version": "v2.0.0",
@@ -43,48 +43,46 @@ const settings = reactive({
             "Models Loaded": "Yes",
             Database: "Connected",
         },
-        performance: JSON.parse(JSON.stringify(defaultSettings.advanced)),
     },
 });
 
-// NEW: A computed property to check if there are any unsaved changes.
-const hasUnsavedChanges = computed(() => {
-    // It compares the stringified version of the current settings
-    // with the pristine (last saved) version.
-    return JSON.stringify(settings) !== pristineSettings.value;
+// --- Form Management ---
+const settingsForm = useForm({
+    detection: settings.detection,
 });
 
-// NEW: A helper function to update our "clean" snapshot.
+// --- Computed Properties ---
+const hasUnsavedChanges = computed(() => {
+    if (!pristineSettings.value) return false;
+    const pristine = JSON.parse(pristineSettings.value);
+    return (
+        JSON.stringify(settings.detection) !==
+        JSON.stringify(pristine.detection)
+    );
+});
+
 const updatePristineState = () => {
-    pristineSettings.value = JSON.stringify(settings);
+    pristineSettings.value = JSON.stringify({
+        detection: settings.detection,
+    });
 };
 
 // --- Watchers ---
-// UPDATED: A deep watcher now explicitly checks for changes.
 watch(
-    () => JSON.stringify(settings),
-    (newSettingsString) => {
-        hasUnsavedChanges.value = newSettingsString !== pristineSettings.value;
-    }
+    settings,
+    (newSettings) => {
+        settingsForm.detection = newSettings.detection;
+    },
+    { deep: true }
 );
 
 // --- Lifecycle Hooks ---
-// When the component is first mounted, take the initial snapshot.
+// MODIFIED: This now simply takes a snapshot of the initial server-provided state.
 onMounted(() => {
-    const storedSettings = localStorage.getItem("userSettings");
-    if (storedSettings) {
-        console.log("Found stored settings, loading...");
-        const parsedSettings = JSON.parse(storedSettings);
-        settings.detection =
-            parsedSettings.detection || defaultSettings.detection;
-        settings.advanced.performance =
-            parsedSettings.advanced?.performance ||
-            defaultSettings.advanced.performance;
-    }
     updatePristineState();
 });
 
-// An array to define the tabs, making the template cleaner.
+// --- Tab Configuration ---
 const tabs = [
     {
         id: "account",
@@ -113,20 +111,14 @@ const activeTabComponent = computed(() => {
 const activeTabProps = computed(() => {
     switch (activeTab.value) {
         case "account":
-            return { user: settings.account };
+            return {};
         case "detection":
             return {
                 settings: settings.detection,
-                "onUpdate:settings": (newDetectionSettings) => {
-                    settings.detection = newDetectionSettings;
-                },
             };
         case "advanced":
             return {
                 settings: settings.advanced,
-                "onUpdate:settings": (newAdvancedSettings) => {
-                    settings.advanced = newAdvancedSettings;
-                },
             };
         default:
             return {};
@@ -134,37 +126,40 @@ const activeTabProps = computed(() => {
 });
 
 // --- Event Handlers ---
-const saveSettings = () => {
-    isSaving.value = true;
-    console.log("Saving settings:", JSON.parse(JSON.stringify(settings)));
-
-    setTimeout(() => {
-        localStorage.setItem("userSettings", JSON.stringify(settings));
-        isSaving.value = false;
-        successToast("Settings saved successfully!");
-        // After a successful save, update the pristine state to the new current state.
-        updatePristineState();
-        console.log("Settings saved successfully.");
-    }, 1500);
+const saveSettings = (showToast = true) => {
+    settingsForm.patch(route("settings.detection_settings.update"), {
+        onSuccess: () => {
+            if (showToast) {
+                successToast("Settings saved successfully!");
+            }
+            updatePristineState();
+        },
+        onError: (errors) => {
+            console.error("Failed to save settings:", errors);
+        },
+    });
 };
 
-const resetToDefaults = () => {
-    // When resetting, we just revert the live settings object.
-    // The `hasUnsavedChanges` computed property will automatically detect this change.
-    settings.detection = JSON.parse(JSON.stringify(defaultSettings.detection));
-    settings.advanced.performance = JSON.parse(
-        JSON.stringify(defaultSettings.advanced.performance)
-    );
+const resetUnsavedChanges = () => {
+    const lastSavedState = JSON.parse(pristineSettings.value);
+    settings.detection = lastSavedState.detection;
+    successToast("Changes have been discarded.");
 };
 
-// NOTE: The ConfirmationModal is now only used for the "Danger Zone" actions if you wish.
-// The main "Reset to Defaults" button now works instantly, and the user can just save the result.
+// --- "Danger Zone" Event Handlers ---
 const handleClearData = () => {
     console.log("EVENT: Clear all analysis data");
 };
 
 const handleResetSettings = () => {
-    console.log("EVENT: Reset all settings");
+    isDangerZoneResetModalVisible.value = true;
+};
+
+const handleConfirmDangerZoneReset = () => {
+    settings.detection = JSON.parse(JSON.stringify(defaultSettings.detection));
+    isDangerZoneResetModalVisible.value = false;
+    successToast("Settings have been reset to their default values.");
+    saveSettings(false);
 };
 </script>
 
@@ -236,13 +231,13 @@ const handleResetSettings = () => {
                     </nav>
                 </div>
 
-                <!-- UPDATED: Action buttons are now conditional -->
+                <!-- Action buttons for unsaved changes -->
                 <div
                     v-if="hasUnsavedChanges"
                     class="max-md:hidden flex items-center self-end gap-3 md:self-auto md:pb-2"
                 >
                     <button
-                        @click="resetToDefaults"
+                        @click="resetUnsavedChanges"
                         class="btn-base btn gap-2 bg-gray-150 text-gray-900 hover:bg-gray-200 focus:bg-gray-200 active:bg-gray-200/80 dark:bg-surface-2 dark:text-dark-50 dark:hover:bg-surface-1 dark:focus:bg-surface-1 dark:active:bg-surface-1/90"
                     >
                         <font-awesome-icon
@@ -253,7 +248,7 @@ const handleResetSettings = () => {
                     <button
                         @click="saveSettings"
                         :disabled="isSaving"
-                        class="btn-base btn gap-2 this:primary bg-this text-white hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 disabled:bg-this-light dark:disabled:bg-this-darker w-36"
+                        class="btn-base btn gap-2 this:primary bg-this text-white hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 disabled:bg-this-light dark:disabled:bg-this-darker max-w-lg"
                     >
                         <span
                             v-if="isSaving"
@@ -264,7 +259,7 @@ const handleResetSettings = () => {
                             ></div>
                             Saving...
                         </span>
-                        <span v-else class="flex items-center gap-2">
+                        <span v-else class="truncate flex items-center gap-2">
                             <font-awesome-icon icon="fa-solid fa-floppy-disk" />
                             Save Settings
                         </span>
@@ -285,13 +280,13 @@ const handleResetSettings = () => {
             </keep-alive>
         </div>
 
-        <!-- UPDATED: Small Screen Buttons are now conditional -->
+        <!-- Small Screen Buttons for unsaved changes -->
         <div
             v-if="hasUnsavedChanges"
             class="md:hidden mt-6 pt-6 flex justify-end items-center gap-3 border-t border-gray-200 dark:border-dark-700"
         >
             <button
-                @click="resetToDefaults"
+                @click="resetUnsavedChanges"
                 class="btn-base btn gap-2 bg-gray-150 text-gray-900 hover:bg-gray-200 focus:bg-gray-200 active:bg-gray-200/80 dark:bg-surface-2 dark:text-dark-50 dark:hover:bg-surface-1 dark:focus:bg-surface-1 dark:active:bg-surface-1/90"
             >
                 <font-awesome-icon icon="fa-solid fa-arrow-rotate-left" />
@@ -318,16 +313,16 @@ const handleResetSettings = () => {
             </button>
         </div>
 
-        <!-- This modal can now be repurposed for the "Danger Zone" actions if needed -->
+        <!-- Modal for the DANGER ZONE "Reset All Settings" -->
         <ConfirmationModal
-            :show="isResetModalVisible"
-            title="Reset All Settings?"
-            message="Are you sure you want to reset all detection and advanced settings to their default values? This action cannot be undone."
-            confirm-text="Yes, Reset Settings"
+            :show="isDangerZoneResetModalVisible"
+            title="Reset All Settings to Default?"
+            message="Are you sure you want to reset all settings to their factory defaults? This action cannot be undone."
+            confirm-text="Yes, Reset All Settings"
             variant="error"
-            icon="fa-solid fa-clock-rotate-left"
-            @close="isResetModalVisible = false"
-            @confirm="handleConfirmReset"
+            icon="fa-solid fa-triangle-exclamation"
+            @close="isDangerZoneResetModalVisible = false"
+            @confirm="handleConfirmDangerZoneReset"
         />
     </div>
 </template>
