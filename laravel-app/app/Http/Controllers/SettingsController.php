@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Scan;
+use App\Models\RealtimeSession;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
@@ -48,5 +51,22 @@ class SettingsController extends Controller
 
         // 3. Redirect back with a success message
         return back()->with('success', 'Settings saved successfully.');
+    }
+
+    public function clearData()
+    {
+        // Temporarily disable foreign key checks
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+
+        // Truncate the tables
+        Scan::truncate();
+        RealtimeSession::truncate();
+        DB::table('scan_defects')->truncate();
+
+        // Re-enable foreign key checks
+        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+
+        // Redirect back with a success message.
+        return back()->with('success', 'All analysis data has been cleared.');
     }
 }
