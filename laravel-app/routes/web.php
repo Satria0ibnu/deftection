@@ -13,6 +13,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DefectTypeController;
 use App\Http\Controllers\RealtimeScanController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\SettingsController;
 
 Route::permanentRedirect('/', '/login');
 Route::post('/logout', [LoginController::class, 'destroy'])->middleware('auth')->name('logout');
@@ -108,9 +109,20 @@ Route::middleware(['auth'])->group(function () {
   });
 
   //SETTINGS
-  Route::get('/settings', function () {
-    return Inertia::render('Settings/Index');
-  })->name('settings');
+  Route::prefix('settings')->name('settings.')->group(function () {
+    Route::get('/', [SettingsController::class, 'index'])->name('index');
+
+    // Account Settings
+    Route::patch('/account-name', [UserController::class, 'updateAccountName'])->name('account_name.update');
+    Route::patch('/account-password', [UserController::class, 'updateAccountPassword'])->name('account_password.update');
+
+    // Detection Settings
+    Route::patch('/detection-settings', [SettingsController::class, 'update'])->name('detection_settings.update');
+
+    // Clear Data
+    Route::delete('/clear-data', [SettingsController::class, 'clearData'])->name('clear_all_data');
+  });
+
 
 
 

@@ -175,7 +175,7 @@ import { route } from "ziggy-js";
                     </template>
                 </NavCollapse>
                 <NavLink
-                    href="/settings"
+                    :href="route('settings.index')"
                     :active="$page.component === 'Settings/Index'"
                 >
                     <svg
