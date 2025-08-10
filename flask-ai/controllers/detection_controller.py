@@ -528,16 +528,34 @@ class DetectionController:
                 detected_defects = result.get('detected_defect_types', [])
                 defect_statistics = {}
             
+            # Try to get actual image dimensions from result
+            actual_image_width = 640  # Default fallback
+            actual_image_height = 640  # Default fallback
+            
+            # Check if we can extract actual dimensions from the result
+            if 'image_dimensions' in result:
+                actual_image_width = result['image_dimensions'].get('width', 640)
+                actual_image_height = result['image_dimensions'].get('height', 640)
+            
             # Process each defect type
             for defect_type, boxes in bounding_boxes.items():
                 stats = defect_statistics.get(defect_type, {})
                 
                 for i, bbox in enumerate(boxes):
-                    # Calculate area percentage (bbox area / total image area)
-                    # Assuming standard image size for calculation
-                    bbox_area = bbox.get('area', bbox.get('width', 0) * bbox.get('height', 0))
-                    total_image_area = 512 * 512  # Default image size from config
-                    area_percentage = (bbox_area / total_image_area) * 100 if total_image_area > 0 else 0
+                    # Calculate area percentage with proper image dimensions
+                    bbox_width = bbox.get('width', 0)
+                    bbox_height = bbox.get('height', 0)
+                    bbox_area = bbox.get('area', bbox_width * bbox_height)
+                    
+                    # Use actual image dimensions instead of hardcoded values
+                    total_image_area = actual_image_width * actual_image_height
+                    
+                    # Calculate percentage and ensure it doesn't exceed 100%
+                    if total_image_area > 0:
+                        area_percentage = (bbox_area / total_image_area) * 100
+                        area_percentage = min(area_percentage, 100.0)  # Cap at 100%
+                    else:
+                        area_percentage = 0
                     
                     # Get confidence score
                     confidence_score = stats.get('avg_confidence', 0.85)
