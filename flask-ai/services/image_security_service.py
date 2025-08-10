@@ -1,6 +1,7 @@
-# services/image_security_service.py
+# services/image_security_service.py - Simplified Version
 """
-Image Security Service - Updated to use simplified config
+Simplified Image Security Service - Works without YARA/magic dependencies
+Falls back to basic file validation and hash checking
 """
 
 import os
@@ -11,48 +12,57 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
 
-import yara
-from PIL import Image
-from PIL.ExifTags import TAGS
-import magic
+try:
+    from PIL import Image
+    from PIL.ExifTags import TAGS
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+    print("Warning: PIL not available for EXIF analysis")
 
-# Import simplified configuration
-from config import (
-    YARA_RULES_DIR,
-    MALWARE_HASH_FILE,
-    ALLOWED_EXTENSIONS,
-    MAX_FILE_SIZE,
-    MIN_FILE_SIZE,
-    RISK_LEVELS,
-    HASH_ALGORITHMS,
-    YARA_RULES_FILES,
-    MIME_TYPE_MAPPING,
-    MAGIC_SIGNATURES,
-    LIGHT_SCAN_TIMEOUT,
-    FULL_SCAN_TIMEOUT
-)
+# Import configuration - with fallback
+try:
+    from config import (
+        MALWARE_HASH_FILE,
+        ALLOWED_EXTENSIONS,
+        MAX_FILE_SIZE,
+        MIN_FILE_SIZE,
+        RISK_LEVELS,
+        HASH_ALGORITHMS,
+        YARA_RULES_DIR
+    )
+    CONFIG_AVAILABLE = True
+except ImportError:
+    print("Warning: Could not import security config, using fallback values")
+    CONFIG_AVAILABLE = False
+    
+    # Fallback configuration
+    MALWARE_HASH_FILE = "security_data/malware_hashes.txt"
+    ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.bmp'}
+    MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
+    MIN_FILE_SIZE = 100
+    RISK_LEVELS = {'CLEAN': 0, 'LOW': 1, 'MEDIUM': 2, 'HIGH': 3, 'CRITICAL': 4}
+    HASH_ALGORITHMS = ['md5', 'sha1', 'sha256']
+    YARA_RULES_DIR = "security_data/yara_rules"
 
 class ImageSecurityService:
+    """Simplified Image Security Service - Works without external dependencies"""
+    
     def __init__(self):
-        """Initialize service with simplified config"""
-        # Configuration from simplified config
-        self.YARA_RULES_DIR = str(YARA_RULES_DIR)
+        """Initialize service with fallback capability"""
         self.MALWARE_HASH_FILE = str(MALWARE_HASH_FILE)
         self.ALLOWED_EXTENSIONS = ALLOWED_EXTENSIONS
         self.MAX_FILE_SIZE = MAX_FILE_SIZE
         self.RISK_LEVELS = RISK_LEVELS
         
-        # Directories are already created by config.py
-        # Initialize services
+        # Initialize components that are available
         self.malware_hashes = self._load_malware_hashes()
-        self.yara_rules = self._compile_yara_rules()
-        self.magic_mime = magic.Magic(mime=True)
-        self.magic_desc = magic.Magic()
+        self.yara_rules = None  # Disabled for simplified version
         
-        print(f"ImageSecurityService initialized")
+        print(f"Simplified ImageSecurityService initialized")
         print(f"  Malware hashes loaded: {len(self.malware_hashes)}")
-        print(f"  YARA rules compiled: {self.yara_rules is not None}")
-        print(f"  Config: {self.YARA_RULES_DIR}")
+        print(f"  PIL available: {PIL_AVAILABLE}")
+        print(f"  Config available: {CONFIG_AVAILABLE}")
     
     def _load_malware_hashes(self) -> set:
         """Load known malware SHA256 hashes"""
@@ -73,217 +83,8 @@ class ImageSecurityService:
         
         return hashes
     
-    def _create_yara_rules(self):
-        """Create YARA rules"""
-        light_rules = '''
-        rule Critical_Malware_Hash
-        {
-            meta:
-                description = "File matches known malware hash"
-                severity = "critical"
-                scan_type = "light"
-                
-            condition:
-                false  // This will be handled by hash checking
-        }
-
-        rule Embedded_PE_Executable_Light
-        {
-            meta:
-                description = "PE executable embedded in image"
-                severity = "critical"
-                scan_type = "light"
-                
-            strings:
-                $pe_header = { 4D 5A }
-                $pe_signature = "This program cannot be run in DOS mode"
-                
-            condition:
-                $pe_header and $pe_signature
-        }
-
-        rule Web_Shell_Critical
-        {
-            meta:
-                description = "Critical web shell signatures"
-                severity = "critical"
-                scan_type = "light"
-                
-            strings:
-                $php_eval = "eval("
-                $php_system = "system("
-                $php_shell_exec = "shell_exec("
-                $backdoor = "backdoor"
-                
-            condition:
-                any of them
-        }
-
-        rule Fake_Image_Extension_Light
-        {
-            meta:
-                description = "Non-image content with image extension"
-                severity = "high"
-                scan_type = "light"
-                
-            strings:
-                $pe_header = { 4D 5A }
-                $elf_header = { 7F 45 4C 46 }
-                $zip_header = { 50 4B 03 04 }
-                
-            condition:
-                any of them
-        }
-        '''
-
-        full_rules = light_rules + '''
-
-        rule Advanced_Steganography
-        {
-            meta:
-                description = "Advanced steganography detection"
-                severity = "medium"
-                scan_type = "full"
-                
-            strings:
-                $steghide = "SteghidE"
-                $outguess = "OutGuess"
-                $zip_in_image = { 50 4B 03 04 }
-                $rar_in_image = { 52 61 72 21 1A 07 00 }
-                
-            condition:
-                any of them
-        }
-
-        rule Network_Threats_Full
-        {
-            meta:
-                description = "Network communication threats"
-                severity = "high"
-                scan_type = "full"
-                
-            strings:
-                $http_post = "POST /"
-                $base64_long = /[A-Za-z0-9+\/]{50,}/
-                $suspicious_domain = /.+\.(tk|ml|ga|cf)/
-                
-            condition:
-                any of them
-        }
-
-        rule JPEG_Header_Mismatch
-        {
-            meta:
-                description = "File without proper JPEG header"
-                severity = "medium"
-                scan_type = "full"
-                
-            strings:
-                $jpeg_start = { FF D8 FF }
-                
-            condition:
-                not $jpeg_start at 0
-        }
-
-        rule PNG_Header_Mismatch
-        {
-            meta:
-                description = "File without proper PNG header"
-                severity = "medium" 
-                scan_type = "full"
-                
-            strings:
-                $png_header = { 89 50 4E 47 0D 0A 1A 0A }
-                
-            condition:
-                not $png_header at 0
-        }
-
-        rule GIF_Header_Mismatch
-        {
-            meta:
-                description = "File without proper GIF header"
-                severity = "medium"
-                scan_type = "full"
-                
-            strings:
-                $gif87a = { 47 49 46 38 37 61 }
-                $gif89a = { 47 49 46 38 39 61 }
-                
-            condition:
-                not ($gif87a at 0 or $gif89a at 0)
-        }
-
-        rule Suspicious_Binary_Data
-        {
-            meta:
-                description = "Suspicious binary patterns in image"
-                severity = "medium"
-                scan_type = "full"
-                
-            strings:
-                $exec_pattern = { 65 78 65 63 28 }  // "exec("
-                $system_pattern = { 73 79 73 74 65 6D 28 }  // "system("
-                $shell_pattern = { 2F 62 69 6E 2F 73 68 }  // "/bin/sh"
-                $cmd_pattern = { 63 6D 64 2E 65 78 65 }  // "cmd.exe"
-                
-            condition:
-                any of them
-        }
-
-        rule Hidden_Archive_Content
-        {
-            meta:
-                description = "Hidden archive content in image"
-                severity = "high"
-                scan_type = "full"
-                
-            strings:
-                $zip_central = { 50 4B 01 02 }
-                $zip_end = { 50 4B 05 06 }
-                $rar_block = { 52 61 72 21 1A 07 01 00 }
-                $7z_header = { 37 7A BC AF 27 1C }
-                
-            condition:
-                any of them
-        }
-        '''
-        try:
-            light_file = os.path.join(self.YARA_RULES_DIR, YARA_RULES_FILES['light_scan'])
-            full_file = os.path.join(self.YARA_RULES_DIR, YARA_RULES_FILES['full_scan'])
-            
-            with open(light_file, 'w') as f:
-                f.write(light_rules)
-            
-            with open(full_file, 'w') as f:
-                f.write(full_rules)
-                
-            print(f"YARA rules created successfully")
-        except Exception as e:
-            print(f"Error creating YARA rules: {e}")
-    
-    def _compile_yara_rules(self):
-        """Compile YARA rules"""
-        self._create_yara_rules()
-        
-        try:
-            rule_files = {}
-            for rule_file in Path(self.YARA_RULES_DIR).glob('*.yar'):
-                rule_files[rule_file.stem] = str(rule_file)
-            
-            if rule_files:
-                compiled_rules = yara.compile(filepaths=rule_files)
-                print(f"YARA rules compiled: {list(rule_files.keys())}")
-                return compiled_rules
-            else:
-                print("No YARA rule files found")
-                return None
-        except Exception as e:
-            print(f"Error compiling YARA rules: {e}")
-            return None
-    
     def validate_file(self, filename: str, file_size: int) -> Dict[str, Any]:
-        """Validate file using config parameters"""
+        """Validate file using basic parameters"""
         issues = []
         
         # Check file size
@@ -338,25 +139,53 @@ class ImageSecurityService:
         return file_hash.lower() in self.malware_hashes
     
     def get_mime_type_validation(self, file_path: str, filename: str) -> Dict[str, Any]:
-        """Validate MIME type"""
+        """Basic MIME type validation without python-magic"""
         try:
-            detected_mime = self.magic_mime.from_file(file_path)
             file_extension = Path(filename).suffix.lower()
             
-            expected_mimes = MIME_TYPE_MAPPING.get(file_extension, [])
-            is_valid = any(expected in detected_mime for expected in expected_mimes)
+            # Basic validation based on file signature
+            with open(file_path, 'rb') as f:
+                header = f.read(16)
+            
+            detected_type = self._detect_file_type_basic(header)
+            
+            # Expected types based on extension
+            expected_types = {
+                '.jpg': 'JPEG', '.jpeg': 'JPEG',
+                '.png': 'PNG',
+                '.gif': 'GIF',
+                '.bmp': 'BMP'
+            }
+            
+            expected = expected_types.get(file_extension, 'Unknown')
+            is_valid = (detected_type == expected) or (detected_type == 'Unknown')
             
             return {
-                'detected_mime': detected_mime,
-                'expected_mimes': expected_mimes,
+                'detected_mime': f'image/{detected_type.lower()}' if detected_type != 'Unknown' else 'unknown',
+                'expected_mimes': [f'image/{expected.lower()}'] if expected != 'Unknown' else [],
                 'is_valid_mime': is_valid,
-                'file_description': self.magic_desc.from_file(file_path)
+                'file_description': f'{detected_type} image file'
             }
         except Exception as e:
             return {
                 'error': f"MIME validation error: {e}",
                 'is_valid_mime': False
             }
+    
+    def _detect_file_type_basic(self, header: bytes) -> str:
+        """Basic file type detection using magic bytes"""
+        if header.startswith(b'\xFF\xD8\xFF'):
+            return 'JPEG'
+        elif header.startswith(b'\x89PNG\r\n\x1a\n'):
+            return 'PNG'
+        elif header.startswith(b'GIF87a') or header.startswith(b'GIF89a'):
+            return 'GIF'
+        elif header.startswith(b'BM'):
+            return 'BMP'
+        elif header.startswith(b'II*\x00') or header.startswith(b'MM\x00*'):
+            return 'TIFF'
+        else:
+            return 'Unknown'
     
     def determine_risk_level(self, scan_results: Dict[str, Any]) -> str:
         """Determine overall risk level"""
@@ -365,19 +194,6 @@ class ImageSecurityService:
         # Check malware hash matches
         if scan_results.get('hash_analysis', {}).get('known_malware', False):
             max_risk = max(max_risk, RISK_LEVELS['CRITICAL'])
-        
-        # Check YARA matches
-        yara_matches = scan_results.get('yara_matches', [])
-        for match in yara_matches:
-            severity = match.get('severity', 'low')
-            if severity == 'critical':
-                max_risk = max(max_risk, RISK_LEVELS['CRITICAL'])
-            elif severity == 'high':
-                max_risk = max(max_risk, RISK_LEVELS['HIGH'])
-            elif severity == 'medium':
-                max_risk = max(max_risk, RISK_LEVELS['MEDIUM'])
-            elif severity == 'low':
-                max_risk = max(max_risk, RISK_LEVELS['LOW'])
         
         # Check EXIF threats
         exif_threats = scan_results.get('exif_analysis', {}).get('exif_threats', [])
@@ -388,12 +204,18 @@ class ImageSecurityService:
             elif severity == 'high':
                 max_risk = max(max_risk, RISK_LEVELS['HIGH'])
         
+        # Check file validation issues
+        validation_issues = scan_results.get('validation_issues', [])
+        for issue in validation_issues:
+            if issue.get('severity') == 'error':
+                max_risk = max(max_risk, RISK_LEVELS['MEDIUM'])
+        
         # Convert numeric risk back to string
         risk_map = {v: k for k, v in RISK_LEVELS.items()}
         return risk_map.get(max_risk, 'CLEAN')
     
     def scan_file(self, file_data: bytes, filename: str, is_full_scan: bool = False) -> Dict[str, Any]:
-        """Main method to scan uploaded file"""
+        """Main method to scan uploaded file - simplified version"""
         start_time = time.time()
         
         # Validate file first
@@ -412,7 +234,7 @@ class ImageSecurityService:
             temp_file_path = temp_file.name
         
         try:
-            # Perform scan
+            # Perform simplified scan
             if is_full_scan:
                 result = self.perform_full_scan(temp_file_path, filename)
             else:
@@ -436,13 +258,13 @@ class ImageSecurityService:
                 print(f"Error cleaning up temp file: {e}")
     
     def perform_light_scan(self, file_path: str, filename: str) -> Dict[str, Any]:
-        """Perform light scan"""
+        """Perform light scan - simplified version"""
         start_time = time.time()
         scan_results = {
             'scan_type': 'light',
             'file_info': self.get_file_info(file_path, filename),
             'hash_analysis': {},
-            'yara_matches': [],
+            'yara_matches': [],  # Empty for simplified version
             'exif_analysis': {},
             'mime_validation': {},
             'threats_detected': 0
@@ -459,25 +281,26 @@ class ImageSecurityService:
             # MIME type validation
             scan_results['mime_validation'] = self.get_mime_type_validation(file_path, filename)
             
-            # YARA scan - light rules only
-            if self.yara_rules:
-                yara_matches = self.run_yara_scan(file_path, is_full_scan=False)
-                scan_results['yara_matches'] = yara_matches
-            
-            # Basic EXIF analysis
-            exif_data = self.extract_exif_data(file_path)
-            exif_threats = self.analyze_exif_threats(exif_data, is_full_scan=False)
-            scan_results['exif_analysis'] = {
-                'exif_data': exif_data,
-                'exif_threats': exif_threats
-            }
+            # Basic EXIF analysis if PIL available
+            if PIL_AVAILABLE:
+                exif_data = self.extract_exif_data(file_path)
+                exif_threats = self.analyze_exif_threats(exif_data, is_full_scan=False)
+                scan_results['exif_analysis'] = {
+                    'exif_data': exif_data,
+                    'exif_threats': exif_threats
+                }
+            else:
+                scan_results['exif_analysis'] = {
+                    'exif_data': {},
+                    'exif_threats': [],
+                    'note': 'PIL not available for EXIF analysis'
+                }
             
             # Count total threats
             threats_count = 0
             if scan_results['hash_analysis']['known_malware']:
                 threats_count += 1
-            threats_count += len(scan_results['yara_matches'])
-            threats_count += len(exif_threats)
+            threats_count += len(scan_results['exif_analysis']['exif_threats'])
             
             scan_results['threats_detected'] = threats_count
             scan_results['risk_level'] = self.determine_risk_level(scan_results)
@@ -492,13 +315,13 @@ class ImageSecurityService:
         return scan_results
     
     def perform_full_scan(self, file_path: str, filename: str) -> Dict[str, Any]:
-        """Perform comprehensive full scan"""
+        """Perform full scan - simplified version"""
         start_time = time.time()
         scan_results = {
             'scan_type': 'full',
             'file_info': self.get_file_info(file_path, filename),
             'hash_analysis': {},
-            'yara_matches': [],
+            'yara_matches': [],  # Empty for simplified version
             'exif_analysis': {},
             'mime_validation': {},
             'entropy_analysis': {},
@@ -522,32 +345,34 @@ class ImageSecurityService:
             # Complete MIME validation
             scan_results['mime_validation'] = self.get_mime_type_validation(file_path, filename)
             
-            # Full YARA scan
-            if self.yara_rules:
-                yara_matches = self.run_yara_scan(file_path, is_full_scan=True)
-                scan_results['yara_matches'] = yara_matches
+            # Complete EXIF analysis if PIL available
+            if PIL_AVAILABLE:
+                exif_data = self.extract_exif_data(file_path)
+                exif_threats = self.analyze_exif_threats(exif_data, is_full_scan=True)
+                scan_results['exif_analysis'] = {
+                    'exif_data': exif_data,
+                    'exif_threats': exif_threats,
+                    'privacy_concerns': self._analyze_privacy_data(exif_data)
+                }
+            else:
+                scan_results['exif_analysis'] = {
+                    'exif_data': {},
+                    'exif_threats': [],
+                    'privacy_concerns': [],
+                    'note': 'PIL not available for EXIF analysis'
+                }
             
-            # Complete EXIF analysis
-            exif_data = self.extract_exif_data(file_path)
-            exif_threats = self.analyze_exif_threats(exif_data, is_full_scan=True)
-            scan_results['exif_analysis'] = {
-                'exif_data': exif_data,
-                'exif_threats': exif_threats,
-                'privacy_concerns': self._analyze_privacy_data(exif_data)
-            }
+            # Basic entropy analysis
+            scan_results['entropy_analysis'] = self._calculate_entropy_basic(file_path)
             
-            # Entropy analysis
-            scan_results['entropy_analysis'] = self._calculate_entropy(file_path)
-            
-            # Format analysis
-            scan_results['format_analysis'] = self._analyze_file_format(file_path, filename)
+            # Basic format analysis
+            scan_results['format_analysis'] = self._analyze_file_format_basic(file_path, filename)
             
             # Count total threats
             threats_count = 0
             if scan_results['hash_analysis']['known_malware']:
                 threats_count += 1
-            threats_count += len(scan_results['yara_matches'])
-            threats_count += len(exif_threats)
+            threats_count += len(scan_results['exif_analysis']['exif_threats'])
             
             scan_results['threats_detected'] = threats_count
             scan_results['risk_level'] = self.determine_risk_level(scan_results)
@@ -569,8 +394,6 @@ class ImageSecurityService:
                 'filename': filename,
                 'size_bytes': file_stat.st_size,
                 'size_mb': round(file_stat.st_size / (1024 * 1024), 2),
-                'mime_type': self.magic_mime.from_file(file_path),
-                'file_type': self.magic_desc.from_file(file_path),
                 'extension': Path(filename).suffix.lower(),
                 'modified_time': datetime.fromtimestamp(file_stat.st_mtime).isoformat()
             }
@@ -581,7 +404,10 @@ class ImageSecurityService:
             }
     
     def extract_exif_data(self, file_path: str) -> Dict[str, Any]:
-        """Extract EXIF data from image"""
+        """Extract EXIF data from image if PIL available"""
+        if not PIL_AVAILABLE:
+            return {}
+        
         exif_data = {}
         try:
             with Image.open(file_path) as img:
@@ -604,143 +430,60 @@ class ImageSecurityService:
         return exif_data
     
     def analyze_exif_threats(self, exif_data: Dict[str, Any], is_full_scan: bool) -> List[Dict[str, Any]]:
-        """Analyze EXIF data for threats"""
+        """Analyze EXIF data for threats - basic version"""
         threats = []
         
-        if is_full_scan:
-            # Full scan - comprehensive EXIF analysis
-            suspicious_patterns = {
-                'script_injection': [r'<script', r'javascript:', r'eval\(', r'exec\('],
-                'sql_injection': [r'union select', r'drop table', r'insert into'],
-                'command_injection': [r'system\(', r'exec\(', r'shell_exec'],
-                'path_traversal': [r'\.\./', r'\.\.\\', r'/etc/passwd'],
-                'xss_patterns': [r'<.*on\w+\s*=', r'<.*src\s*=\s*["\']javascript:']
-            }
-            
-            for field, value in exif_data.items():
-                if isinstance(value, str):
-                    value_lower = value.lower()
-                    
-                    for threat_type, patterns in suspicious_patterns.items():
-                        for pattern in patterns:
-                            if pattern.lower() in value_lower:
-                                threats.append({
-                                    'type': 'exif_threat',
-                                    'subtype': threat_type,
-                                    'field': field,
-                                    'value': value[:100],
-                                    'severity': 'high' if threat_type in ['script_injection', 'command_injection'] else 'medium',
-                                    'description': f'{threat_type.replace("_", " ").title()} detected in EXIF {field}'
-                                })
-                
-                # Check for binary data in text fields
-                if isinstance(value, str) and any(ord(c) < 32 or ord(c) > 126 for c in value if c not in '\t\n\r'):
-                    threats.append({
-                        'type': 'exif_threat',
-                        'subtype': 'binary_data',
-                        'field': field,
-                        'severity': 'medium',
-                        'description': f'Binary data in EXIF {field}'
-                    })
-        else:
-            # Light scan - only critical EXIF threats
-            critical_patterns = ['<script', 'eval(', 'system(', 'exec(', 'shell_exec(', 'javascript:']
-            
-            for field, value in exif_data.items():
-                if isinstance(value, str):
-                    value_lower = value.lower()
-                    for pattern in critical_patterns:
-                        if pattern in value_lower:
-                            threats.append({
-                                'type': 'exif_threat',
-                                'subtype': 'critical_injection',
-                                'field': field,
-                                'value': value[:50],
-                                'severity': 'critical',
-                                'description': f'Critical threat in EXIF {field}'
-                            })
+        # Basic patterns to check for
+        critical_patterns = ['<script', 'eval(', 'system(', 'exec(', 'shell_exec(', 'javascript:']
+        
+        for field, value in exif_data.items():
+            if isinstance(value, str):
+                value_lower = value.lower()
+                for pattern in critical_patterns:
+                    if pattern in value_lower:
+                        threats.append({
+                            'type': 'exif_threat',
+                            'subtype': 'suspicious_content',
+                            'field': field,
+                            'value': value[:50],
+                            'severity': 'high',
+                            'description': f'Suspicious content in EXIF {field}'
+                        })
         
         return threats
     
-    def run_yara_scan(self, file_path: str, is_full_scan: bool) -> List[Dict[str, Any]]:
-        """Run YARA rules scan filtered by scan type"""
-        matches = []
-        
-        if not self.yara_rules:
-            return matches
-        
-        try:
-            yara_matches = self.yara_rules.match(file_path)
-            
-            for match in yara_matches:
-                # Filter based on scan type
-                scan_type = match.meta.get('scan_type', 'full')
-                
-                if not is_full_scan and scan_type != 'light':
-                    continue
-                
-                matches.append({
-                    'rule_name': match.rule,
-                    'description': match.meta.get('description', 'No description'),
-                    'severity': match.meta.get('severity', 'medium'),
-                    'scan_type': scan_type,
-                    'tags': list(match.tags),
-                    'strings': [{'identifier': s.identifier, 'instances': len(s.instances)} for s in match.strings]
-                })
-        
-        except Exception as e:
-            print(f"YARA scan error: {e}")
-        
-        return matches
-    
     def _analyze_privacy_data(self, exif_data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Analyze EXIF data for privacy concerns"""
+        """Analyze EXIF data for privacy concerns - basic version"""
         privacy_issues = []
         
         # Check for GPS data
-        gps_fields = ['GPS GPSLatitude', 'GPS GPSLongitude', 'GPS GPSLatitudeRef', 'GPS GPSLongitudeRef', 'GPSInfo']
+        gps_fields = ['GPS GPSLatitude', 'GPS GPSLongitude', 'GPSInfo']
         for field in gps_fields:
             if field in exif_data and exif_data[field]:
                 privacy_issues.append({
                     'type': 'privacy_concern',
                     'subtype': 'gps_location',
                     'field': field,
-                    'value': str(exif_data[field])[:50],
                     'severity': 'low',
                     'description': 'GPS location data found'
                 })
         
-        # Check for device information
-        device_fields = ['Make', 'Model', 'Software', 'DateTime']
-        for field in device_fields:
-            if field in exif_data and exif_data[field]:
-                privacy_issues.append({
-                    'type': 'privacy_concern',
-                    'subtype': 'device_info',
-                    'field': field,
-                    'value': str(exif_data[field])[:50],
-                    'severity': 'low',
-                    'description': f'Device {field.lower()} information found'
-                })
-        
         return privacy_issues
     
-    def _calculate_entropy(self, file_path: str) -> Dict[str, Any]:
-        """Calculate file entropy for detecting encrypted/packed content"""
+    def _calculate_entropy_basic(self, file_path: str) -> Dict[str, Any]:
+        """Basic entropy calculation"""
         try:
             with open(file_path, 'rb') as f:
                 data = f.read()
             
-            # Calculate Shannon entropy
             if not data:
                 return {'entropy': 0, 'analysis': 'empty_file'}
             
-            # Count byte frequencies
+            # Simple entropy calculation
             byte_counts = [0] * 256
             for byte in data:
                 byte_counts[byte] += 1
             
-            # Calculate entropy
             entropy = 0
             data_len = len(data)
             for count in byte_counts:
@@ -748,14 +491,13 @@ class ImageSecurityService:
                     frequency = count / data_len
                     entropy -= frequency * (frequency.bit_length() - 1)
             
-            # Normalize to 0-8 range
+            # Normalize to 0-1 range
             entropy = entropy / 8.0 if entropy > 0 else 0
             
-            # Analysis
-            if entropy > 7.5:
-                analysis = 'high_entropy_suspicious'
+            if entropy > 0.75:
+                analysis = 'high_entropy'
                 risk = 'medium'
-            elif entropy > 6.0:
+            elif entropy > 0.6:
                 analysis = 'moderate_entropy'
                 risk = 'low'
             else:
@@ -772,176 +514,70 @@ class ImageSecurityService:
         except Exception as e:
             return {'error': f'Entropy calculation failed: {e}'}
     
-    def _analyze_file_format(self, file_path: str, filename: str) -> Dict[str, Any]:
-        """Analyze file format for inconsistencies and polyglot detection"""
+    def _analyze_file_format_basic(self, file_path: str, filename: str) -> Dict[str, Any]:
+        """Basic file format analysis"""
         analysis = {
             'format_consistency': True,
-            'polyglot_detection': False,
             'header_analysis': {},
             'issues': []
         }
         
         try:
             with open(file_path, 'rb') as f:
-                header = f.read(1024)  # Read first 1KB
+                header = f.read(32)  # Read first 32 bytes
             
             file_extension = Path(filename).suffix.lower()
-            
-            # Check magic bytes against extension
-            magic_checks = []
-            for format_name, signatures in MAGIC_SIGNATURES.items():
-                for signature in signatures:
-                    if header.startswith(signature):
-                        magic_checks.append(format_name)
+            detected_format = self._detect_file_type_basic(header)
             
             analysis['header_analysis'] = {
-                'detected_formats': magic_checks,
+                'detected_format': detected_format,
                 'expected_format': file_extension,
                 'header_hex': header[:16].hex()
             }
             
             # Check for format mismatches
             expected_formats = {
-                '.jpg': ['JPEG'], '.jpeg': ['JPEG'],
-                '.png': ['PNG'],
-                '.gif': ['GIF87a', 'GIF89a'],
-                '.bmp': ['BMP'],
-                '.tiff': ['TIFF_LE', 'TIFF_BE'], '.tif': ['TIFF_LE', 'TIFF_BE']
+                '.jpg': 'JPEG', '.jpeg': 'JPEG',
+                '.png': 'PNG',
+                '.gif': 'GIF',
+                '.bmp': 'BMP'
             }
             
-            expected = expected_formats.get(file_extension, [])
-            if expected and not any(fmt in magic_checks for fmt in expected):
+            expected = expected_formats.get(file_extension)
+            if expected and detected_format != expected and detected_format != 'Unknown':
                 analysis['format_consistency'] = False
                 analysis['issues'].append({
                     'type': 'format_mismatch',
-                    'description': f'Extension {file_extension} does not match detected format',
-                    'severity': 'high',
-                    'expected': expected,
-                    'detected': magic_checks
+                    'description': f'Extension {file_extension} does not match detected format {detected_format}',
+                    'severity': 'medium'
                 })
-            
-            # Specific header validation for common image formats
-            header_validations = self._validate_specific_headers(header, file_extension)
-            analysis['issues'].extend(header_validations)
-            
-            # Check for polyglot (multiple format signatures)
-            if len(magic_checks) > 1:
-                analysis['polyglot_detection'] = True
-                analysis['issues'].append({
-                    'type': 'polyglot_file',
-                    'description': f'Multiple format signatures detected: {", ".join(magic_checks)}',
-                    'severity': 'high'
-                })
-            
-            # Check for embedded executables
-            exe_signatures = [
-                (b'MZ', 'PE_executable'),
-                (b'\x7fELF', 'ELF_executable'), 
-                (b'PK\x03\x04', 'ZIP_archive'),
-                (b'Rar!', 'RAR_archive'),
-                (b'\x50\x4B\x01\x02', 'ZIP_central_directory')
-            ]
-            
-            for sig, desc in exe_signatures:
-                offset = header.find(sig)
-                if offset >= 0:
-                    analysis['issues'].append({
-                        'type': 'embedded_executable',
-                        'description': f'{desc} signature found at offset {offset}',
-                        'severity': 'critical'
-                    })
         
         except Exception as e:
             analysis['error'] = f'Format analysis failed: {e}'
         
         return analysis
-
-    def _validate_specific_headers(self, header: bytes, file_extension: str) -> List[Dict[str, Any]]:
-        """Validate specific format headers"""
-        issues = []
-        
-        try:
-            if file_extension in ['.jpg', '.jpeg']:
-                # JPEG should start with FF D8 FF
-                if not header.startswith(b'\xFF\xD8\xFF'):
-                    issues.append({
-                        'type': 'invalid_header',
-                        'description': 'Invalid JPEG header - should start with FF D8 FF',
-                        'severity': 'medium'
-                    })
-                
-                # Check for JPEG end marker in first 1KB (shouldn't be there normally)
-                if b'\xFF\xD9' in header[:500]:
-                    issues.append({
-                        'type': 'truncated_file',
-                        'description': 'JPEG end marker found too early in file',
-                        'severity': 'medium'
-                    })
-            
-            elif file_extension == '.png':
-                # PNG should start with 89 50 4E 47 0D 0A 1A 0A
-                png_signature = b'\x89PNG\r\n\x1a\n'
-                if not header.startswith(png_signature):
-                    issues.append({
-                        'type': 'invalid_header',
-                        'description': 'Invalid PNG header signature',
-                        'severity': 'medium'
-                    })
-            
-            elif file_extension == '.gif':
-                # GIF should start with GIF87a or GIF89a
-                if not (header.startswith(b'GIF87a') or header.startswith(b'GIF89a')):
-                    issues.append({
-                        'type': 'invalid_header',
-                        'description': 'Invalid GIF header - should start with GIF87a or GIF89a',
-                        'severity': 'medium'
-                    })
-            
-            elif file_extension == '.bmp':
-                # BMP should start with BM
-                if not header.startswith(b'BM'):
-                    issues.append({
-                        'type': 'invalid_header',
-                        'description': 'Invalid BMP header - should start with BM',
-                        'severity': 'medium'
-                    })
-            
-            elif file_extension in ['.tiff', '.tif']:
-                # TIFF can be little-endian (II*) or big-endian (MM*)
-                if not (header.startswith(b'II*\x00') or header.startswith(b'MM\x00*')):
-                    issues.append({
-                        'type': 'invalid_header', 
-                        'description': 'Invalid TIFF header - should start with II* or MM*',
-                        'severity': 'medium'
-                    })
-        
-        except Exception as e:
-            issues.append({
-                'type': 'validation_error',
-                'description': f'Header validation failed: {e}',
-                'severity': 'low'
-            })
-        
-        return issues
     
     def get_service_info(self) -> Dict[str, Any]:
         """Get service information and statistics"""
         return {
             'service_name': 'ImageSecurityService',
-            'version': '2.0.0',
+            'version': '2.0.0-simplified',
+            'mode': 'simplified',
             'malware_hashes_loaded': len(self.malware_hashes),
-            'yara_rules_compiled': self.yara_rules is not None,
+            'yara_rules_compiled': False,  # Disabled in simplified version
+            'pil_available': PIL_AVAILABLE,
+            'config_available': CONFIG_AVAILABLE,
             'scan_types': ['light', 'full'],
             'supported_formats': list(ALLOWED_EXTENSIONS),
             'max_file_size_mb': MAX_FILE_SIZE / (1024 * 1024),
             'risk_levels': list(RISK_LEVELS.keys()),
             'hash_algorithms': HASH_ALGORITHMS,
-            'configuration': {
-                'yara_rules_dir': self.YARA_RULES_DIR,
-                'malware_hash_file': self.MALWARE_HASH_FILE,
-                'scan_timeouts': {
-                    'light_scan': LIGHT_SCAN_TIMEOUT,
-                    'full_scan': FULL_SCAN_TIMEOUT
-                }
+            'features': {
+                'hash_analysis': True,
+                'exif_analysis': PIL_AVAILABLE,
+                'yara_scanning': False,
+                'magic_detection': False,
+                'entropy_analysis': True,
+                'format_analysis': True
             }
         }

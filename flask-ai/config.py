@@ -1,28 +1,33 @@
-# config.py - Stateless Version
+# config.py - Complete Fixed Configuration
 """
-Stateless Configuration file for Unified Defect Detection System
-No file operations, only in-memory configuration
+Complete Configuration file for Flask-AI + Security Scanner
 """
 
 import os
 from pathlib import Path
 
-# Base paths (for model loading only, no outputs)
+# ===========================
+# BASE PATHS
+# ===========================
 BASE_DIR = Path(__file__).parent
 MODELS_DIR = BASE_DIR / "models"
 
-# Model paths (only for loading models)
+# ===========================
+# FLASK-AI CONFIGURATION
+# ===========================
+
+# Model paths
 ANOMALIB_MODEL_PATH = MODELS_DIR / "patchcore.pt"
 HRNET_MODEL_PATH = MODELS_DIR / "defect_segmentation_model.pth"
 
-# Detection thresholds (can be updated in-memory)
+# Detection thresholds
 ANOMALY_THRESHOLD = 0.7
 DEFECT_CONFIDENCE_THRESHOLD = 0.85
 
 # Device configuration
 DEVICE = 'cuda'  # or 'cpu'
 
-# Enhanced defect detection classes
+# Defect detection classes
 SPECIFIC_DEFECT_CLASSES = {
     0: "background",
     1: "damaged",
@@ -51,19 +56,96 @@ MIN_DEFECT_PIXELS = 50
 MIN_DEFECT_PERCENTAGE = 0.005  # 0.5%
 MIN_BBOX_AREA = 100
 
-# Create only models directory (for loading models)
-os.makedirs(MODELS_DIR, exist_ok=True)
+# ===========================
+# SECURITY SCANNER CONFIGURATION
+# ===========================
 
-# Stateless mode - no output directories created
+# Security directories
+SECURITY_DIR = BASE_DIR / "security_data"
+YARA_RULES_DIR = SECURITY_DIR / "yara_rules"
+MALWARE_HASH_FILE = SECURITY_DIR / "malware_hashes.txt"
+
+# File validation settings
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
+MIN_FILE_SIZE = 100  # 100 bytes
+ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif'}
+
+# Risk levels
+RISK_LEVELS = {
+    'CLEAN': 0,
+    'LOW': 1, 
+    'MEDIUM': 2,
+    'HIGH': 3,
+    'CRITICAL': 4
+}
+
+# Error codes
+ERROR_CODES = {
+    'FILE_TOO_LARGE': 'E001',
+    'INVALID_FILE_TYPE': 'E002', 
+    'SCAN_TIMEOUT': 'E003',
+    'YARA_ERROR': 'E004',
+    'INTERNAL_ERROR': 'E999'
+}
+
+# Hash algorithms
+HASH_ALGORITHMS = ['md5', 'sha1', 'sha256']
+
+# YARA rules files
+YARA_RULES_FILES = {
+    'light_scan': 'light_scan_rules.yar',
+    'full_scan': 'full_scan_rules.yar'
+}
+
+# MIME type mapping
+MIME_TYPE_MAPPING = {
+    '.jpg': ['image/jpeg'],
+    '.jpeg': ['image/jpeg'],
+    '.png': ['image/png'],
+    '.gif': ['image/gif'],
+    '.bmp': ['image/bmp', 'image/x-ms-bmp'],
+    '.tiff': ['image/tiff'],
+    '.tif': ['image/tiff']
+}
+
+# Magic byte signatures
+MAGIC_SIGNATURES = {
+    'JPEG': [b'\xFF\xD8\xFF'],
+    'PNG': [b'\x89PNG\r\n\x1a\n'],
+    'GIF87a': [b'GIF87a'],
+    'GIF89a': [b'GIF89a'],
+    'BMP': [b'BM'],
+    'TIFF_LE': [b'II*\x00'],
+    'TIFF_BE': [b'MM\x00*']
+}
+
+# Scan timeouts
+LIGHT_SCAN_TIMEOUT = 30
+FULL_SCAN_TIMEOUT = 120
+
+# Debug settings
+DEBUG_MODE = True
+DETAILED_ERRORS = True
+
+# Stateless mode
 STATELESS_MODE = True
 
-# Debug: Print actual paths for verification
-if __name__ == "__main__":
-    print(f"BASE_DIR: {BASE_DIR}")
-    print(f"MODELS_DIR: {MODELS_DIR}")
-    print(f"ANOMALIB_MODEL_PATH: {ANOMALIB_MODEL_PATH}")
-    print(f"HRNET_MODEL_PATH: {HRNET_MODEL_PATH}")
-    print(f"STATELESS_MODE: {STATELESS_MODE}")
-    print(f"Model files exist:")
-    print(f"  Anomalib: {ANOMALIB_MODEL_PATH.exists()}")
-    print(f"  HRNet: {HRNET_MODEL_PATH.exists()}")
+# ===========================
+# DIRECTORY CREATION
+# ===========================
+
+# Create required directories
+os.makedirs(MODELS_DIR, exist_ok=True)
+os.makedirs(SECURITY_DIR, exist_ok=True)
+os.makedirs(YARA_RULES_DIR, exist_ok=True)
+
+# Create malware hash file if it doesn't exist
+if not MALWARE_HASH_FILE.exists():
+    try:
+        with open(MALWARE_HASH_FILE, 'w') as f:
+            f.write("# Malware SHA256 hashes (one per line)\n")
+            f.write("# Example hashes for testing:\n")
+    except Exception:
+        pass  # Ignore if we can't create it
+
+print(f"Configuration loaded - Flask-AI + Security Scanner")
