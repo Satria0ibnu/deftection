@@ -145,7 +145,6 @@ const saveSettings = (showToast = true) => {
 const resetUnsavedChanges = () => {
     const lastSavedState = JSON.parse(pristineSettings.value);
     settings.detection = lastSavedState.detection;
-    successToast("Changes have been discarded.");
 };
 
 // --- "Danger Zone" Event Handlers ---
