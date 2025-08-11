@@ -611,6 +611,39 @@ class DetectionController:
                 'error': str(e),
                 'timestamp': datetime.now().isoformat()
             }), 500
+            
+    def reset_detection_thresholds(self, request):
+        """Reset detection thresholds to default values"""
+        try:
+            # Reset to default thresholds
+            self.config['thresholds'] = {
+                'anomaly_threshold': 0.7,
+                'defect_confidence_threshold': 0.85
+            }
+            self.config['last_updated'] = datetime.now().isoformat()
+
+            # Update detection service with default thresholds
+            self.detection_service.update_thresholds(self.config['thresholds'])
+
+            self.logger.info("Detection thresholds reset to default values")
+
+            return jsonify({
+                'status': 'success',
+                'data': {
+                    'message': 'Thresholds reset to default values',
+                    'new_thresholds': self.config['thresholds']
+                },
+                'timestamp': datetime.now().isoformat(),
+                'mode': 'stateless_with_openai'
+            })
+
+        except Exception as e:
+            self.logger.error(f"Error resetting thresholds: {e}")
+            return jsonify({
+                'status': 'error',
+                'error': str(e),
+                'timestamp': datetime.now().isoformat()
+            }), 500
     
     def _format_desired_response(self, result, filename, timings):
         """Format response in the desired format structure"""

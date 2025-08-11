@@ -108,6 +108,10 @@ class CombinedAPIServer:
         def update_thresholds():
             return self.detection_controller.update_detection_thresholds(request)
         
+        @self.app.route('/api/config/reset', methods=['PUT'])
+        def reset_thresholds():
+            return self.detection_controller.reset_detection_thresholds(request)
+        
         # ===========================
         # NEW COMBINED ENDPOINT - COMPLETE FIXED
         # ===========================
@@ -443,8 +447,8 @@ class CombinedAPIServer:
         print(f"  Combined:     POST /api/detection/combined")
         print(f"                Support: JSON + Form-data")
         print(f"                Param: is_scan_threat=true for security scan (DEFAULT: TRUE)")
-        print(f"                ✅ FIXED: Security scan data transfer")
-        print(f"                ✅ FIXED: Proper defect type detection")
+        print(f"                FIXED: Security scan data transfer")
+        print(f"                FIXED: Proper defect type detection")
         print()
         print("SECURITY SCANNER ENDPOINTS - COMPLETE FIXED:")
         print(f"  Security Scan: POST /api/security/scan")
@@ -456,12 +460,12 @@ class CombinedAPIServer:
         print(f"  Security Health: GET /api/security/health")
         print(f"  Security Stats:  GET /api/security/stats")
         print("=" * 75)
-        print("✅ ALL ENDPOINTS NOW SUPPORT BOTH JSON AND FORM-DATA!")
-        print("✅ JSON: Use 'image_base64', 'frame_base64' fields")
-        print("✅ Form-data: Use 'image', 'file', 'frame' fields")
-        print("✅ FIXED: Proper defect types (damaged, scratch, etc.) instead of 'anomaly'")
-        print("✅ FIXED: Security scan receives proper image data")
-        print("✅ FIXED: No syntax errors - complete working code")
+        print("ALL ENDPOINTS NOW SUPPORT BOTH JSON AND FORM-DATA!")
+        print("JSON: Use 'image_base64', 'frame_base64' fields")
+        print("Form-data: Use 'image', 'file', 'frame' fields")
+        print("FIXED: Proper defect types (damaged, scratch, etc.) instead of 'anomaly'")
+        print("FIXED: Security scan receives proper image data")
+        print("FIXED: No syntax errors - complete working code")
         print("=" * 75)
         
         self.app.run(host=self.host, port=self.port, debug=debug, threaded=True, use_reloader=False)

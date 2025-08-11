@@ -61,12 +61,12 @@ class ImageSecurityController:
         if SERVICE_AVAILABLE and ImageSecurityService:
             try:
                 self.service = ImageSecurityService()
-                print("✅ ImageSecurityService initialized successfully")
+                print("ImageSecurityService initialized successfully")
             except Exception as e:
-                print(f"❌ Failed to initialize ImageSecurityService: {e}")
+                print(f"Failed to initialize ImageSecurityService: {e}")
                 self.service = None
         else:
-            print("❌ ImageSecurityService not available")
+            print("ImageSecurityService not available")
             self.service = None
         
         # Statistics tracking
