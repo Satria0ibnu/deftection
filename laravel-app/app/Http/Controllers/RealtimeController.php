@@ -238,8 +238,9 @@ class RealtimeController extends Controller
             // Delete the session 
             $realtimeSession->delete();
 
-            return redirect()->back()->with([
-                'message' => 'Session deleted successfully',
+
+            return redirect()->route('sessions.index')->with([
+                'success' => 'Session deleted successfully'
             ]);
         } catch (\Exception $e) {
             Log::error('Error deleting realtime session: ' . $e->getMessage(), [

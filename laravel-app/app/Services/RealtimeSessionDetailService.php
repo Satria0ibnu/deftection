@@ -68,7 +68,7 @@ class RealtimeSessionDetailService
         }
 
         $endTime = $session->session_end ?? now();
-        $duration = $session->session_start->diffInSeconds($endTime);
+        $duration = abs($session->session_start->diffInSeconds($endTime));
 
         $hours = floor($duration / 3600);
         $minutes = floor(($duration % 3600) / 60);

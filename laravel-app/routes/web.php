@@ -153,6 +153,7 @@ Route::middleware(['auth'])->group(function () {
   // Realtime session store (realtime analysis)
   Route::get('real-time-analysis', [RealtimeController::class, 'create'])->name('sessions.create');
   Route::post('real-time-analysis', [RealtimeController::class, 'store'])->name('sessions.store');
+
   // Session list
   Route::prefix('analysis/session-history')->group(function () {
     Route::get('/', [RealtimeController::class, 'index'])->name('sessions.index');

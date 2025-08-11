@@ -404,7 +404,6 @@ class ScanController extends Controller
                     'annotatedImageUrl' => $annotatedPath ? asset(Storage::url($annotatedPath)) : null,
                 ]
             ]);
-
         } catch (ValidationException $e) {
             Log::error('Request validation failed.', ['user_id' => auth()->id(), 'errors' => $e->errors()]);
             throw $e;
@@ -507,7 +506,7 @@ class ScanController extends Controller
         Log::info('Scan deleted successfully', $scanData);
 
         return redirect()
-            ->back()
+            ->route('scans.index')
             ->with('success', 'Scan deleted successfully.');
     }
 }

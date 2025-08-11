@@ -1,5 +1,13 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed } from "vue";
+import { useForm } from "@inertiajs/vue3";
+import { route } from "ziggy-js";
+import {
+    successToast,
+    errorToast,
+    deleteConfirmDialog,
+    exportConfirmDialog,
+} from "@/utils/swal";
 
 import AnalysisSummary from "./Components/AnalysisSummary.vue";
 import ImageComparison from "./Components/ImageComparison.vue";
@@ -24,217 +32,151 @@ const props = defineProps({
     },
 });
 
-// --- Updated Mock Data with new structure ---
-const mockDefectAnalysisData = {
-    id: 27,
-    status: "defect",
-    summary: {
-        imageName: "voluptatem.png",
-        originalSize: "Unknown",
-        analysisDate: "30/07/2025, 12:03:00",
-        scannedBy: "user 1 (user@example.com)",
-        finalDecision: "DEFECT",
-        anomalyScore: 0.862,
-        anomalyConfidenceLevel: "Low", // This is anomaly confidence level
-        status: "Completed",
-        // Processing times for performance card
-        totalProcessingTime: "2.421s",
-        preprocessingTime: "0.483s",
-        anomalyInferenceTime: "0.902s",
-        classificationInferenceTime: "0.119s",
-        postprocessingTime: "0.918s",
-    },
-    visuals: {
-        status: "defect",
-        originalImageUrl:
-            "https://placehold.co/600x400/FFFFFF/000000?text=Original+Image",
-        analyzedImageUrl:
-            "https://placehold.co/600x400/FF0000/FFFFFF?text=Analyzed+Image",
-    },
-    defects: [
-        {
-            name: "Discoloration",
-            confidence: 9,
-            coverage: 21.19,
-            severity: "MEDIUM",
-            location: { x: 84, y: 10, width: 50, height: 30 },
-            explanation:
-                "Color variation from the expected appearance, indicating potential quality issues.",
-            regions: 1,
-        },
-        {
-            name: "Missing Part",
-            confidence: 7,
-            coverage: 22.0,
-            severity: "MEDIUM",
-            location: { x: 34, y: 23, width: 40, height: 25 },
-            explanation:
-                "A component or part that should be present is absent from the expected location.",
-            regions: 1,
-        },
-        {
-            name: "Missing Part",
-            confidence: 0,
-            coverage: 32.64,
-            severity: "MEDIUM",
-            location: { x: 66, y: 31, width: 35, height: 40 },
-            explanation:
-                "A component or part that should be present is absent from the expected location.",
-            regions: 1,
-        },
-    ],
-    performance: {
-        timeBreakdown: {
-            preprocessing: 0.483,
-            anomalyInference: 0.902,
-            classificationInference: 0.119,
-            postprocessing: 0.918,
-        },
-        isDefect: true,
-    },
-    technical: {
-        parameters: {
-            "Total Processing Time": "2.421s",
-            "Image Preprocessing": "0.483s",
-            "Anomaly Inference": "0.902s",
-            "Classification Inference": "0.119s",
-            Postprocessing: "0.918s",
-            "Model Used": "HRNet + Anomalib",
-        },
-        scanMetrics: {
-            "Anomaly Score": 0.862,
-            "Anomaly Confidence Level": "Low",
-            "Anomaly Threshold": 0.622,
-            "Classification Avg Confidence": 0.053,
-        },
-        threatData: {
-            status: "SUSPICIOUS",
-            riskLevel: "MEDIUM",
-            fileHash:
-                "7ca498a8ff1d2a19c392db95ae52c0f03e46f4caf4ee7fc905835c87116cddd7",
-            scanTime: "842.4ms",
-            securityFlags: [
-                "Voluptatem Numquam",
-                "Vero",
-                "Enim",
-                "Veniam Et",
-                "Rerum",
-            ],
-            detailedAnalysis: {
-                "Aut Sapiente":
-                    "Non error est blanditiis cum id consequatur dolorem.",
-            },
-            possibleAttacks: [
-                "Ut commodi atque pariatur et. Est ad ipsum corrupti veniam doloribus sed. Officiis omnis dolorem sit sit facere aliquid.",
-                "Quo voluptatem facere non voluptas voluptas dolore aut. Vitae optio error ut enim necessitatibus ab. Consequatur provident odio voluptatibus facilis dolores quia placeat.",
-            ],
-        },
-        isDefect: true,
-        hasThreat: true,
-        rawData: {
-            analysis_date: "2025-07-30 12:03:00",
-            anomaly_score: 0.862,
-            anomaly_confidence_level: "Low",
-            anomaly_threshold: 0.622,
-            final_decision: "DEFECT",
-            id: 27,
-            image_name: "voluptatem.png",
-            defects: ["discoloration", "missing_part"],
-            threat_status: "suspicious",
-        },
-    },
-};
+// Loading states
+const isDeleting = ref(false);
+const isExporting = ref(false);
 
-const mockGoodAnalysisData = {
-    id: 16,
-    status: "good",
-    summary: {
-        imageName: "good_sample.png",
-        originalSize: "1024x768",
-        analysisDate: "10/08/2025, 14:30:15",
-        scannedBy: "user 2 (admin@example.com)",
-        finalDecision: "GOOD",
-        anomalyScore: 0.245,
-        anomalyConfidenceLevel: "Low",
-        status: "Completed",
-        totalProcessingTime: "1.234s",
-        preprocessingTime: "0.312s",
-        anomalyInferenceTime: "0.756s",
-        classificationInferenceTime: "0.000s", // No classification for good scans
-        postprocessingTime: "0.166s",
-    },
-    visuals: {
-        status: "good",
-        originalImageUrl:
-            "https://placehold.co/600x400/00FF00/000000?text=Good+Image",
-        analyzedImageUrl: "",
-    },
-    defects: [],
-    performance: {
-        timeBreakdown: {
-            preprocessing: 0.312,
-            anomalyInference: 0.756,
-            classificationInference: 0.0,
-            postprocessing: 0.166,
-        },
-        isDefect: false,
-    },
-    technical: {
-        parameters: {
-            "Total Processing Time": "1.234s",
-            "Image Preprocessing": "0.312s",
-            "Anomaly Inference": "0.756s",
-            Postprocessing: "0.166s",
-            "Model Used": "HRNet + Anomalib",
-        },
-        scanMetrics: {
-            "Anomaly Score": 0.245,
-            "Anomaly Confidence Level": "Low",
-            "Anomaly Threshold": 0.5,
-        },
-        threatData: null,
-        isDefect: false,
-        hasThreat: false,
-        rawData: {
-            analysis_date: "2025-08-10 14:30:15",
-            anomaly_score: 0.245,
-            anomaly_confidence_level: "Low",
-            anomaly_threshold: 0.5,
-            final_decision: "GOOD",
-            id: 16,
-            image_name: "good_sample.png",
-            defects: [],
-            threat_status: null,
-        },
-    },
-};
-
-// --- Simple check and console output ---
-const analysis = ref(null);
-
-onMounted(() => {
-    if (props.analysis && props.analysis.id) {
-        analysis.value = props.analysis;
-    } else {
-        console.log(" Using MOCK data - database failed:", props.analysis);
-        // Use defect mock by default for testing, you can change this logic
-        analysis.value = mockDefectAnalysisData;
-    }
+// Check if any operation is in progress
+const isOperationInProgress = computed(() => {
+    return isDeleting.value || isExporting.value;
 });
 
 // --- Computed Properties ---
-const isDefectStatus = computed(() => analysis.value?.status === "defect");
-const isGoodStatus = computed(() => analysis.value?.status === "good");
+const isDefectStatus = computed(() => props.analysis?.status === "defect");
+const isGoodStatus = computed(() => props.analysis?.status === "good");
 const hasValidAnalysis = computed(
-    () => analysis.value && analysis.value.summary
+    () => props.analysis && props.analysis.summary
 );
 
-const handleDownload = () => {
-    console.log("Download clicked for analysis ID:", analysis.value.id);
+// Handle download with confirmation
+const handleDownload = async () => {
+    try {
+        // Show export confirmation dialog
+        const result = await exportConfirmDialog({
+            title: "Export analysis report?",
+            text: `This will generate and download a PDF report for analysis "${props.analysis.summary?.imageName}" (ID: ${props.analysis.id}). Are you sure you want to proceed?`,
+        });
+
+        if (result.isConfirmed) {
+            await performExport();
+        }
+    } catch (error) {
+        console.error("Export confirmation failed:", error);
+        errorToast("Failed to show export confirmation dialog");
+    }
 };
 
-const handleDelete = () => {
-    console.log("Delete clicked for analysis ID:", analysis.value.id);
+// Perform the actual export
+const performExport = async () => {
+    try {
+        isExporting.value = true;
+
+        // Create a form for the export request
+        const form = document.createElement("form");
+        form.method = "GET";
+        form.action = route("reports.single.generate", props.analysis.id);
+        form.target = "_blank"; // Open in new tab
+
+        // Add CSRF token if available
+        const csrfToken = document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute("content");
+        if (csrfToken) {
+            const csrfInput = document.createElement("input");
+            csrfInput.type = "hidden";
+            csrfInput.name = "_token";
+            csrfInput.value = csrfToken;
+            form.appendChild(csrfInput);
+        }
+
+        // Append form to body, submit, then remove
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+
+        // Show success message
+        successToast(
+            "Report generation started! The download will begin shortly.",
+            5000
+        );
+
+        console.log("Export initiated for analysis ID:", props.analysis.id);
+    } catch (error) {
+        console.error("Export request failed:", error);
+        errorToast("Failed to initiate report generation.");
+    } finally {
+        isExporting.value = false;
+    }
+};
+
+// Handle delete with confirmation
+const handleDelete = async () => {
+    try {
+        // Show confirmation dialog with analysis details
+        const analysisDescription = `"${props.analysis.summary?.imageName}" (Analysis ID: ${props.analysis.id})`;
+        const result = await deleteConfirmDialog(analysisDescription);
+
+        if (result.isConfirmed) {
+            await performDelete();
+        }
+    } catch (error) {
+        console.error("Delete confirmation failed:", error);
+        errorToast("Failed to show delete confirmation dialog");
+    }
+};
+
+// Perform the actual deletion
+const performDelete = async () => {
+    try {
+        isDeleting.value = true;
+
+        const form = useForm({});
+
+        form.delete(route("scans.destroy", props.analysis.id), {
+            preserveState: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                handleDeleteSuccess();
+            },
+            onError: (errors) => {
+                handleDeleteError(errors);
+            },
+            onFinish: () => {
+                isDeleting.value = false;
+            },
+        });
+    } catch (error) {
+        console.error("Delete operation failed:", error);
+        errorToast("An unexpected error occurred while deleting the analysis.");
+        isDeleting.value = false;
+    }
+};
+
+// Handle successful deletion
+const handleDeleteSuccess = () => {
+    console.log("Analysis deleted successfully:", props.analysis.id);
+
+    successToast("Analysis deleted successfully!");
+
+    // Navigate to scan history or reload page
+    window.location.href = route("scans.index");
+};
+
+// Handle deletion error
+const handleDeleteError = (errors) => {
+    console.error("Delete operation failed:", errors);
+
+    let errorMessage =
+        "An unexpected error occurred while deleting the analysis.";
+
+    // Check for specific error messages
+    if (errors.message) {
+        errorMessage = errors.message;
+    } else if (errors.error) {
+        errorMessage = errors.error;
+    }
+
+    errorToast(errorMessage);
 };
 </script>
 
@@ -281,45 +223,106 @@ const handleDelete = () => {
                     {{ title }}
                 </h1>
                 <p class="mt-1 text-sm">
-                    Analysis for {{ analysis.summary?.imageName }} • Scan ID:
-                    {{ analysis.id }} •
-                    {{ analysis.summary?.analysisDate }}
+                    Analysis for {{ props.analysis.summary?.imageName }} • Scan
+                    ID: {{ props.analysis.id }} •
+                    {{ props.analysis.summary?.analysisDate }}
                 </p>
             </div>
             <div class="flex items-end gap-3">
                 <button
                     @click="handleDownload"
+                    :disabled="isOperationInProgress"
                     class="gap-2 bg-this hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 disabled:bg-this-light dark:disabled:bg-this-darker text-white btn-base btn this:primary"
+                    :class="{
+                        'opacity-50 cursor-not-allowed': isOperationInProgress,
+                    }"
                 >
-                    <font-awesome-icon icon="fa-solid fa-download" />
-                    <span>Download</span>
+                    <div v-if="isExporting" class="flex items-center">
+                        <svg
+                            class="mr-2 w-4 h-4 animate-spin"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                        >
+                            <circle
+                                class="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                stroke-width="4"
+                            ></circle>
+                            <path
+                                class="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                        </svg>
+                        <span>Exporting...</span>
+                    </div>
+                    <div v-else class="flex items-center">
+                        <font-awesome-icon icon="fa-solid fa-download" />
+                        <span>Download</span>
+                    </div>
                 </button>
                 <button
                     @click="handleDelete"
+                    :disabled="isOperationInProgress"
                     class="gap-2 bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 text-white transition-colors btn-base btn"
+                    :class="{
+                        'opacity-50 cursor-not-allowed': isOperationInProgress,
+                    }"
                 >
-                    <font-awesome-icon icon="fa-solid fa-trash-can" />
-                    <span>Delete</span>
+                    <div v-if="isDeleting" class="flex items-center">
+                        <svg
+                            class="mr-2 w-4 h-4 animate-spin"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                        >
+                            <circle
+                                class="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                stroke-width="4"
+                            ></circle>
+                            <path
+                                class="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                        </svg>
+                        <span>Deleting...</span>
+                    </div>
+                    <div v-else class="flex items-center">
+                        <font-awesome-icon icon="fa-solid fa-trash-can" />
+                        <span>Delete</span>
+                    </div>
                 </button>
             </div>
         </div>
 
         <!-- Analysis Summary (Updated with new structure) -->
-        <AnalysisSummary :summary="analysis.summary" />
+        <AnalysisSummary :summary="props.analysis.summary" />
 
         <!-- Image Comparison -->
-        <ImageComparison :comparison-data="analysis.visuals" />
+        <ImageComparison :comparison-data="props.analysis.visuals" />
 
         <!-- Defect Details (only for defect status) -->
-        <DefectDetailCharts v-if="isDefectStatus" :defects="analysis.defects" />
+        <DefectDetailCharts
+            v-if="isDefectStatus"
+            :defects="props.analysis.defects"
+        />
 
         <!-- Performance Chart (Updated - now shows processing performance) -->
-        <PerformanceChart :performance-data="analysis.performance" />
+        <PerformanceChart :performance-data="props.analysis.performance" />
 
         <!-- Product Quality (only for good status) -->
         <ProductQuality v-if="isGoodStatus" />
 
         <!-- Technical Details (Updated with new structure) -->
-        <TechnicalDetails :details="analysis.technical" />
+        <TechnicalDetails :details="props.analysis.technical" />
     </div>
 </template>
