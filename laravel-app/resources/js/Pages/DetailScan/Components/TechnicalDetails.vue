@@ -288,6 +288,10 @@ const getMetricPercentage = (key, value) => {
         <div
             v-if="details.hasThreat"
             class="bg-white dark:bg-dark-800 shadow-sm dark:shadow-none px-6 py-5 border border-gray-200 dark:border-none rounded-lg"
+            :class="{
+                'w-1/2': !details.threatData || !details.threatData.possibleAttacks?.length,
+                'w-full': details.threatData && details.threatData.possibleAttacks?.length,
+            }"
         >
             <h3
                 class="flex items-center gap-4 mb-6 font-semibold text-gray-900 dark:text-dark-50 text-lg"
@@ -296,7 +300,12 @@ const getMetricPercentage = (key, value) => {
                 Security Threat Analysis
             </h3>
 
-            <div class="gap-6 grid grid-cols-1 lg:grid-cols-2">
+            <div class="gap-6 grid grid-cols-1"
+                :class="{
+                    'lg:grid-cols-1': !details.threatData || !details.threatData.possibleAttacks?.length,
+                    'lg:grid-cols-2': details.threatData && details.threatData.possibleAttacks?.length,
+                }"
+            >
                 <!-- Threat Summary -->
                 <div class="space-y-4">
                     <div
@@ -346,7 +355,7 @@ const getMetricPercentage = (key, value) => {
                                                     ?.riskLevel === 'HIGH',
                                             'bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-400':
                                                 details.threatData
-                                                    ?.riskLevel === 'LOW',
+                                                    ?.riskLevel === 'LOW' || details.threatData?.riskLevel === 'CLEAN',
                                         }"
                                         class="px-2 py-1 rounded-full font-medium text-xs"
                                     >
@@ -401,7 +410,7 @@ const getMetricPercentage = (key, value) => {
                     </div>
 
                     <!-- Detailed Analysis -->
-                    <div v-if="details.threatData?.detailedAnalysis">
+                    <div v-if="details.threatData?.detailedAnalysis?.length">
                         <h4
                             class="mb-2 font-medium text-gray-800 dark:text-dark-100"
                         >
