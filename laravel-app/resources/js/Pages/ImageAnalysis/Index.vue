@@ -1,7 +1,7 @@
 <script setup>
 // Imports
 import { ref, computed, watch } from "vue";
-import { useForm } from "@inertiajs/vue3";
+import { router, useForm } from "@inertiajs/vue3";
 
 import ImageSelector from "./Components/ImageSelector.vue";
 import ImageTabs from "./Components/ImageTabs.vue";
@@ -46,8 +46,6 @@ const loading = ref(false);
 // Inertia form for single image
 const form = useForm({
     image: null,
-    sensitivity: 50,
-    threatChecker: false,
 });
 
 // Handle file selection for single image mode
@@ -75,8 +73,6 @@ async function handleRunAnalysis(settings) {
     detectionResult.value = null;
 
     form.image = selectedFile.value;
-    form.sensitivity = settings.sensitivity;
-    form.threatChecker = settings.threatChecker;
 
     form.post(route("scans.store"), {
         forceFormData: true,
@@ -107,34 +103,70 @@ async function handleRunBatchAnalysis(files) {
     processedCount.value = 0;
     totalCount.value = files.length;
 
-    // Simulate async image-by-image processing
-    const processEach = async () => {
-        for (let i = 0; i < files.length; i++) {
-            form.image = files[i];
-            form.sensitivity = 50;
-            form.threatChecker = true;
+    // 1. Send all files at once to the new 'startBatch' route
+    files.forEach((fileWrapper, index) => {
+        // Access the actual file using fileWrapper.file
+        const file = fileWrapper.file; // <-- Get the nested File object
 
-            // await form.post(route(''), {
-            //     forceFormData: true,
-            //     preserveScroll: true,
-            //     onError: (errors) => {
-            //         console.error(`Error on image ${i + 1}:`, errors);
-            //     },
-            // })
-
-            await new Promise((resolve) => setTimeout(resolve, 500)); // simulate 500ms/image
-            processedCount.value = i + 1;
+        if (file) {
+            console.log(
+                `File ${index}: ${file.name}, Size: ${(
+                    file.size / 1024
+                ).toFixed(2)} KB`
+            );
+            if (file.size / 1024 > 4096) {
+                console.error(
+                    `---> ERROR: File ${file.name} is larger than the 4MB limit!`
+                );
+            }
+        } else {
+            console.error(`File object at index ${index} is undefined.`);
         }
+    });
 
-        // Done
-        // Set Delay 500ms to show the success modal
-        setTimeout(() => {
-            isProcessing.value = false;
-            isSuccess.value = true;
-        }, 500);
-    };
+    // Also update your FormData append line
+    const formData = new FormData();
+    files.forEach((fileWrapper) => {
+        // Make sure to append the actual file object
+        formData.append("images[]", fileWrapper.file);
+    });
 
-    processEach();
+    try {
+        const response = await axios.post(route("scans.store.batch"), formData);
+        console.log("Batch analysis started successfully:", response.data);
+        const batchId = response.data.batch_id;
+
+        // 2. Start polling for status updates
+        const intervalId = setInterval(async () => {
+            try {
+                const statusResponse = await axios.get(
+                    route("scans.batch.status", { batchId })
+                );
+                const { processed, total } = statusResponse.data;
+
+                processedCount.value = processed;
+                totalCount.value = total;
+
+                console.log(`Batch status: ${processed}/${total} processed`);
+
+                // 3. Stop polling when the job is done
+                if (total > 0 && processed >= total) {
+                    clearInterval(intervalId);
+                    isProcessing.value = false;
+                    isSuccess.value = true;
+                }
+            } catch (error) {
+                console.error("Failed to get batch status:", error);
+                clearInterval(intervalId);
+                isProcessing.value = false;
+                // Handle error state
+            }
+        }, 100); // Check every 0.5 seconds
+    } catch (error) {
+        console.error("Failed to start batch:", error);
+        isProcessing.value = false;
+        // Handle error state
+    }
 }
 
 // Retry batch analysis (reset everything)

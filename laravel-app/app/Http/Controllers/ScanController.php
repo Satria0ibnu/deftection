@@ -7,12 +7,14 @@ use App\Models\Scan;
 use Inertia\Inertia;
 use App\Models\ScanDefect;
 use App\Models\ScanThreat;
-use App\Services\ScanHistoryService;
-use App\Services\ScanDetailService;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
+use App\Jobs\ProcessBatchImages;
+use App\Services\ScanDetailService;
 use Illuminate\Support\Facades\Log;
+use App\Services\ScanHistoryService;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
@@ -318,7 +320,8 @@ class ScanController extends Controller
                 ]);
             }
 
-            $data = $response->json()['data']; // Assuming results are nested under a 'data' key
+            $data = $response->json(); // Assuming results are nested under a 'data' key
+            // Log::info('Successfully parsed JSON response from Flask.', ['data' => $data]);
             Log::info('Successfully parsed JSON response from Flask.');
 
             // Store both images only now
@@ -327,9 +330,9 @@ class ScanController extends Controller
 
             // Handle annotated image if it exists
             $annotatedPath = null;
-            if (isset($data['annotated_image']['base64']) && !empty($data['annotated_image']['base64'])) {
+            if (isset($data['annotated_image']) && !empty($data['annotated_image'])) {
                 // The base64 string from Flask might not have the data URI prefix
-                $filedata = $data['annotated_image']['base64'];
+                $filedata = $data['annotated_image'];
                 if (strpos($filedata, ',') !== false) {
                     [, $filedata] = explode(',', $filedata);
                 }
@@ -339,7 +342,6 @@ class ScanController extends Controller
                 Log::info('Annotated image stored.', ['path' => $annotatedPath]);
             }
 
-
             // Create Scan row and related models
             Log::info('Creating Scan record in the database.');
             $scan = Scan::create([
@@ -347,29 +349,29 @@ class ScanController extends Controller
                 'filename' => $originalFilename,
                 'original_path' => $originalPath,
                 'annotated_path' => $annotatedPath,
-                'is_defect' => $data['result_summary']['is_defective'] ?? false,
-                'anomaly_score' => number_format($data['anomaly_detection']['anomaly_score'] ?? 0, 5, '.', ''),
-                'anomaly_confidence_level' => $data['confidence_level'] ?? 'N/A',
+                'is_defect' => $data['final_decision'] === 'DEFECT' ? true : false,
+                'anomaly_score' => number_format($data['anomaly_score'] ?? 0, 5, '.', ''),
+                'anomaly_confidence_level' => $data['anomaly_confidence_level'] ?? 'N/A',
                 // Note: The new response has one 'processing_time'. We'll use it for the main inference time.
-                'anomaly_inference_time_ms' => number_format(($data['processing_time'] ?? 0) * 1000, 3, '.', ''), // Convert seconds to ms
-                'classification_interference_time_ms' => null, // Not provided in new response
-                'preprocessing_time_ms' => null, // Not provided in new response
-                'postprocessing_time_ms' => null, // Not provided in new response
-                'anomaly_threshold' => number_format($data['anomaly_detection']['threshold_used'] ?? 0, 5, '.', ''),
+                'anomaly_inference_time_ms' => number_format(($data['anomaly_processing_time'] ?? 0) * 1000, 3, '.', ''), // Convert seconds to ms
+                'classification_inference_time_ms' => number_format(($data['classification_processing_time'] ?? 0) * 1000, 3, '.', ''),
+                'preprocessing_time_ms' => number_format(($data['preprocessing_time'] ?? 0) * 1000, 3, '.', ''),
+                'postprocessing_time_ms' => number_format(($data['postprocessing_time'] ?? 0) * 1000, 3, '.', ''),
+                'anomaly_threshold' => number_format($data['anomaly_threshold'] ?? 0, 5, '.', ''),
             ]);
             Log::info('Scan record created successfully.', ['scan_id' => $scan->id]);
 
             // Store defects
-            if (!empty($data['detected_defects'])) {
-                Log::info('Storing scan defects.', ['scan_id' => $scan->id, 'defect_count' => count($data['detected_defects'])]);
-                foreach ($data['detected_defects'] as $defect) {
+            if (!empty($data['defects'])) {
+                Log::info('Storing scan defects.', ['scan_id' => $scan->id, 'defect_count' => count($data['defects'])]);
+                foreach ($data['defects'] as $defect) {
                     ScanDefect::create([
                         'scan_id' => $scan->id,
                         'label' => $defect['label'] ?? 'unknown',
                         'confidence_score' => round($defect['confidence_score'] ?? 0, 6),
                         'severity_level' => $defect['severity_level'] ?? 'N/A',
                         'area_percentage' => round($defect['area_percentage'] ?? 0, 4),
-                        'box_location' => $defect['box_location'] ?? [],
+                        'box_location' => $defect['bounding_box'] ?? [],
                     ]);
                 }
                 Log::info('Scan defects stored successfully.', ['scan_id' => $scan->id]);
@@ -395,9 +397,9 @@ class ScanController extends Controller
                 'scanResult' => [
                     'id' => $scan->id,
                     'decision' => $data['final_decision'] ?? 'UNKNOWN',
-                    'score' => $data['anomaly_detection']['anomaly_score'] ?? 0,
-                    'time' => $data['processing_time'] ?? 0,
-                    'defects' => count($data['detected_defects'] ?? []),
+                    'score' => $data['anomaly_score'] ?? 0,
+                    'time' => $data['anomaly_processing_time'] ?? 0,
+                    'defects' => count($data['defects'] ?? []),
                     'originalImageUrl' => Storage::url($originalPath),
                     'annotatedImageUrl' => $annotatedPath ? asset(Storage::url($annotatedPath)) : null,
                 ]
@@ -425,143 +427,59 @@ class ScanController extends Controller
     public function storeBatch(Request $request)
     {
         try {
-            // Validate batch upload
-            $request->validate([
-                'images' => 'required|array|max:10', // Limit batch size
+            $validated = $request->validate([
+                'images' => 'required|array|max:10',
                 'images.*' => 'required|image|max:4096'
             ]);
-
-            $results = [];
-            $errors = [];
-            $successCount = 0;
-
-            foreach ($request->file('images') as $index => $userImage) {
-                try {
-                    $originalFilename = time() . '_' . $index . '_' . Str::slug(pathinfo($userImage->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $userImage->getClientOriginalExtension();
-
-                    // Send to Flask API
-                    $response = Http::timeout(30)->attach('image', file_get_contents($userImage->getRealPath()), $originalFilename)
-                        ->post(env('FLASK_API_URL') . '/scan');
-
-                    if (!$response->ok()) {
-                        $errors[] = [
-                            'filename' => $userImage->getClientOriginalName(),
-                            'error' => 'Analysis failed - server error',
-                            'index' => $index
-                        ];
-                        continue;
-                    }
-
-                    $data = $response->json();
-
-                    // Store images
-                    $originalPath = Storage::disk('public')->putFileAs('images/original', $userImage, $originalFilename);
-
-                    [$meta, $filedata] = explode(',', $data['annotated_image_base64']);
-                    $annotatedFilename = 'annotated_' . $originalFilename;
-                    $annotatedPath = 'images/annotated/' . $annotatedFilename;
-                    Storage::disk('public')->put($annotatedPath, base64_decode($filedata));
-
-                    // Create Scan record
-                    $scan = Scan::create([
-                        'user_id' => auth()->id(),
-                        'filename' => $data['filename'],
-                        'original_path' => $originalPath,
-                        'annotated_path' => $annotatedPath,
-                        'is_defect' => $data['is_defect'],
-                        'anomaly_score' => number_format($data['anomaly_score'], 5, '.', ''),
-                        'anomaly_confidence_level' => $data['anomaly_confidence_level'],
-                        'anomaly_inference_time_ms' => number_format($data['processing_times']['anomaly_inference_ms'], 3, '.', ''),
-                        'classification_interference_time_ms' => $data['processing_times']['classification_inference_ms'] !== null
-                            ? number_format($data['processing_times']['classification_inference_ms'], 3, '.', '')
-                            : null,
-                        'preprocessing_time_ms' => number_format($data['processing_times']['preprocessing_ms'], 3, '.', ''),
-                        'postprocessing_time_ms' => number_format($data['processing_times']['postprocessing_ms'], 3, '.', ''),
-                        'anomaly_threshold' => number_format($data['anomaly_threshold'], 5, '.', ''),
-                    ]);
-
-                    // Store defects
-                    foreach ($data['defects'] ?? [] as $defect) {
-                        ScanDefect::create([
-                            'scan_id' => $scan->id,
-                            'label' => $defect['label'],
-                            'confidence_score' => round($defect['confidence_score'], 6),
-                            'severity_level' => $defect['severity_level'],
-                            'area_percentage' => round($defect['area_percentage'], 4),
-                            'box_location' => $defect['box_location'], // Pass array directly
-                        ]);
-                    }
-
-                    // Store threat
-                    if (!empty($data['threat_scan'])) {
-                        ScanThreat::create([
-                            'scan_id' => $scan->id,
-                            'hash' => $data['threat_scan']['hash'],
-                            'status' => $data['threat_scan']['status'],
-                            'threat_level' => $data['threat_scan']['threat_level'],
-                            'qr_content' => $data['threat_scan']['qr_content'],
-                            'issues' => $data['threat_scan']['issues'], // Pass array directly
-                        ]);
-                    }
-
-                    $results[] = [
-                        'scan' => $scan->load('scanDefects', 'scanThreat'), // Use correct relationship names
-                        'originalImageUrl' => Storage::url($originalPath),
-                        'annotatedImageUrl' => Storage::url($annotatedPath),
-                        'originalFilename' => $userImage->getClientOriginalName(),
-                        'index' => $index
-                    ];
-
-                    $successCount++;
-                } catch (Exception $e) {
-                    Log::error('Batch scan processing failed for image', [
-                        'user_id' => auth()->id(),
-                        'image_index' => $index,
-                        'filename' => $userImage->getClientOriginalName(),
-                        'error' => $e->getMessage()
-                    ]);
-
-                    $errors[] = [
-                        'filename' => $userImage->getClientOriginalName(),
-                        'error' => 'Processing failed: ' . $e->getMessage(),
-                        'index' => $index
-                    ];
-                }
-            }
-
-            // Return results
-            return Inertia::render('Scan/Create', [
-                'title' => 'Upload Images',
-                'description' => 'Upload images for scanning defects.',
-                'batchResults' => [
-                    'results' => $results,
-                    'errors' => $errors,
-                    'summary' => [
-                        'total' => count($request->file('images')),
-                        'successful' => $successCount,
-                        'failed' => count($errors),
-                        'defectsFound' => collect($results)->where('scan.is_defect', true)->count()
-                    ]
-                ]
-            ]);
         } catch (ValidationException $e) {
-            throw $e;
-        } catch (Exception $e) {
-            Log::error('Batch scan failed completely', [
-                'user_id' => auth()->id(),
-                'error' => $e->getMessage()
-            ]);
-
-            return Inertia::render('Scan/Create', [
-                'title' => 'Upload Images',
-                'description' => 'Upload images for scanning defects.',
-                'error' => [
-                    'message' => 'Batch processing failed. Please try again.',
-                    'type' => 'batch_error'
-                ]
-            ]);
+            return response()->json([
+                'message' => 'The given data was invalid.',
+                'errors' => $e->errors(),
+            ], 422);
         }
+
+        $batchId = (string) Str::uuid();
+        $files = $validated['images'];
+        $totalFiles = count($files);
+
+        // Store the images in a temporary folder
+        foreach ($files as $index => $image) {
+            $image->storeAs('temp_batches/' . $batchId, $index . '_' . $image->getClientOriginalName());
+        }
+
+        // *** THE FIX: Set the initial cache status here in the controller ***
+        Cache::put('batch_status_' . $batchId, [
+            'processed' => 0,
+            'total' => $totalFiles,
+            'errors' => []
+        ], now()->addMinutes(30)); // Cache for 30 minutes
+
+        // Dispatch the background job
+        ProcessBatchImages::dispatch($batchId, auth()->id());
+
+        Log::info('Batch job dispatched.', ['batch_id' => $batchId, 'user_id' => auth()->id()]);
+
+        // Immediately return the batch ID to the frontend
+        return response()->json(['batch_id' => $batchId]);
     }
+
+    public function getBatchStatus($batchId)
+    {
+        $status = Cache::get('batch_status_' . $batchId, [
+            'processed' => 0,
+            'total' => 0,
+            'errors' => []
+        ]);
+
+        Log::info('Batch status requested.', [
+            'batch_id' => $batchId,
+            'processed' => $status['processed'],
+            'total' => $status['total']
+        ]);
+
+        return response()->json($status);
+    }
+
 
     // delete a scans
     public function destroy(Scan $scan)

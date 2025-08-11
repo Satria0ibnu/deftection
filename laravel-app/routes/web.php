@@ -113,6 +113,9 @@ Route::middleware(['auth'])->group(function () {
     // Clear Data
     Route::delete('/clear-all-data', [SettingsController::class, 'clearAllData'])->name('clear_all_data');
     Route::delete('/clear-my-data', [SettingsController::class, 'clearMyData'])->name('clear_my_data');
+
+    // Reset Settings
+    Route::post('/reset', [SettingsController::class, 'reset'])->name('reset');
   });
 
 
@@ -127,6 +130,10 @@ Route::middleware(['auth'])->group(function () {
   // scans store (image analysis)
   Route::get('/image-analysis', [ScanController::class, 'create'])->name('scans.create');
   Route::post('image-analysis', [ScanController::class, 'store'])->name('scans.store');
+  Route::post('image-analysis/batch', [ScanController::class, 'storeBatch'])->name('scans.store.batch');
+  Route::get('image-analysis/batch-status/{batchId}', [ScanController::class, 'getBatchStatus'])
+    ->name('scans.batch.status')
+    ->middleware('throttle:60,1'); // Limit to 60 requests per minute
   // Scan list
   Route::prefix('analysis/scan-history')->group(function () {
     Route::get('/', [ScanController::class, 'index'])->name('scans.index');
