@@ -37,7 +37,7 @@ import ExportItem from "../../Shared/Dropdown/ExportItem.vue";
 import DeleteItem from "../../Shared/Dropdown/DeleteItem.vue";
 
 const props = defineProps({
-    scans: { type: Array, required: true },
+    scans: { type: Object, required: true },
     filters: { type: Object, required: true },
     meta: { type: Object, default: () => ({}) },
     initialChecksum: { type: String, default: "" },
@@ -220,6 +220,12 @@ watch(
 onMounted(() => {
     initializeFilters();
     initializeChecksum(props.initialChecksum);
+
+    if (props.scans && props.scans.data && props.scans.data.length > 0) {
+        console.log("First scan object from props:", props.scans.data[0]);
+    } else {
+        console.log("The 'scans' prop is empty or not in the expected format.");
+    }
 });
 
 // Computed properties
@@ -942,10 +948,7 @@ if (props.userCan.viewAllScans) {
                             <div class="flex items-center">
                                 <img
                                     class="flex-shrink-0 rounded-md w-20 h-12 object-cover"
-                                    :src="
-                                        scan.annotated_path ||
-                                        scan.original_path
-                                    "
+                                    :src="scan.annotated_image_url"
                                     alt="Analysis Image"
                                 />
                                 <p
