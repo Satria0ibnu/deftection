@@ -185,10 +185,26 @@ const handleResetSettings = () => {
 };
 
 const handleConfirmDangerZoneReset = () => {
-    settings.detection = JSON.parse(JSON.stringify(defaultSettings.detection));
-    isDangerZoneResetModalVisible.value = false;
-    successToast("Settings have been reset to their default values.");
-    saveSettings(false);
+    // Use Inertia's router to call the new reset endpoint
+    router.post(
+        route("settings.reset"),
+        {},
+        {
+            onSuccess: () => {
+                successToast(
+                    "Settings have been reset to their default values."
+                );
+                isDangerZoneResetModalVisible.value = false;
+
+                location.reload();
+            },
+            onError: (errors) => {
+                // This code runs if the server returns an error
+                console.error("Failed to reset settings:", errors);
+                // You could show an error toast here
+            },
+        }
+    );
 };
 </script>
 
