@@ -23,7 +23,8 @@ const props = defineProps({
 const activeTab = ref("account");
 const pristineSettings = ref("");
 const isDangerZoneResetModalVisible = ref(false);
-const isClearDataModalVisible = ref(false);
+const isClearAllDataModalVisible = ref(false);
+const isClearMyDataModalVisible = ref(false);
 
 // --- Default Settings Data (for resetting) ---
 const defaultSettings = {
@@ -148,15 +149,28 @@ const resetUnsavedChanges = () => {
 };
 
 // --- "Danger Zone" Event Handlers ---
-const handleClearData = () => {
-    isClearDataModalVisible.value = true;
+const handleClearMyData = () => {
+    isClearMyDataModalVisible.value = true;
 };
 
-const handleConfirmClearData = () => {
+const handleConfirmClearMyData = () => {
+    router.delete(route("settings.clear_my_data"), {
+        onSuccess: () => {
+            isClearMyDataModalVisible.value = false;
+            successToast("Your analysis data has been cleared.");
+        },
+    });
+};
+
+const handleClearAllData = () => {
+    isClearAllDataModalVisible.value = true;
+};
+
+const handleConfirmClearAllData = () => {
     router.delete(route("settings.clear_all_data"), {
         onSuccess: () => {
             // The success message will come from the backend redirect
-            isClearDataModalVisible.value = false;
+            isClearAllDataModalVisible.value = false;
             successToast("All analysis data has been cleared.");
         },
         onError: (errors) => {
@@ -289,7 +303,8 @@ const handleConfirmDangerZoneReset = () => {
                 <component
                     :is="activeTabComponent"
                     v-bind="activeTabProps"
-                    @clear-data="handleClearData"
+                    @clear-all-data="handleClearAllData"
+                    @clear-my-data="handleClearMyData"
                     @reset-settings="handleResetSettings"
                 />
             </keep-alive>
@@ -340,15 +355,27 @@ const handleConfirmDangerZoneReset = () => {
             @confirm="handleConfirmDangerZoneReset"
         />
 
+        <!-- Modal for "Clear My Data" (User) -->
         <ConfirmationModal
-            :show="isClearDataModalVisible"
+            :show="isClearMyDataModalVisible"
+            title="Delete My Analysis Data?"
+            message="Are you sure you want to permanently delete all of your scan and session history? This action cannot be undone."
+            confirm-text="Yes, Delete My Data"
+            variant="error"
+            icon="fa-solid fa-user-slash"
+            @close="isClearMyDataModalVisible = false"
+            @confirm="handleConfirmClearMyData"
+        />
+
+        <ConfirmationModal
+            :show="isClearAllDataModalVisible"
             title="Clear All Analysis Data?"
             message="Are you sure you want to permanently delete all scan and session history? This action cannot be undone."
             confirm-text="Yes, Clear All Data"
             variant="error"
             icon="fa-solid fa-trash"
-            @close="isClearDataModalVisible = false"
-            @confirm="handleConfirmClearData"
+            @close="isClearAllDataModalVisible = false"
+            @confirm="handleConfirmClearAllData"
         />
     </div>
 </template>
