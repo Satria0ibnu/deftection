@@ -10,7 +10,7 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    protected $dashboardService;
+    protected DashboardService $dashboardService;
 
     public function __construct(DashboardService $dashboardService)
     {
@@ -20,91 +20,25 @@ class DashboardController extends Controller
     /**
      * Display the dashboard page
      */
-    public function index(Request $request): Response
+    public function index(): Response
     {
-        $filters = [
-            'defect_filter' => $request->get('defect_filter'),
-            'date_range' => $request->get('date_range'),
-        ];
 
-        $dashboardData = $this->dashboardService->getDashboardData($filters);
+        $dashboardData = $this->dashboardService->getDashboardData();
 
         return Inertia::render('Dashboard/Index', $dashboardData);
     }
 
     /**
-     * API endpoint for polling dashboard data
+     * API endpoint for getting dashboard data (for manual refresh)
      */
-    public function indexApi(Request $request): JsonResponse
+    public function indexApi(): JsonResponse
     {
-        $filters = [
-            'defect_filter' => $request->get('defect_filter'),
-            'date_range' => $request->get('date_range'),
-        ];
 
-        $dashboardData = $this->dashboardService->getDashboardData($filters);
+        $dashboardData = $this->dashboardService->getDashboardData();
 
         return response()->json([
             'status' => 'success',
             'data' => $dashboardData,
-            'timestamp' => now()->toISOString(),
-        ]);
-    }
-
-    /**
-     * API endpoint for getting only card data (for frequent polling)
-     */
-    public function cardDataApi(): JsonResponse
-    {
-        $cardData = $this->dashboardService->getCardDataOnly();
-
-        return response()->json([
-            'status' => 'success',
-            'data' => $cardData,
-            'timestamp' => now()->toISOString(),
-        ]);
-    }
-
-    /**
-     * API endpoint for getting only overview data
-     */
-    public function overviewDataApi(): JsonResponse
-    {
-        $overviewData = $this->dashboardService->getOverviewDataOnly();
-
-        return response()->json([
-            'status' => 'success',
-            'data' => $overviewData,
-            'timestamp' => now()->toISOString(),
-        ]);
-    }
-
-    /**
-     * API endpoint for getting defect trend data
-     */
-    public function defectTrendApi(Request $request): JsonResponse
-    {
-        $filterMonth = $request->get('month');
-        $trendData = $this->dashboardService->getDefectTrendOnly($filterMonth);
-
-        return response()->json([
-            'status' => 'success',
-            'data' => $trendData,
-            'timestamp' => now()->toISOString(),
-        ]);
-    }
-
-    /**
-     * API endpoint for getting recent analyses
-     */
-    public function recentAnalysesApi(Request $request): JsonResponse
-    {
-        $limit = $request->get('limit', 10);
-        $recentData = $this->dashboardService->getRecentAnalysesOnly($limit);
-
-        return response()->json([
-            'status' => 'success',
-            'data' => $recentData,
             'timestamp' => now()->toISOString(),
         ]);
     }

@@ -10,6 +10,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\RealtimeController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DefectTypeController;
 use App\Http\Controllers\RealtimeScanController;
@@ -28,9 +29,7 @@ Route::middleware(['guest'])->group(function () {
 
 Route::middleware(['auth'])->group(function () {
   //DASHBOARD
-  Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard/Index');
-  })->name('dashboard');
+  Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
   // PRODUCTS
   Route::prefix('database/products')->group(function () {

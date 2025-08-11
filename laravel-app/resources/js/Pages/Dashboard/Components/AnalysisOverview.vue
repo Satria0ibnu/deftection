@@ -1,11 +1,26 @@
 <script setup>
+import { Link } from "@inertiajs/vue3";
 import { route } from "ziggy-js";
 
+// This component will need to get overview data from the parent or a separate API call
+// For now, we'll use static placeholders since the DashboardService doesn't provide this data yet
 const props = defineProps({
-    averageTime: Number,
-    successRate: Number,
-    defectRate: Number,
-    AIConfidence: Number,
+    averageTime: {
+        type: Number,
+        default: 0.5,
+    },
+    successRate: {
+        type: Number,
+        default: 86,
+    },
+    defectRate: {
+        type: Number,
+        default: 15,
+    },
+    AIConfidence: {
+        type: Number,
+        default: 90,
+    },
 });
 </script>
 
@@ -29,7 +44,7 @@ const props = defineProps({
                 </svg>
                 <span>Avg Processing Time</span>
             </div>
-            {{ props.averageTime }}s
+            {{ averageTime }}s
         </div>
         <div
             class="flex justify-between bg-this-darker/[0.07] dark:bg-this-lighter/10 py-2 border border-this-darker/20 dark:border-this-lighter/20 text-this-darker dark:text-this-lighter badge-base badge this:success"
@@ -49,7 +64,7 @@ const props = defineProps({
                 </svg>
                 <span>Success Rate</span>
             </div>
-            {{ props.successRate }}%
+            {{ successRate }}%
         </div>
         <div
             class="flex justify-between bg-this-darker/[0.07] dark:bg-this-lighter/10 py-2 border border-this-darker/20 dark:border-this-lighter/20 text-this-darker dark:text-this-lighter badge-base badge this:error"
@@ -69,7 +84,7 @@ const props = defineProps({
                 </svg>
                 <span>Defect Rate</span>
             </div>
-            {{ props.defectRate }}%
+            {{ defectRate }}%
         </div>
         <div
             class="flex justify-between bg-this-darker/[0.07] dark:bg-this-lighter/10 py-2 border border-this-darker/20 dark:border-this-lighter/20 text-this-darker dark:text-this-lighter badge-base badge this:secondary"
@@ -89,7 +104,7 @@ const props = defineProps({
                 </svg>
                 <span>AI Confidence</span>
             </div>
-            {{ props.AIConfidence }}%
+            {{ AIConfidence }}%
         </div>
     </div>
     <div class="flex flex-col gap-4 mt-3">
@@ -141,16 +156,14 @@ const props = defineProps({
                         clip-rule="evenodd"
                     />
                 </svg>
-
                 <span>New Session (Real-Time)</span>
             </button>
         </Link>
-        <Link :href="route('scans.index')">
+        <Link :href="route('sessions.index')">
             <button
                 class="gap-2 hover:bg-this-darker/[.05] focus:bg-this-darker/[.05] active:bg-this-darker/10 dark:hover:bg-this-lighter/[.05] dark:focus:bg-this-lighter/[.05] dark:active:bg-this-lighter/10 py-2 border border-this-darker dark:border-this-lighter w-full text-this-darker dark:text-this-lighter btn-base btn this:success"
             >
                 <font-awesome-icon icon="fa-solid fa-clock-rotate-left" />
-
                 <span>Session History (Real-Time)</span>
             </button>
         </Link>
@@ -159,7 +172,6 @@ const props = defineProps({
                 class="gap-2 hover:bg-this-darker/[.05] focus:bg-this-darker/[.05] active:bg-this-darker/10 dark:hover:bg-this-lighter/[.05] dark:focus:bg-this-lighter/[.05] dark:active:bg-this-lighter/10 py-2 border border-this-darker dark:border-this-lighter w-full text-this-darker dark:text-this-lighter btn-base btn this:error"
             >
                 <font-awesome-icon icon="fa-solid fa-cogs" />
-
                 <span>Settings</span>
             </button>
         </Link>

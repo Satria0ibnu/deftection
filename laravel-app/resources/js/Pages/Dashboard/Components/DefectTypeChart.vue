@@ -1,34 +1,36 @@
 <script setup>
 import VueApexCharts from "vue3-apexcharts";
-import { ref } from "vue";
+import { computed } from "vue";
 
-const series = ref([10, 5, 2, 4]); // Mock data
+const props = defineProps({
+    defectData: {
+        type: Object,
+        required: true,
+    },
+});
 
-const chartOptions = ref({
-    labels: ["Crack", "Dent", "Scratch", "Opened"], // KEEP - This is data
+const series = computed(() => props.defectData.data || []);
+
+const chartOptions = computed(() => ({
+    labels: props.defectData.labels || [],
     fill: {
-        // KEEP - This is specific to this chart's look
         opacity: 1,
     },
     stroke: {
-        // KEEP - Also specific styling
         width: 1,
         colors: undefined,
     },
     yaxis: {
-        // KEEP - This is a structural change
         show: false,
     },
     legend: {
-        position: "bottom", // KEEP - This is layout
-        horizontalAlign: "center", // KEEP - This is layout
+        position: "bottom",
+        horizontalAlign: "center",
         labels: {
-            // REMOVE THIS - Your new CSS file now controls the legend text color
-            // colors: "#cbd5e1",
+            colors: "#cbd5e1",
         },
     },
     plotOptions: {
-        // KEEP - This is structural
         polarArea: {
             rings: {
                 strokeWidth: 0,
@@ -39,7 +41,6 @@ const chartOptions = ref({
         },
     },
     theme: {
-        // KEEP - The monochrome theme generates the color palette
         monochrome: {
             enabled: true,
             color: "#155dfc",
@@ -47,7 +48,12 @@ const chartOptions = ref({
             shadeIntensity: 0.65,
         },
     },
-});
+    tooltip: {
+        y: {
+            formatter: (val) => `${val} defects`,
+        },
+    },
+}));
 </script>
 
 <template>
