@@ -160,10 +160,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/check-updates', [RealtimeController::class, 'indexCheck'])->middleware('throttle:120,1')->name('sessions.index.check');
     Route::get('/force-refresh', [RealtimeController::class, 'indexRefresh'])->middleware('throttle:60,1')->name('sessions.index.refresh');
 
-    // Realtime Session Details (Realtime scan index)
-    Route::get('/{realtimeSession}', [RealtimeScanController::class, 'index'])->name('sessions_scan.index');
-    // Realtime scan details
-    Route::get('/{realtimeSession}/scan/{scan}', [RealtimeScanController::class, 'scan'])->name('sessions_scan.show');
+    Route::get('/{realtimeSession}', [RealtimeController::class, 'show'])->name('sessions_scan.index');
+
 
     // Realtime Session  operations
     Route::delete('/{realtimeSession}', [RealtimeController::class, 'destroy'])->name('sessions.destroy');

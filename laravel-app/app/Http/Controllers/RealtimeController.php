@@ -7,11 +7,13 @@ use Illuminate\Http\Request;
 use App\Models\RealtimeSession;
 use Illuminate\Support\Facades\Log;
 use App\Services\RealtimeSessionQueryService;
+use App\Services\RealtimeSessionDetailService;
 
 class RealtimeController extends Controller
 {
     public function __construct(
-        protected RealtimeSessionQueryService    $realtimeSessionQueryService
+        protected RealtimeSessionQueryService    $realtimeSessionQueryService,
+        protected RealtimeSessionDetailService   $realtimeSessionDetailService
     ) {}
 
     // list all realtime sessions
@@ -233,7 +235,7 @@ class RealtimeController extends Controller
             // Authorize the deletion
             $this->authorize('delete', $realtimeSession);
 
-            // Delete the session (this will cascade to related RealtimeScans and RealtimeScanDefects)
+            // Delete the session 
             $realtimeSession->delete();
 
             return redirect()->back()->with([
@@ -247,6 +249,29 @@ class RealtimeController extends Controller
 
             return redirect()->back()->with([
                 'error' => 'Failed to delete session',
+            ]);
+        }
+    }
+    public function show(RealtimeSession $realtimeSession)
+    {
+        try {
+            // Authorize access
+            $this->authorize('view', $realtimeSession);
+
+            // Get session with detailed data
+            $sessionData = $this->realtimeSessionDetailService->getSessionData($realtimeSession);
+
+            return Inertia::render('DetailSession/Index', [
+                'session' => $sessionData,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error loading session details: ' . $e->getMessage(), [
+                'session_id' => $realtimeSession->id,
+                'user_id' => auth()->id(),
+            ]);
+
+            return redirect()->route('sessions.index')->with([
+                'error' => 'Failed to load session details',
             ]);
         }
     }
