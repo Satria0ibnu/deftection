@@ -22,7 +22,7 @@ class DashboardService
             'dailyAnalysis' => $this->getDailyTrendOnly(7),
             'defectType' => $this->getDefectTypeDistribution(),
             'performanceTrend' => $this->getPerformanceTrend(30),
-            'recentAnalyses' => $this->getRecentAnalysesOnly(10),
+            'recentAnalyses' => $this->getRecentAnalysesOnly(5),
         ];
     }
 
@@ -241,6 +241,7 @@ class DashboardService
             ->map(function ($scan) {
                 return [
                     'id' => $scan->id,
+                    'annotated_image_url' => $scan->annotated_image_url,
                     'filename' => $scan->filename,
                     'status' => $scan->is_defect ? 'defect' : 'good',
                     'anomaly_score' => $scan->anomaly_score,

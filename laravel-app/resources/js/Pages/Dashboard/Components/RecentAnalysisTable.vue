@@ -100,13 +100,11 @@ const getStatusClass = (status) => {
                             <div
                                 class="flex flex-col items-start gap-1 min-w-0"
                             >
-                                <div
-                                    class="flex flex-shrink-0 justify-center items-center bg-gray-200 dark:bg-gray-700 rounded-md w-16 h-10"
-                                >
-                                    <span class="text-gray-500 text-xs"
-                                        >IMG</span
-                                    >
-                                </div>
+                                <img
+                                    class="flex-shrink-0 rounded-md w-20 h-12 object-cover"
+                                    :src="item.annotated_image_url"
+                                    alt="Analysis Image"
+                                />
                                 <p
                                     class="w-full max-w-[120px] font-medium text-gray-800 dark:text-dark-100 text-sm truncate"
                                     :title="item.filename"
