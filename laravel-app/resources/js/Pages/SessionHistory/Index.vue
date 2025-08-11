@@ -811,13 +811,13 @@ if (props.userCan.viewAllSessions) {
                                 :disabled="isAnyOperationInProgress"
                             >
                                 <DetailViewList
-                                    label="View Scans"
+                                    label="View Session"
                                     :href="
                                         route('sessions_scan.index', {
                                             realtimeSession: session.id,
                                         })
                                     "
-                                    title="View Session Scans"
+                                    title="View Session "
                                     :disabled="isAnyOperationInProgress"
                                 />
                                 <DeleteItem

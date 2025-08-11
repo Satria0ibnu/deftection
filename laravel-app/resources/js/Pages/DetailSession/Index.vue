@@ -12,7 +12,7 @@ import RowNotFound from "../../Shared/Table/RowNotFound.vue";
 // Import Page-Specific Components
 import Header from "./Components/Header.vue";
 import Summary from "./Components/Summary.vue";
-import LineChart from "./Components/LineChart.vue";
+import DonutChart from "./Components/DonutChart.vue";
 import PieChart from "./Components/PieChart.vue";
 
 // Import Page-Specific Components (we can create these next)
@@ -21,7 +21,7 @@ import PieChart from "./Components/PieChart.vue";
 // --- Props ---
 // This page will receive the session data from the controller.
 const props = defineProps({
-    // session: { type: Object, required: true },
+    session: { type: Object, required: true },
 });
 
 // --- Mock Data ---
@@ -105,7 +105,7 @@ const formatDecimal = (value) => Number(value).toFixed(3);
 
         <!-- Section 3: Charts -->
         <div class="gap-6 grid grid-cols-1 sm:grid-cols-2">
-            <LineChart :session="session" />
+            <DonutChart :session="session" />
             <PieChart :session="session" />
         </div>
 
