@@ -35,6 +35,14 @@ class ScanPolicy
     }
 
     /**
+     * Determine whether the user can delete any scans.
+     */
+    public function deleteAny(User $user): bool
+    {
+        return $user->role === 'admin';
+    }
+
+    /**
      * Determine whether the user can filter by user (admin only).
      */
     public function filterByUser(User $user): bool

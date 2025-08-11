@@ -9,11 +9,12 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\RealtimeController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DefectTypeController;
 use App\Http\Controllers\RealtimeScanController;
 use App\Http\Controllers\Auth\RegisterController;
-use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\RealtimeAnalysisController;
 
 Route::permanentRedirect('/', '/login');
 Route::post('/logout', [LoginController::class, 'destroy'])->middleware('auth')->name('logout');
@@ -121,6 +122,7 @@ Route::middleware(['auth'])->group(function () {
 
     // Clear Data
     Route::delete('/clear-data', [SettingsController::class, 'clearData'])->name('clear_all_data');
+    Route::delete('/clear-my-data', [SettingsController::class, 'clearMyData'])->name('clear_my_data');
   });
 
 
@@ -150,8 +152,7 @@ Route::middleware(['auth'])->group(function () {
   });
 
 
-
-  // REALTIME SESSIONS
+  // REALTIME SESSIONS  
   // Realtime session store (realtime analysis)
   Route::get('real-time-analysis', [RealtimeController::class, 'create'])->name('sessions.create');
   Route::post('real-time-analysis', [RealtimeController::class, 'store'])->name('sessions.store');
@@ -163,12 +164,58 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/force-refresh', [RealtimeController::class, 'indexRefresh'])->middleware('throttle:60,1')->name('sessions.index.refresh');
 
     // Realtime Session Details (Realtime scan index)
-    Route::get('/{session}', [RealtimeScanController::class, 'index'])->name('sessions_scan.index');
+    Route::get('/{realtimeSession}', [RealtimeScanController::class, 'index'])->name('sessions_scan.index');
     // Realtime scan details
-    Route::get('/{session}/scan/{scan}', [RealtimeScanController::class, 'scan'])->name('sessions_scan.show');
+    Route::get('/{realtimeSession}/scan/{scan}', [RealtimeScanController::class, 'scan'])->name('sessions_scan.show');
 
     // Realtime Session  operations
-    Route::delete('/{scan}', [RealtimeController::class, 'destroy'])->name('sessions.destroy');
+    Route::delete('/{realtimeSession}', [RealtimeController::class, 'destroy'])->name('sessions.destroy');
+  });
+
+
+  // REALTIME SESSION API ENDPOINTS
+  Route::prefix('api/realtime/sessions')->group(function () {
+    // Start a new session
+    Route::post('/start', [RealtimeAnalysisController::class, 'startSession'])
+      ->name('realtime.sessions.start')
+      ->middleware('throttle:10,1'); // Limit to 10 requests per minute
+
+    // Pause a session
+    Route::post('/pause', [RealtimeAnalysisController::class, 'pauseSession'])
+      ->name('realtime.sessions.pause')
+      ->middleware('throttle:10,1');
+
+    Route::post('/{session}/pause', [RealtimeAnalysisController::class, 'pauseSession'])
+      ->name('realtime.sessions.pause.specific')
+      ->middleware('throttle:10,1');
+
+    // Resume a session
+    Route::post('/resume', [RealtimeAnalysisController::class, 'resumeSession'])
+      ->name('realtime.sessions.resume')
+      ->middleware('throttle:10,1');
+
+    Route::post('/{session}/resume', [RealtimeAnalysisController::class, 'resumeSession'])
+      ->name('realtime.sessions.resume.specific')
+      ->middleware('throttle:10,1');
+
+    // Stop a session (with optional session ID)
+    Route::post('/stop', [RealtimeAnalysisController::class, 'stopSession'])
+      ->name('realtime.sessions.stop')
+      ->middleware('throttle:10,1');
+
+    Route::post('/{session}/stop', [RealtimeAnalysisController::class, 'stopSession'])
+      ->name('realtime.sessions.stop.specific')
+      ->middleware('throttle:10,1');
+
+    // Get current active session
+    Route::get('/current', [RealtimeAnalysisController::class, 'getCurrentSession'])
+      ->name('realtime.sessions.current')
+      ->middleware('throttle:60,1'); // Allow more frequent checks
+
+    // Get session status (for polling)
+    Route::get('/{session}/status', [RealtimeAnalysisController::class, 'getSessionStatus'])
+      ->name('realtime.sessions.status')
+      ->middleware('throttle:120,1');
   });
 });
 

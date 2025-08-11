@@ -109,7 +109,7 @@ const formatDecimal = (value) => Number(value).toFixed(3);
         <Summary :session="session" />
 
         <!-- Section 3: Charts -->
-        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+        <div class="gap-6 grid grid-cols-1 sm:grid-cols-2">
             <LineChart :session="session" />
             <PieChart :session="session" />
         </div>
@@ -139,7 +139,7 @@ const formatDecimal = (value) => Number(value).toFixed(3);
                             <TableCell>
                                 <div class="flex items-center">
                                     <img
-                                        class="flex-shrink-0 object-cover w-16 h-10 rounded-md"
+                                        class="flex-shrink-0 rounded-md w-16 h-10 object-cover"
                                         :src="scan.original_path"
                                         alt="Scan Image"
                                     />
@@ -162,7 +162,7 @@ const formatDecimal = (value) => Number(value).toFixed(3);
                             <TableCell>
                                 <span
                                     :class="getStatusClass(scan.status)"
-                                    class="inline-flex px-2 text-xs font-semibold leading-5 rounded-full"
+                                    class="inline-flex px-2 rounded-full font-semibold text-xs leading-5"
                                 >
                                     {{ scan.status.toUpperCase() }}
                                 </span>
@@ -179,7 +179,7 @@ const formatDecimal = (value) => Number(value).toFixed(3);
                                 <Link
                                     :href="
                                         route('sessions_scan.show', {
-                                            session: session.id,
+                                            realtimeSession: session.id,
                                             scan: scan.id,
                                         })
                                     "
