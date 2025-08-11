@@ -669,7 +669,7 @@
 
             @if (isset($defects) && $defects->isNotEmpty())
                 <h3 style="margin: 20px 0 10px 0; font-size: 14px; color: #2c3e50;">Detected Defects</h3>
-                @foreach ($defects->take(20) as $defect)
+                @foreach ($defects->take(5) as $defect)
                     <div class="defect-item">
                         <div class="defect-header">
                             <span class="defect-type">{{ $defect['label'] ?? 'Unknown Defect' }}</span>
@@ -691,9 +691,9 @@
                     </div>
                 @endforeach
 
-                @if ($defects->count() > 20)
+                @if ($defects->count() > 5)
                     <div class="highlight-box">
-                        <p><strong>Note:</strong> Showing first 20 defects. Total defects found:
+                        <p><strong>Note:</strong> Showing first 5 defects. Total defects found:
                             {{ $defects->count() }}</p>
                     </div>
                 @endif
@@ -751,6 +751,8 @@
         </div>
     @endif
 
+    <div class="page-break"></div>
+
     <!-- Hourly Processing Patterns -->
     @if (!empty($chartImages['hourly_patterns']))
         <div class="section">
@@ -762,60 +764,9 @@
         </div>
     @endif
 
-    <!-- Quality Assessment -->
-    <div class="section">
-        <h2 class="section-title">Quality Assessment</h2>
 
-        @php
-            $defectRate = $statistics['defect_rate'] ?? 0;
-            $avgProcessingTime = $statistics['avg_processing_time'] ?? 0;
-            $throughput = $statistics['throughput_fps'] ?? 0;
-            $sessionDuration = $statistics['session_duration'] ?? 0;
-        @endphp
 
-        @if ($defectRate <= 5)
-            <div class="highlight-box">
-                <h4>Excellent Quality Performance</h4>
-                <p>Defect rate of {{ number_format($defectRate, 1) }}% is within excellent quality standards.</p>
-                <p>Current quality control measures are highly effective.</p>
-            </div>
-        @elseif($defectRate <= 15)
-            <div class="warning-box">
-                <h4>Good Quality Performance</h4>
-                <p>Defect rate of {{ number_format($defectRate, 1) }}% indicates good quality control.</p>
-                <p>Monitor trends and consider minor adjustments to detection parameters.</p>
-            </div>
-        @else
-            <div class="error-box">
-                <h4>Quality Attention Required</h4>
-                <p>Defect rate of {{ number_format($defectRate, 1) }}% exceeds recommended thresholds.</p>
-                <p>Review quality control processes and detection thresholds immediately.</p>
-            </div>
-        @endif
-
-        @if ($avgProcessingTime > 500)
-            <div class="warning-box">
-                <h4>Processing Performance Notice</h4>
-                <p>Average processing time of {{ number_format($avgProcessingTime, 1) }}ms is elevated.</p>
-                <p>Consider optimizing processing pipeline for better real-time performance.</p>
-            </div>
-        @elseif($avgProcessingTime > 0)
-            <div class="highlight-box">
-                <h4>Good Processing Performance</h4>
-                <p>Average processing time of {{ number_format($avgProcessingTime, 1) }}ms is within optimal range.</p>
-            </div>
-        @endif
-
-        @if ($throughput < 30 && $sessionDuration > 300)
-            <div class="warning-box">
-                <h4>Throughput Optimization</h4>
-                <p>Current throughput of {{ number_format($throughput, 1) }} frames per minute could be improved.</p>
-                <p>Consider hardware optimization or processing parameter adjustments.</p>
-            </div>
-        @endif
-    </div>
-
-    <div class="page-break"></div>
+    {{-- <div class="page-break"></div> --}}
 
     <!-- Technical Details -->
     <div class="section">
@@ -908,6 +859,7 @@
 
     <!-- Hourly Processing Data -->
     @if (!empty($chartsData['hourly_patterns']))
+        <div class="page-break"></div>
         <div class="section">
             <h2 class="section-title">Hourly Processing Data</h2>
             <table class="data-table">
@@ -936,6 +888,7 @@
         </div>
     @endif
 
+    <div class="page-break"></div>
     <!-- Report Metadata -->
     <div class="section">
         <h2 class="section-title">Report Metadata</h2>
@@ -1058,75 +1011,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Key Insights -->
-    @if (($statistics['total_frames'] ?? 0) > 0)
-        <div class="section">
-            <h2 class="section-title">Key Insights & Recommendations</h2>
-
-            <div class="highlight-box">
-                <h4>Session Performance Summary</h4>
-                <p><strong>Overall Status:</strong>
-                    Processed {{ number_format($statistics['total_frames']) }} frames with
-                    {{ number_format($statistics['defect_rate'] ?? 0, 1) }}% defect rate.
-                </p>
-                @if (($statistics['total_defects_found'] ?? 0) > 0)
-                    <p><strong>Quality Issues:</strong>
-                        {{ number_format($statistics['total_defects_found']) }} defects detected across
-                        {{ number_format($statistics['defective_frames'] ?? 0) }} frames.
-                    </p>
-                @else
-                    <p><strong>Quality Status:</strong> No defects detected - excellent quality control!</p>
-                @endif
-
-                @if (($statistics['avg_processing_time'] ?? 0) > 0)
-                    <p><strong>Processing Efficiency:</strong>
-                        Average {{ number_format($statistics['avg_processing_time'], 1) }}ms per frame
-                        ({{ $statistics['avg_processing_time'] < 500 ? 'Excellent' : ($statistics['avg_processing_time'] < 1000 ? 'Good' : 'Needs Improvement') }}).
-                    </p>
-                @endif
-            </div>
-
-            @php
-                $recommendations = [];
-
-                if (($statistics['defect_rate'] ?? 0) > 15) {
-                    $recommendations[] = 'Review and adjust anomaly detection thresholds';
-                    $recommendations[] = 'Implement additional quality control measures';
-                }
-
-                if (($statistics['avg_processing_time'] ?? 0) > 500) {
-                    $recommendations[] = 'Optimize processing pipeline for better performance';
-                    $recommendations[] = 'Consider hardware upgrades if bottlenecks persist';
-                }
-
-                if (($statistics['throughput_fps'] ?? 0) < 30 && ($statistics['session_duration'] ?? 0) > 300) {
-                    $recommendations[] = 'Investigate throughput limitations';
-                    $recommendations[] = 'Consider parallel processing implementation';
-                }
-            @endphp
-
-            @if (!empty($recommendations))
-                <div class="warning-box">
-                    <h4>Recommended Actions</h4>
-                    @foreach ($recommendations as $recommendation)
-                        <p>• {{ $recommendation }}</p>
-                    @endforeach
-                </div>
-            @endif
-
-            <div class="highlight-box">
-                <h4>Long-term Recommendations</h4>
-                <p>• Establish regular reporting schedule for trend monitoring</p>
-                <p>• Implement automated alerts for anomalous patterns</p>
-                <p>• Consider machine learning model retraining based on recent data</p>
-                @if (($statistics['total_frames'] ?? 0) > 100)
-                    <p>• Use this session data for model improvement and validation</p>
-                @endif
-                <p>• Document optimal processing parameters for consistent performance</p>
-            </div>
-        </div>
-    @endif
 
     <!-- Footer -->
     <div class="footer">
