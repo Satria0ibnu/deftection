@@ -1,19 +1,26 @@
 <script setup>
 import VueApexCharts from "vue3-apexcharts";
-import { ref } from "vue";
+import { ref, computed } from "vue";
 
-const series = ref([
+const props = defineProps({
+    dailyData: {
+        type: Object,
+        required: true,
+    },
+});
+
+const series = computed(() => [
     {
         name: "Defect Count",
-        data: [44, 55, 57, 56, 61, 58, 63],
+        data: props.dailyData.totalDefective || [],
     },
     {
-        name: "Images Processed",
-        data: [76, 85, 101, 98, 87, 105, 91],
+        name: "Total Processed",
+        data: props.dailyData.totalProcessed || [],
     },
 ]);
 
-const chartOptions = ref({
+const chartOptions = computed(() => ({
     chart: {
         toolbar: {
             show: false,
@@ -21,7 +28,7 @@ const chartOptions = ref({
     },
     plotOptions: {
         bar: {
-            horizontal: true,
+            horizontal: false,
             columnWidth: "55%",
             borderRadius: 5,
         },
@@ -39,7 +46,7 @@ const chartOptions = ref({
     },
     tooltip: {
         y: {
-            formatter: (val) => `${val} images`,
+            formatter: (val) => `${val} items`,
         },
     },
     legend: {
@@ -50,27 +57,26 @@ const chartOptions = ref({
             radius: 12,
         },
         labels: {
-            colors: "#cbd5e1", // optional: dark mode-friendly
+            colors: "#cbd5e1",
         },
     },
-    colors: ["#155dfc", "#009966"], // blue + green
+    colors: ["#dc2626", "#059669"], // red for defects, green for processed
     xaxis: {
-        categories: [
-            "Jul 4",
-            "Jul 5",
-            "Jul 6",
-            "Jul 7",
-            "Jul 8",
-            "Jul 9",
-            "Jul 10",
-        ],
+        categories: props.dailyData.labels || [],
         labels: {
             style: {
-                colors: "#cbd5e1", // optional: for dark UI
+                colors: "#cbd5e1",
             },
         },
     },
-});
+    yaxis: {
+        labels: {
+            style: {
+                colors: "#cbd5e1",
+            },
+        },
+    },
+}));
 </script>
 
 <template>

@@ -5,84 +5,84 @@ import DefectTypeChart from "./Components/DefectTypeChart.vue";
 import DailyAnalysisTrend from "./Components/DailyAnalysisTrend.vue";
 import RecentAnalysisTable from "./Components/RecentAnalysisTable.vue";
 import AnalysisOverview from "./Components/AnalysisOverview.vue";
+
+// Props from DashboardService
+const props = defineProps({
+    cardData: {
+        type: Object,
+        required: true,
+    },
+    dailyAnalysis: {
+        type: Object,
+        required: true,
+    },
+    defectType: {
+        type: Object,
+        required: true,
+    },
+    performanceTrend: {
+        type: Object,
+        required: true,
+    },
+    recentAnalyses: {
+        type: Array,
+        required: true,
+    },
+});
 </script>
 
 <template>
     <!-- Status Grid -->
     <div class="gap-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
-        <!--
-            Total Defects
-            Expected props:
-                value = totalDefectsDetected
-            Used as:
-                <StatsCard :value="totalDefectsDetected" ... />
-        -->
+        <!-- Total Defects -->
         <StatsCard
             title="Total Defects"
-            value="5"
+            :value="cardData.totalDefective"
             description="Total number of defects detected."
             badgeColor="primary"
-            changeRate="+10%"
+            :changeRate="cardData.defectiveChangeRate"
         >
             <template #icon>
                 <font-awesome-icon icon="fa-solid fa-bug" />
             </template>
         </StatsCard>
 
-        <!--
-            Images Processed
-            Expected props:
-                value = totalImagesProcessed
-            Used as:
-                <StatsCard :value="totalImagesProcessed" ... />
-        -->
+        <!-- Images Processed -->
         <StatsCard
             title="Images Processed"
-            value="10"
+            :value="cardData.totalScansImage"
             description="Number of images processed."
             badgeColor="success"
-            changeRate="-5%"
+            :changeRate="cardData.scansChangeRate"
         >
             <template #icon>
                 <font-awesome-icon icon="fa-solid fa-images" />
             </template>
         </StatsCard>
 
-        <!--
-            1st model accuracy (Anomalib)
-            Expected props:
-                value = anomalibAccuracy (Anomalib)
-            Used as:
-                <StatsCard :value="anomalibAccuracy" ... />
-        -->
+        <!-- Realtime Sessions -->
         <StatsCard
-            title="1st model accuracy"
-            value="75%"
-            description="1st model accuracy of the analysis."
+            title="Realtime Sessions"
+            :value="cardData.totalRealtimeSessions"
+            description="Number of realtime sessions."
             badgeColor="secondary"
-            changeRate="+0.2%"
+            :changeRate="cardData.sessionsChangeRate"
         >
             <template #icon>
-                <font-awesome-icon icon="fa-solid fa-bullseye" />
+                <font-awesome-icon icon="fa-solid fa-video" />
             </template>
         </StatsCard>
 
-        <!--
-            2nd model accuracy (HRNet)
-            Expected props:
-                value = hrnetAccuracy (HRNet)
-            Used as:
-                <StatsCard :value="hrnetAccuracy" />
-        -->
+        <!-- Frames Processed -->
         <StatsCard
-            title="2nd model accuracy"
-            value="80.2%"
-            description="2nd model accuracy of the analysis."
+            title="Frames Processed"
+            :value="cardData.totalFramesProcessed"
+            description="Total frames from realtime sessions."
             badgeColor="error"
-            changeRate="+0.5%"
+            :changeRate="cardData.framesChangeRate"
         >
             <template #icon>
-                <font-awesome-icon icon="fa-solid fa-bolt" />
+                <font-awesome-icon icon="fa-solid fa-film" />
             </template>
         </StatsCard>
     </div>
@@ -98,25 +98,7 @@ import AnalysisOverview from "./Components/AnalysisOverview.vue";
                 Daily Analysis Trend (7 Days)
             </h2>
 
-            <!--
-                📊 Daily Analysis Trend Chart
-                Expected backend prop: `daily_analysis`
-
-                Structure:
-                {
-                    daily_analysis: {
-                        labels: ["2025-07-01", "2025-07-02", ..., "2025-07-07"], // Last 7 days (or any date range)
-                        total_defects: [5, 8, 4, 10, 6, 3, 7], // Total defects detected per day
-                        total_processed: [50, 60, 55, 70, 65, 48, 52] // Total images analyzed per day
-                    }
-                }
-
-                Notes:
-                - All arrays must align by index (labels[i] → total_defects[i] & total_processed[i])
-                - Supports grouped bar chart: GOOD (processed - defects) vs DEFECT
-                - Used to monitor daily analysis volume and quality trends
-            -->
-            <DailyAnalysisTrend />
+            <DailyAnalysisTrend :dailyData="dailyAnalysis" />
         </div>
         <div
             class="flex flex-col justify-start p-6 border border-gray-200 dark:border-dark-700 rounded-lg"
@@ -127,23 +109,7 @@ import AnalysisOverview from "./Components/AnalysisOverview.vue";
                 Defect Type Distribution
             </h2>
 
-            <!--
-                📊 Defect Type Distribution Chart
-                Expected backend prop: `defect_type`
-
-                Structure:
-                {
-                    defect_type: {
-                        labels: ["scratched", "opened", ...], // All detectable defect types
-                        data: [10, 20, ...] // Total count per defect type, same index as labels
-                    }
-                }
-
-                Notes:
-                - `labels[i]` corresponds to `data[i]`
-                - Used for PolarArea or Doughnut chart to visualize distribution of defect types
-            -->
-            <DefectTypeChart />
+            <DefectTypeChart :defectData="defectType" />
         </div>
     </div>
 
@@ -157,21 +123,7 @@ import AnalysisOverview from "./Components/AnalysisOverview.vue";
                 Performance Trend (30 Days)
             </h2>
 
-            <!--
-               Performance Trend Chart
-               Expected data:
-                 {
-                    "performance_trend": {
-                        "labels": ["2025-07-01", "2025-07-02", "2025-07-03", ...], // <-  30 tanggal terakhir(?)
-                        "data": [10, 20, 15, ...] // ← total defects detected on each corresponding date
-                    }
-                }
-
-                Notes:
-                - `labels[i]` corresponds to `data[i]`
-                - Used for Line chart to visualize performance trend
-            -->
-            <PerformanceTrendChart />
+            <PerformanceTrendChart :performanceData="performanceTrend" />
         </div>
     </div>
 
@@ -194,31 +146,7 @@ import AnalysisOverview from "./Components/AnalysisOverview.vue";
                 </a>
             </div>
 
-            <!--
-                🧾 Recent Analysis Table
-                Expected backend prop: `analyses`
-
-                Maximum 5 data aja
-
-                Structure:
-                {
-                    analyses: [
-                        {
-                            id: 1, // Unique identifier for detail route
-                            imageName: "product_001.jpg", // Original image file name
-                            result: "GOOD" | "BAD", // Classification result
-                            score: 0.95 // Confidence score (0.0 - 1.0)
-                        },
-                        ...
-                    ]
-                }
-
-                Notes:
-                - `score` can be formatted as a percentage (e.g., 95%)
-                - `result` can be used for conditional styling (green = GOOD, red = BAD)
-                - Detail view can be routed using `/view-detail-analysis/{id}`
-            -->
-            <RecentAnalysisTable />
+            <RecentAnalysisTable :analyses="recentAnalyses" />
         </div>
         <div
             class="flex flex-col justify-start gap-4 p-6 border border-gray-200 dark:border-dark-700 rounded-lg"
@@ -229,33 +157,7 @@ import AnalysisOverview from "./Components/AnalysisOverview.vue";
                 Analysis Overview
             </h2>
 
-            <!--
-                📊 Real-Time Analysis Overview
-                Expected backend props:
-                    - averageTime: string | number (e.g., "0.5") → Average processing time per image (in seconds)
-                    - successRate: number (e.g., 86) → Percentage of successfully processed images
-                    - defectRate: number (e.g., 65) → Percentage of defect images among all processed
-                    - AIConfidence: number (e.g., 90) → Average model confidence across recent detections
-
-                Structure:
-                {
-                    averageTime: "0.5",       // in seconds
-                    successRate: 86,          // in percent (%)
-                    defectRate: 65,           // in percent (%)
-                    AIConfidence: 90          // in percent (%)
-                }
-
-                Notes:
-                - Values are usually derived from today's or recent activity window
-                - Format `averageTime` with units (e.g., "0.5s") in UI if not already
-                - Can be visualized using cards or icon-metric pairs for quick-glance metrics
-            -->
-            <AnalysisOverview
-                averageTime="0.5"
-                successRate="86"
-                defectRate="65"
-                AIConfidence="90"
-            />
+            <AnalysisOverview />
         </div>
     </div>
 </template>
