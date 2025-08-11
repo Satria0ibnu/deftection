@@ -73,30 +73,21 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/{user}', [UserController::class, 'destroy'])->name('users.destroy');
   });
 
-  // DEFECT TYPES
-  Route::prefix('database/defect-types')->group(function () {
-    // User list
-    Route::get('/', function () {
-      return Inertia::render('Database/DefectTypes/Index', [
-        'defectTypes' => [],
-        'filters' => [],
-        'meta' => [],
-      ]);
-    })->name('defect-types.index');
-  });
 
   // REPORTS
   Route::prefix('reports')->name('reports.')->group(function () {
 
     // Single scan report
     Route::get('single/{scan}', [ReportController::class, 'generateSingleReport'])
-      ->name('single.generate')
-      ->middleware('can:generateReport,scan');
+      ->name('single.generate');
 
     // Batch report - requires authentication, authorization handled in controller
     Route::get('batch', [ReportController::class, 'generateBatchReport'])
-      ->name('batch.generate')
-      ->middleware('can:generateBatchReport,App\Models\Scan');
+      ->name('batch.generate');
+
+    // Realtime session report
+    Route::get('session/{realtimeSession}', [ReportController::class, 'generateRealtimeSessionReport'])
+      ->name('session.generate');
 
     // // Preview routes ( for test)
     // Route::get('preview/single/{scan}', [ReportController::class, 'previewSingleReport'])

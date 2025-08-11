@@ -5,16 +5,74 @@ namespace App\Http\Controllers;
 use Carbon\Carbon;
 use App\Models\Scan;
 use Illuminate\Http\Request;
+use App\Models\RealtimeSession;
 use App\Services\ReportService;
 use Illuminate\Support\Facades\Log;
 use Barryvdh\Snappy\Facades\SnappyPdf;
+use App\Services\RealtimeSessionReportService;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Auth\Access\AuthorizationException;
 
 class ReportController extends Controller
 {
 
-    public function __construct(protected ReportService $reportService) {}
+    public function __construct(protected ReportService $reportService, protected RealtimeSessionReportService $realtimeReportService) {}
+
+
+    /**
+     * Generate realtime session report
+     */
+    public function generateRealtimeSessionReport(Request $request, RealtimeSession $realtimeSession)
+    {
+        try {
+            $this->authorize('generateReport', $realtimeSession);
+
+            // Get report data
+            $reportData = $this->realtimeReportService->prepareRealtimeSessionReport($realtimeSession);
+
+            // Generate PDF with Snappy
+            $pdf = SnappyPdf::loadView('reports.realtime-session', $reportData)
+                ->setOptions([
+                    'page-size' => 'A4',
+                    'orientation' => 'Portrait',
+                    'margin-top' => '15mm',
+                    'margin-right' => '10mm',
+                    'margin-bottom' => '15mm',
+                    'margin-left' => '10mm',
+                    'encoding' => 'UTF-8',
+                    'enable-local-file-access' => true,
+                    'footer-center' => 'Page [page] of [topage]',
+                    'footer-font-size' => 8,
+                ]);
+
+            $filename = "realtime-session-report-{$realtimeSession->id}-" . now()->format('Y-m-d-H-i-s') . ".pdf";
+
+            Log::info('Realtime session report generated successfully', [
+                'session_id' => $realtimeSession->id,
+                'user_id' => auth()->id(),
+                'filename' => $filename,
+                'total_frames' => $realtimeSession->total_frames_processed
+            ]);
+
+            return $pdf->download($filename);
+        } catch (AuthorizationException $e) {
+            Log::warning('Unauthorized realtime session report access attempt', [
+                'session_id' => $realtimeSession->id,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage()
+            ]);
+            return back()->with('error', 'You are not authorized to generate this report.');
+        } catch (\Exception $e) {
+            Log::error('Realtime session report generation failed', [
+                'session_id' => $realtimeSession->id,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return back()->with('error', 'Failed to generate session report. Please try again.');
+        }
+    }
 
     /**
      * Generate single scan report
