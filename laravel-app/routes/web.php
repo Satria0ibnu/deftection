@@ -121,7 +121,7 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('/detection-settings', [SettingsController::class, 'update'])->name('detection_settings.update');
 
     // Clear Data
-    Route::delete('/clear-data', [SettingsController::class, 'clearData'])->name('clear_all_data');
+    Route::delete('/clear-all-data', [SettingsController::class, 'clearAllData'])->name('clear_all_data');
     Route::delete('/clear-my-data', [SettingsController::class, 'clearMyData'])->name('clear_my_data');
   });
 
@@ -152,7 +152,7 @@ Route::middleware(['auth'])->group(function () {
   });
 
 
-  // REALTIME SESSIONS  
+  // REALTIME SESSIONS
   // Realtime session store (realtime analysis)
   Route::get('real-time-analysis', [RealtimeController::class, 'create'])->name('sessions.create');
   Route::post('real-time-analysis', [RealtimeController::class, 'store'])->name('sessions.store');
