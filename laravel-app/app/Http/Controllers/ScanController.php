@@ -48,7 +48,12 @@ class ScanController extends Controller
             // Generate initial checksum using the STABLE method
             $initialChecksum = $this->scanHistoryService->getStableDataChecksum(auth()->id());
 
-
+            Log::info('Scan history index loaded', [
+                'user_id' => auth()->id(),
+                'filters' => $filters,
+                'scans_count' => $scans->items(),
+                'initial_checksum' => $initialChecksum
+            ]);
             return Inertia::render('ScanHistory/Index', [
                 'scans' => $scans->items(),
                 'filters' => [
@@ -394,7 +399,7 @@ class ScanController extends Controller
                     'time' => $data['processing_time'] ?? 0,
                     'defects' => count($data['detected_defects'] ?? []),
                     'originalImageUrl' => Storage::url($originalPath),
-                    'annotatedImageUrl' => $annotatedPath ? Storage::url($annotatedPath) : null,
+                    'annotatedImageUrl' => $annotatedPath ? asset(Storage::url($annotatedPath)) : null,
                 ]
             ]);
 
