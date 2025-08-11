@@ -294,10 +294,10 @@ class ImageSecurityController:
                     )
             
             # Method 2: Handle form data requests (file upload) - FALLBACK
-            elif request.files and 'file' in request.files:
+            elif request.files and 'image' in request.files:
                 print("Processing as form-data file upload")
                 
-                file_obj: FileStorage = request.files['file']
+                file_obj: FileStorage = request.files['image']
                 
                 if file_obj.filename == '':
                     return None, None, False, self._error_response(
@@ -631,17 +631,17 @@ def test_controller():
     try:
         # Initialize controller
         controller = ImageSecurityController()
-        print("✅ Controller initialized successfully")
+        print("Controller initialized successfully")
         
         # Test health check
         health_response, status_code = controller.health_check()
-        print(f"✅ health_check method works - Status: {status_code}")
+        print(f"health_check method works - Status: {status_code}")
         print(f"   Input formats supported: {health_response.get('configuration', {}).get('input_formats', [])}")
         
         return True
         
     except Exception as e:
-        print(f"❌ Controller test failed: {e}")
+        print(f"Controller test failed: {e}")
         return False
 
 
