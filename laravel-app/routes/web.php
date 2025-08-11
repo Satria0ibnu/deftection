@@ -15,6 +15,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DefectTypeController;
 use App\Http\Controllers\RealtimeScanController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\RealtimeFrameController;
 use App\Http\Controllers\RealtimeAnalysisController;
 
 Route::permanentRedirect('/', '/login');
@@ -213,6 +214,10 @@ Route::middleware(['auth'])->group(function () {
       ->name('realtime.sessions.status')
       ->middleware('throttle:120,1');
   });
+
+  Route::post('/process-frame', [RealtimeFrameController::class, 'processFrame'])
+    ->name('realtime.sessions.process_frame')
+    ->middleware('throttle:300,1'); // Allow high frequency for realtime processing
 });
 
 Route::get('/home', function () {
