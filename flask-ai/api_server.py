@@ -1,8 +1,6 @@
-# api_server.py - Combined Flask-AI + Security Scanner
 """
 Combined Stateless API Server for Defect Detection + Security Scanning
-Main base: flask-ai defect detection system
-Added: Security scanning capabilities from pythonsec2
+Support both JSON (base64) and form-data (file upload) for ALL endpoints
 """
 
 from flask import Flask, request, jsonify
@@ -23,7 +21,8 @@ from controllers.image_security_controller import ImageSecurityController
 
 class CombinedAPIServer:
     """
-    Combined API Server: Flask-AI (main) + Security Scanner
+    FIXED Combined API Server: Flask-AI (main) + Security Scanner
+    Support both JSON and form-data requests
     """
     
     def __init__(self, host='0.0.0.0', port=5000):
@@ -48,7 +47,7 @@ class CombinedAPIServer:
         # Setup routes
         self._setup_routes()
         
-        print("Combined API Server initialized (Flask-AI + Security Scanner)")
+        print("FIXED Combined API Server initialized (Flask-AI + Security Scanner)")
     
     def _setup_logging(self):
         """Setup logging"""
@@ -66,7 +65,7 @@ class CombinedAPIServer:
         """Setup all API endpoints"""
         
         # ===========================
-        # FLASK-AI ROUTES (MAIN BASE)
+        # FLASK-AI ROUTES (MAIN BASE) 
         # ===========================
         
         # Health and system endpoints (flask-ai)
@@ -82,7 +81,7 @@ class CombinedAPIServer:
         def system_status():
             return self.detection_controller.get_system_status()
         
-        # Detection endpoints (flask-ai)
+        # Detection endpoints (flask-ai) - FIXED
         @self.app.route('/api/detection/image', methods=['POST'])
         def detect_image():
             return self.detection_controller.process_image(request)
@@ -105,70 +104,134 @@ class CombinedAPIServer:
             return self.detection_controller.update_detection_thresholds(request)
         
         # ===========================
-        # NEW COMBINED ENDPOINT
+        # NEW COMBINED ENDPOINT - FIXED
         # ===========================
         
         @self.app.route('/api/detection/combined', methods=['POST'])
         def detect_combined():
             """
-            NEW: Combined defect detection + security scan
+            FIXED: Combined defect detection + security scan
+            Supports both JSON (base64) and form-data (file upload)
             Parameter: is_scan_threat (boolean) - if true, adds security scan with is_full_scan=false
             """
             try:
-                # Get defect detection result (flask-ai main)
+                self.logger.info(f"Combined detection request - Content-Type: {request.content_type}")
+                
+                # Get defect detection result (flask-ai main) - FIXED
                 defect_result = self.detection_controller.process_image(request)
                 
-                # Check if security scan requested
+                # Extract JSON response from Flask response object
+                if hasattr(defect_result, 'get_json'):
+                    defect_data = defect_result.get_json()
+                    defect_status_code = defect_result.status_code
+                elif isinstance(defect_result, tuple):
+                    defect_response, defect_status_code = defect_result
+                    if hasattr(defect_response, 'get_json'):
+                        defect_data = defect_response.get_json()
+                    else:
+                        defect_data = defect_response.json if hasattr(defect_response, 'json') else defect_response
+                else:
+                    defect_data = defect_result
+                    defect_status_code = 200
+                
+                # Check if security scan requested - FIXED for both content types
                 is_scan_threat = False
-                if request.json:
-                    is_scan_threat = request.json.get('is_scan_threat', False)
+                
+                if request.is_json or 'application/json' in str(request.content_type):
+                    json_data = request.get_json()
+                    if json_data:
+                        is_scan_threat = json_data.get('is_scan_threat', False)
                 elif request.form:
                     is_scan_threat = request.form.get('is_scan_threat', 'false').lower() == 'true'
                 
+                self.logger.info(f"Security scan requested: {is_scan_threat}")
+                
                 if is_scan_threat:
                     # Add security scan with is_full_scan=false (light scan)
-                    # Modify request to set is_full_scan=false for security scan
-                    if hasattr(request, 'json') and request.json:
-                        request.json['is_full_scan'] = False
-                    elif hasattr(request, 'form') and request.form:
-                        # For form data, we can't modify, but security scanner will default to false
-                        pass
-                    
-                    security_result = self.security_controller.scan_image_laravel(request)
-                    
-                    # Merge responses
-                    if defect_result[1] == 200 and security_result[1] == 200:
-                        defect_data = defect_result[0]
-                        security_data = security_result[0]
+                    try:
+                        # Create a modified request for security scan
+                        security_result = self.security_controller.scan_image_laravel(request)
                         
-                        # Add security scan to defect result
-                        defect_data['data']['security_scan'] = security_data.get('data', {})
-                        defect_data['data']['combined_analysis'] = True
+                        # Extract security response
+                        if isinstance(security_result, tuple):
+                            security_data, security_status_code = security_result
+                        else:
+                            security_data = security_result
+                            security_status_code = 200
                         
-                        return defect_data, 200
-                    else:
-                        # Return defect result even if security scan fails
-                        return defect_result
+                        # Merge responses if both successful
+                        if defect_status_code == 200 and security_status_code == 200:
+                            # Ensure defect_data has the right structure
+                            if not isinstance(defect_data, dict):
+                                defect_data = {'data': defect_data} if defect_data else {'data': {}}
+                            
+                            # Add security scan to defect result
+                            if 'data' not in defect_data:
+                                defect_data['data'] = {}
+                            
+                            defect_data['security_scan'] = security_data.get('data', security_data)
+                            defect_data['combined_analysis'] = True
+                            defect_data['timestamp'] = datetime.now().isoformat()
+                            
+                            return jsonify(defect_data), 200
+                        else:
+                            # Return defect result with security error info
+                            if not isinstance(defect_data, dict):
+                                defect_data = {'data': defect_data} if defect_data else {'data': {}}
+                            
+                            defect_data['security_scan'] = {
+                                'status': 'error',
+                                'error': 'Security scan failed',
+                                'details': security_data if security_status_code != 200 else 'Unknown error'
+                            }
+                            defect_data['combined_analysis'] = True
+                            defect_data['timestamp'] = datetime.now().isoformat()
+                            
+                            return jsonify(defect_data), defect_status_code
+                    
+                    except Exception as security_error:
+                        self.logger.error(f"Security scan error: {security_error}")
+                        # Return defect result with security error info
+                        if not isinstance(defect_data, dict):
+                            defect_data = {'data': defect_data} if defect_data else {'data': {}}
+                        
+                        defect_data['security_scan'] = {
+                            'status': 'error',
+                            'error': f'Security scan failed: {str(security_error)}',
+                            'details': str(security_error)
+                        }
+                        defect_data['combined_analysis'] = True
+                        defect_data['timestamp'] = datetime.now().isoformat()
+                        
+                        return jsonify(defect_data), defect_status_code
                 else:
                     # Return only defect detection
-                    return defect_result
+                    if not isinstance(defect_data, dict):
+                        defect_data = {'data': defect_data} if defect_data else {'data': {}}
+                    
+                    defect_data['combined_analysis'] = False
+                    defect_data['timestamp'] = datetime.now().isoformat()
+                    
+                    return jsonify(defect_data), defect_status_code
                     
             except Exception as e:
                 self.logger.error(f"Combined detection error: {e}")
                 return jsonify({
                     'status': 'error',
                     'error': f'Combined detection failed: {str(e)}',
-                    'timestamp': datetime.now().isoformat()
+                    'timestamp': datetime.now().isoformat(),
+                    'combined_analysis': False
                 }), 500
         
         # ===========================
-        # SECURITY SCANNER ENDPOINTS
+        # SECURITY SCANNER ENDPOINTS - FIXED
         # ===========================
         
         @self.app.route('/api/security/scan', methods=['POST'])
         def security_scan():
             """
-            NEW: Security scan endpoint (normal format)
+            FIXED: Security scan endpoint (normal format)
+            Supports both JSON (base64) and form-data (file upload)
             Parameter: is_full_scan (boolean) - from request
             """
             return self.security_controller.scan_image(request)
@@ -176,7 +239,8 @@ class CombinedAPIServer:
         @self.app.route('/api/security/scan/laravel', methods=['POST'])
         def security_scan_laravel():
             """
-            NEW: Security scan endpoint (Laravel format)
+            FIXED: Security scan endpoint (Laravel format)
+            Supports both JSON (base64) and form-data (file upload)
             Parameter: is_full_scan (boolean) - from request
             """
             return self.security_controller.scan_image_laravel(request)
@@ -225,41 +289,61 @@ class CombinedAPIServer:
                 'message': 'File exceeds maximum allowed size',
                 'timestamp': datetime.now().isoformat()
             }), 413
+        
+        @self.app.errorhandler(415)
+        def unsupported_media_type(error):
+            return jsonify({
+                'error': 'Unsupported Media Type',
+                'message': 'Content-Type not supported. Use application/json or multipart/form-data',
+                'supported_types': ['application/json', 'multipart/form-data'],
+                'timestamp': datetime.now().isoformat()
+            }), 415
     
     def run(self, debug=False):
-        """Start the Combined API server"""
-        print("Starting Combined API Server (Flask-AI + Security Scanner)")
-        print("=" * 60)
+        """Start the FIXED Combined API server"""
+        print("Starting FIXED Combined API Server (Flask-AI + Security Scanner)")
+        print("=" * 70)
         print(f"Server URL: http://{self.host}:{self.port}")
         print()
-        print("FLASK-AI ENDPOINTS (Main Base):")
+        print("FLASK-AI ENDPOINTS (Main Base) - FIXED:")
         print(f"  Health Check: GET /api/health")
         print(f"  System Info:  GET /api/system/info") 
         print(f"  Detect Image: POST /api/detection/image")
+        print(f"                Support: JSON (image_base64) + Form-data (image/file)")
         print(f"  Detect Frame: POST /api/detection/frame")
+        print(f"                Support: JSON (frame_base64/image_base64) + Form-data (frame/image/file)")
         print(f"  Batch Detect: POST /api/detection/batch")
+        print(f"                Support: JSON (images array) + Form-data (multiple files)")
         print()
-        print("NEW COMBINED ENDPOINT:")
+        print("NEW COMBINED ENDPOINT - FIXED:")
         print(f"  Combined:     POST /api/detection/combined")
-        print(f"                (param: is_scan_threat=true for security scan)")
+        print(f"                Support: JSON + Form-data")
+        print(f"                Param: is_scan_threat=true for security scan")
         print()
-        print("SECURITY SCANNER ENDPOINTS:")
+        print("SECURITY SCANNER ENDPOINTS - FIXED:")
         print(f"  Security Scan: POST /api/security/scan")
-        print(f"                 (param: is_full_scan=true/false)")
+        print(f"                 Support: JSON (image_base64/image/file_base64/data) + Form-data")
+        print(f"                 Param: is_full_scan=true/false")
         print(f"  Laravel Format: POST /api/security/scan/laravel")
-        print(f"                  (param: is_full_scan=true/false)")
+        print(f"                  Support: JSON (image_base64/image/file_base64/data) + Form-data") 
+        print(f"                  Param: is_full_scan=true/false")
         print(f"  Security Health: GET /api/security/health")
-        print("=" * 60)
+        print(f"  Security Stats:  GET /api/security/stats")
+        print("=" * 70)
+        print("ALL ENDPOINTS NOW SUPPORT BOTH JSON AND FORM-DATA!")
+        print("JSON: Use 'image_base64', 'frame_base64' fields")
+        print("Form-data: Use 'image', 'file', 'frame' fields")
+        print("=" * 70)
         
         self.app.run(host=self.host, port=self.port, debug=debug, threaded=True, use_reloader=False)
 
 
 def create_combined_api_server(host='0.0.0.0', port=5001):
-    """Factory function to create combined API server"""
+    """Factory function to create FIXED combined API server"""
     return CombinedAPIServer(host=host, port=port)
 
 
 if __name__ == "__main__":
-    # Create and start the combined API server
+    # Create and start the FIXED combined API server
     api_server = create_combined_api_server()
     api_server.run(debug=True)
