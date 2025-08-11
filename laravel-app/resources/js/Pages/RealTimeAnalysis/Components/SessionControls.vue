@@ -88,10 +88,10 @@ watch(autoCaptureEnabled, (isEnabled) => {
 
 <template>
     <div
-        class="flex flex-col justify-start border border-gray-200 dark:border-dark-700 rounded-lg p-6 gap-3"
+        class="flex flex-col justify-start gap-3 p-6 border border-gray-200 dark:border-dark-700 rounded-lg"
     >
         <h2
-            class="truncate text-base font-medium tracking-wide text-gray-800 dark:text-dark-100"
+            class="font-medium text-gray-800 dark:text-dark-100 text-base truncate tracking-wide"
         >
             Session Controls
         </h2>
@@ -102,11 +102,11 @@ watch(autoCaptureEnabled, (isEnabled) => {
                 <label for="camera-source" class="input-label undefined">
                     Camera Source
                 </label>
-                <div class="input-wrapper relative mt-1.5">
+                <div class="relative mt-1.5 input-wrapper">
                     <select
                         id="camera-source"
                         v-model="selectedCameraId"
-                        class="form-select-base form-select ltr:pr-9 rtl:pl-9 peer border-gray-300 hover:border-gray-400 focus:border-primary-600 dark:border-dark-450 dark:hover:border-dark-400 dark:focus:border-primary-500"
+                        class="peer ltr:pr-9 rtl:pl-9 border-gray-300 hover:border-gray-400 focus:border-primary-600 dark:hover:border-dark-400 dark:focus:border-primary-500 dark:border-dark-450 form-select-base form-select"
                     >
                         <option
                             v-if="cameraDevices.length === 0"
@@ -127,7 +127,7 @@ watch(autoCaptureEnabled, (isEnabled) => {
                         </option>
                     </select>
                     <div
-                        class="suffix ltr:right-0 rtl:left-0 pointer-events-none absolute top-0 flex h-full w-9 items-center justify-center transition-colors text-gray-400 peer-focus:text-primary-600 dark:text-dark-300 dark:peer-focus:text-primary-500"
+                        class="top-0 ltr:right-0 rtl:left-0 absolute flex justify-center items-center w-9 h-full text-gray-400 dark:text-dark-300 dark:peer-focus:text-primary-500 peer-focus:text-primary-600 transition-colors pointer-events-none suffix"
                     >
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -152,11 +152,11 @@ watch(autoCaptureEnabled, (isEnabled) => {
                 <label for="detection-interval" class="input-label undefined">
                     Detection Interval
                 </label>
-                <div class="input-wrapper relative mt-1.5">
+                <div class="relative mt-1.5 input-wrapper">
                     <select
                         id="detection-interval"
                         v-model="selectedInterval"
-                        class="form-select-base form-select ltr:pr-9 rtl:pl-9 peer border-gray-300 hover:border-gray-400 focus:border-primary-600 dark:border-dark-450 dark:hover:border-dark-400 dark:focus:border-primary-500"
+                        class="peer ltr:pr-9 rtl:pl-9 border-gray-300 hover:border-gray-400 focus:border-primary-600 dark:hover:border-dark-400 dark:focus:border-primary-500 dark:border-dark-450 form-select-base form-select"
                     >
                         <option :value="1000">1 Second (1 FPS)</option>
                         <option :value="500">0.5 Seconds (2 FPS)</option>
@@ -164,7 +164,7 @@ watch(autoCaptureEnabled, (isEnabled) => {
                         <option :value="100">0.1 Seconds (10 FPS)</option>
                     </select>
                     <div
-                        class="suffix ltr:right-0 rtl:left-0 pointer-events-none absolute top-0 flex h-full w-9 items-center justify-center transition-colors text-gray-400 peer-focus:text-primary-600 dark:text-dark-300 dark:peer-focus:text-primary-500"
+                        class="top-0 ltr:right-0 rtl:left-0 absolute flex justify-center items-center w-9 h-full text-gray-400 dark:text-dark-300 dark:peer-focus:text-primary-500 peer-focus:text-primary-600 transition-colors pointer-events-none suffix"
                     >
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -184,24 +184,12 @@ watch(autoCaptureEnabled, (isEnabled) => {
                 </div>
             </div>
 
-            <!-- Auto-capture Checkbox -->
-            <label class="input-label inline-flex items-center gap-2">
-                <input
-                    id="auto-capture"
-                    v-model="autoCaptureEnabled"
-                    class="form-checkbox this:primary border-gray-400/70 bg-origin-border before:bg-center before:bg-no-repeat before:[background-size:100%_100%] before:[background-image:var(--tw-thumb)] checked:border-this checked:bg-this indeterminate:border-this indeterminate:bg-this hover:border-this focus:border-this dark:border-dark-400 dark:checked:border-this-light dark:checked:bg-this-light dark:indeterminate:border-this-light dark:indeterminate:bg-this-light dark:hover:border-this-light dark:focus:border-this-light"
-                    type="checkbox"
-                    checked=""
-                />
-                <span class="label">Auto-scan for defects</span>
-            </label>
-
             <!-- Reset Statistics Button -->
             <div>
                 <button
                     @click="handleResetClick"
                     type="button"
-                    class="btn-base btn w-full gap-2 this:primary bg-this text-white hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 disabled:bg-this-light dark:disabled:bg-this-darker"
+                    class="gap-2 bg-this hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 disabled:bg-this-light dark:disabled:bg-this-darker w-full text-white btn-base btn this:primary"
                 >
                     <font-awesome-icon icon="fa-solid fa-arrow-rotate-left" />
                     Reset Statistics
