@@ -1,7 +1,5 @@
 <script setup>
 import { ref, computed } from "vue";
-import { Link } from "@inertiajs/vue3";
-import { route } from "ziggy-js";
 
 // Import Shared Components
 import Tablewrapper from "../../Shared/Table/Tablewrapper.vue";
@@ -10,9 +8,6 @@ import Table from "../../Shared/Table/Table.vue";
 import TableCell from "../../Shared/Table/TableCell.vue";
 import TableHeaderCell from "../../Shared/Table/TableHeaderCell.vue";
 import RowNotFound from "../../Shared/Table/RowNotFound.vue";
-import EllipsisDropdown from "../../Shared/Dropdown/EllipsisDropdown.vue";
-import DetailViewList from "../../Shared/Dropdown/ViewItem.vue";
-import DeleteItem from "../../Shared/Dropdown/DeleteItem.vue";
 
 // Import Page-Specific Components
 import Header from "./Components/Header.vue";
@@ -124,10 +119,6 @@ const formatDecimal = (value) => Number(value).toFixed(3);
                             <TableHeaderCell label="Timestamp" />
                             <TableHeaderCell label="Status" />
                             <TableHeaderCell label="Score" />
-                            <TableHeaderCell
-                                label="Actions"
-                                :is-sortable="false"
-                            />
                         </tr>
                     </template>
                     <template #body>
@@ -173,20 +164,6 @@ const formatDecimal = (value) => Number(value).toFixed(3);
                                 >
                                     {{ formatDecimal(scan.anomaly_score) }}
                                 </p>
-                            </TableCell>
-                            <TableCell>
-                                <!-- Link to the specific scan detail page -->
-                                <Link
-                                    :href="
-                                        route('sessions_scan.show', {
-                                            realtimeSession: session.id,
-                                            scan: scan.id,
-                                        })
-                                    "
-                                    class="text-primary-500 hover:text-primary-600"
-                                >
-                                    View
-                                </Link>
                             </TableCell>
                         </tr>
                         <RowNotFound

@@ -1,6 +1,6 @@
 <script setup>
 // Imports
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useForm } from "@inertiajs/vue3";
 
 import ImageSelector from "./Components/ImageSelector.vue";
@@ -10,6 +10,26 @@ import ProcessingModal from "./Components/Modals/ProcessingModal.vue";
 import SuccessModal from "./Components/Modals/SuccessModal.vue";
 
 import { successToast } from "@/utils/swal.js"; // Make sure this path is correct
+
+const props = defineProps({
+    scanResult: {
+        type: Object,
+        required: false,
+        default: null,
+    },
+});
+
+console.log("ImageAnalysis props:", props);
+
+watch(
+    () => props.scanResult,
+    (newResults) => {
+        if (newResults) {
+            detectionResult.value = newResults;
+            console.log("Scan results updated:", newResults);
+        }
+    }
+);
 
 // View Mode State (Single vs Batch)
 const isBatchMode = ref(false);
@@ -58,37 +78,20 @@ async function handleRunAnalysis(settings) {
     form.sensitivity = settings.sensitivity;
     form.threatChecker = settings.threatChecker;
 
-    // form.post(route(""), {
-    //     forceFormData: true,
-    //     preserveScroll: true,
-    //     onSuccess: () => {
-    //         console.log("Analysis completed successfully.");
-    //     },
-    //     onError: (errors) => {
-    //         console.error("Analysis failed:", errors);
-    //         alert("Analysis failed. Please try again.");
-    //     },
-    // });
-
-    // Mock simulation (3 seconds)
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    // Simulate if success
-    successToast("Analysis completed successfully!");
-    // toast success here
-
-    // Mock data
-    detectionResult.value = {
-        decision: "GOOD",
-        score: 0.8764,
-        time: 0.39,
-        defects: 0,
-        resultImageUrl: originalUrl.value,
-    };
+    form.post(route("scans.store"), {
+        forceFormData: true,
+        preserveScroll: true,
+        onSuccess: () => {
+            console.log("Analysis completed successfully.");
+            successToast("Analysis completed successfully!");
+        },
+        onError: (errors) => {
+            console.error("Analysis failed:", errors);
+            alert("Analysis failed. Please try again.");
+        },
+    });
 
     loading.value = false;
-
-    console.log(detectionResult.value);
 }
 
 // Batch Analysis State
@@ -147,7 +150,7 @@ function resetBatch() {
 
 // URL of processed detection image for ImageTabs.vue
 const detectionUrl = computed(() => {
-    return detectionResult.value ? detectionResult.value.resultImageUrl : null;
+    return props.scanResult ? props.scanResult.annotatedImageUrl : null;
 });
 </script>
 

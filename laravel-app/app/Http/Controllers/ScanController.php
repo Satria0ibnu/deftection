@@ -23,7 +23,7 @@ class ScanController extends Controller
         protected ScanDetailService $scanDetailService
     ) {}
 
-    // shows all scans 
+    // shows all scans
     public function index(Request $request)
     {
         try {
@@ -264,102 +264,151 @@ class ScanController extends Controller
     public function store(Request $request)
     {
         try {
-            // Validate
-            $request->validate(['image' => 'required|image|max:4096']);
+            Log::info('Scan process started.', [
+                'user_id' => auth()->id(),
+                'ip_address' => $request->ip()
+            ]);
+
+            // Validate the request from the frontend
+            $request->validate([
+                'image' => 'required|image|max:10240', // 10MB max
+                'is_scan_threat' => 'sometimes|boolean'
+            ]);
+            Log::info('Request validation successful.');
+
             $userImage = $request->file('image');
             $originalFilename = time() . '_' . Str::slug(pathinfo($userImage->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $userImage->getClientOriginalExtension();
 
-            // Send image to Flask *before* storing
-            $response = Http::timeout(30)->attach('image', file_get_contents($userImage->getRealPath()), $originalFilename)
-                ->post(env('FLASK_API_URL') . '/scan');
+            // 1. Read the image file and encode it as a Base64 string
+            $base64Image = base64_encode(file_get_contents($userImage->getRealPath()));
+            Log::info('Image successfully encoded to Base64.');
+
+            // 2. Prepare the JSON payload that Flask expects
+            $payload = [
+                'image_base64' => $base64Image,
+                'filename' => $originalFilename,
+                'is_scan_threat' => $request->boolean('is_scan_threat', false),
+            ];
+
+            // 3. Send the request as JSON
+            Log::info('Sending request to Flask API.', ['url' => env('FLASK_API_URL') . '/api/detection/combined']);
+            $response = Http::timeout(120) // Increased timeout for AI processing
+                ->asJson() // This sets the Content-Type header to application/json
+                ->post(env('FLASK_API_URL') . '/api/detection/combined', $payload);
+            Log::info('Received response from Flask API.', ['status' => $response->status()]);
+
 
             if (!$response->ok()) {
-                return Inertia::render('Scan/Create', [
-                    'title' => 'Upload Images',
-                    'description' => 'Upload images for scanning defects.',
+                // Log the detailed error from Flask for debugging
+                Log::error('Flask API returned a non-OK status.', [
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
+                return Inertia::render('ImageAnalysis/Index', [ // Assuming this is the correct component
                     'error' => [
-                        'message' => 'Analysis server is currently unavailable. Please try again later.',
+                        'message' => 'Analysis server returned an error. Please try again later.',
                         'type' => 'server_error',
-                        'details' => $response->status() === 404 ? 'Service not found' : 'Server error'
+                        'details' => $response->body() // Pass full details for debugging
                     ]
                 ]);
             }
 
-            $data = $response->json();
+            $data = $response->json()['data']; // Assuming results are nested under a 'data' key
+            Log::info('Successfully parsed JSON response from Flask.');
 
             // Store both images only now
             $originalPath = Storage::disk('public')->putFileAs('images/original', $userImage, $originalFilename);
+            Log::info('Original image stored.', ['path' => $originalPath]);
 
-            [$meta, $filedata] = explode(',', $data['annotated_image_base64']);
-            $annotatedFilename = 'annotated_' . $originalFilename;
-            $annotatedPath = 'images/annotated/' . $annotatedFilename;
-            Storage::disk('public')->put($annotatedPath, base64_decode($filedata));
+            // Handle annotated image if it exists
+            $annotatedPath = null;
+            if (isset($data['annotated_image']['base64']) && !empty($data['annotated_image']['base64'])) {
+                // The base64 string from Flask might not have the data URI prefix
+                $filedata = $data['annotated_image']['base64'];
+                if (strpos($filedata, ',') !== false) {
+                    [, $filedata] = explode(',', $filedata);
+                }
+                $annotatedFilename = 'annotated_' . $originalFilename;
+                $annotatedPath = 'images/annotated/' . $annotatedFilename;
+                Storage::disk('public')->put($annotatedPath, base64_decode($filedata));
+                Log::info('Annotated image stored.', ['path' => $annotatedPath]);
+            }
+
 
             // Create Scan row and related models
+            Log::info('Creating Scan record in the database.');
             $scan = Scan::create([
                 'user_id' => auth()->id(),
-                'filename' => $data['filename'],
+                'filename' => $originalFilename,
                 'original_path' => $originalPath,
                 'annotated_path' => $annotatedPath,
-                'is_defect' => $data['is_defect'],
-                'anomaly_score' => number_format($data['anomaly_score'], 5, '.', ''),
-                'anomaly_confidence_level' => $data['anomaly_confidence_level'],
-                'anomaly_inference_time_ms' => number_format($data['processing_times']['anomaly_inference_ms'], 3, '.', ''),
-                'classification_interference_time_ms' => $data['processing_times']['classification_inference_ms'] !== null
-                    ? number_format($data['processing_times']['classification_inference_ms'], 3, '.', '')
-                    : null,
-                'preprocessing_time_ms' => number_format($data['processing_times']['preprocessing_ms'], 3, '.', ''),
-                'postprocessing_time_ms' => number_format($data['processing_times']['postprocessing_ms'], 3, '.', ''),
-                'anomaly_threshold' => number_format($data['anomaly_threshold'], 5, '.', ''),
+                'is_defect' => $data['result_summary']['is_defective'] ?? false,
+                'anomaly_score' => number_format($data['anomaly_detection']['anomaly_score'] ?? 0, 5, '.', ''),
+                'anomaly_confidence_level' => $data['confidence_level'] ?? 'N/A',
+                // Note: The new response has one 'processing_time'. We'll use it for the main inference time.
+                'anomaly_inference_time_ms' => number_format(($data['processing_time'] ?? 0) * 1000, 3, '.', ''), // Convert seconds to ms
+                'classification_interference_time_ms' => null, // Not provided in new response
+                'preprocessing_time_ms' => null, // Not provided in new response
+                'postprocessing_time_ms' => null, // Not provided in new response
+                'anomaly_threshold' => number_format($data['anomaly_detection']['threshold_used'] ?? 0, 5, '.', ''),
             ]);
+            Log::info('Scan record created successfully.', ['scan_id' => $scan->id]);
 
             // Store defects
-            foreach ($data['defects'] ?? [] as $defect) {
-                ScanDefect::create([
-                    'scan_id' => $scan->id,
-                    'label' => $defect['label'],
-                    'confidence_score' => round($defect['confidence_score'], 6),
-                    'severity_level' => $defect['severity_level'],
-                    'area_percentage' => round($defect['area_percentage'], 4),
-                    'box_location' => $defect['box_location'], // Since you have JSON cast, pass the array directly
-                ]);
+            if (!empty($data['detected_defects'])) {
+                Log::info('Storing scan defects.', ['scan_id' => $scan->id, 'defect_count' => count($data['detected_defects'])]);
+                foreach ($data['detected_defects'] as $defect) {
+                    ScanDefect::create([
+                        'scan_id' => $scan->id,
+                        'label' => $defect['label'] ?? 'unknown',
+                        'confidence_score' => round($defect['confidence_score'] ?? 0, 6),
+                        'severity_level' => $defect['severity_level'] ?? 'N/A',
+                        'area_percentage' => round($defect['area_percentage'] ?? 0, 4),
+                        'box_location' => $defect['box_location'] ?? [],
+                    ]);
+                }
+                Log::info('Scan defects stored successfully.', ['scan_id' => $scan->id]);
             }
 
-            // Store threat
-            if (!empty($data['threat_scan'])) {
+            // Store threat (assuming structure is correct if it exists)
+            if (!empty($data['security_scan'])) {
+                Log::info('Storing scan threat information.', ['scan_id' => $scan->id]);
                 ScanThreat::create([
                     'scan_id' => $scan->id,
-                    'hash' => $data['threat_scan']['hash'],
-                    'status' => $data['threat_scan']['status'],
-                    'threat_level' => $data['threat_scan']['threat_level'],
-                    'qr_content' => $data['threat_scan']['qr_content'],
-                    'issues' => $data['threat_scan']['issues'], // Since you have JSON cast, pass the array directly
+                    'hash' => $data['security_scan']['hash'] ?? null,
+                    'status' => $data['security_scan']['status'] ?? null,
+                    'threat_level' => $data['security_scan']['threat_level'] ?? null,
+                    'qr_content' => $data['security_scan']['qr_content'] ?? null,
+                    'issues' => $data['security_scan']['issues'] ?? [],
                 ]);
+                Log::info('Scan threat information stored successfully.', ['scan_id' => $scan->id]);
             }
 
-            // After successful, return to same page with results
-            return Inertia::render('Scan/Create', [
-                'title' => 'Upload Images',
-                'description' => 'Upload images for scanning defects.',
+            // After successful, redirect to the results page
+            Log::info('Scan process completed. Redirecting to results page.', ['scan_id' => $scan->id]);
+            return Inertia::render('ImageAnalysis/Index', [
                 'scanResult' => [
-                    'scan' => $scan->load('scanDefects', 'scanThreat'), // Use correct relationship names
+                    'id' => $scan->id,
+                    'decision' => $data['final_decision'] ?? 'UNKNOWN',
+                    'score' => $data['anomaly_detection']['anomaly_score'] ?? 0,
+                    'time' => $data['processing_time'] ?? 0,
+                    'defects' => count($data['detected_defects'] ?? []),
                     'originalImageUrl' => Storage::url($originalPath),
-                    'annotatedImageUrl' => Storage::url($annotatedPath),
-                    'message' => 'Image analyzed successfully!'
+                    'annotatedImageUrl' => $annotatedPath ? Storage::url($annotatedPath) : null,
                 ]
             ]);
+
         } catch (ValidationException $e) {
+            Log::error('Request validation failed.', ['user_id' => auth()->id(), 'errors' => $e->errors()]);
             throw $e;
         } catch (Exception $e) {
-            Log::error('Scan processing failed', [
+            Log::error('An unexpected error occurred during scan processing.', [
                 'user_id' => auth()->id(),
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
 
-            return Inertia::render('Scan/Create', [
-                'title' => 'Upload Images',
-                'description' => 'Upload images for scanning defects.',
+            return Inertia::render('ImageAnalysis/Index', [
                 'error' => [
                     'message' => 'Something went wrong during image analysis. Please try again.',
                     'type' => 'processing_error'
