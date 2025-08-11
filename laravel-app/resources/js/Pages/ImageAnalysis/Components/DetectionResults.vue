@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from "vue";
+import { router } from "@inertiajs/vue3";
 
 const props = defineProps({
     result: {
@@ -12,7 +13,7 @@ const viewDetailedAnalysis = () => {
     if (!props.result?.id) return;
 
     // Navigate to a new Inertia page
-    // router.visit(route('', { id: props.result.id }))
+    router.visit(route("scans.show", { id: props.result.id }));
 };
 
 // Optional formatting
