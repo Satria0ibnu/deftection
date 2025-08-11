@@ -645,7 +645,6 @@ class DetectionController:
                 'timestamp': datetime.now().isoformat()
             }), 500
 
-
     def _format_desired_response(self, result, filename, timings):
         """Format response in the desired format structure"""
         try:
