@@ -51,6 +51,10 @@ class RealtimeSession extends Model
     protected $casts = [
         'defect_type_distribution' => 'array',
         'severity_level_distribution' => 'array',
+        'session_start' => 'datetime',
+        'session_end' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     public function user()
