@@ -53,9 +53,9 @@ class SettingsController extends Controller
         return back()->with('success', 'Settings saved successfully.');
     }
 
-    public function clearData()
+    public function clearAllData()
     {
-
+        Log::info('All analysis data cleared by user ID: ' . auth()->id());
         $this->authorize('deleteAny', RealtimeSession::class);
         $this->authorize('deleteAny', Scan::class);
 
@@ -68,6 +68,7 @@ class SettingsController extends Controller
 
     public function clearMyData()
     {
+        Log::info('User analysis data cleared by user ID: ' . auth()->id());
         $userId = auth()->id();
 
         $this->authorize('delete', new RealtimeSession(['user_id' => $userId]));
