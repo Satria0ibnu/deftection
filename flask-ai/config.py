@@ -1,10 +1,14 @@
-# config.py - Complete Fixed Configuration
 """
-Complete Configuration file for Flask-AI + Security Scanner
+Complete Configuration file for Flask-AI + Security Scanner + OpenAI Integration
+PRODUCTION MODE: Stable thresholds for reliable performance
 """
 
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # ===========================
 # BASE PATHS
@@ -20,9 +24,9 @@ MODELS_DIR = BASE_DIR / "models"
 ANOMALIB_MODEL_PATH = MODELS_DIR / "patchcore.pt"
 HRNET_MODEL_PATH = MODELS_DIR / "defect_segmentation_model.pth"
 
-# Detection thresholds
-ANOMALY_THRESHOLD = 0.7
-DEFECT_CONFIDENCE_THRESHOLD = 0.85
+# Detection thresholds - PRODUCTION VALUES
+ANOMALY_THRESHOLD = 0.3
+DEFECT_CONFIDENCE_THRESHOLD = 0.50
 
 # Device configuration
 DEVICE = 'cuda'  # or 'cpu'
@@ -51,10 +55,18 @@ IMAGE_SIZE = (512, 512)
 NORMALIZE_MEAN = [0.485, 0.456, 0.406]
 NORMALIZE_STD = [0.229, 0.224, 0.225]
 
-# Minimum detection thresholds
+# Minimum detection thresholds - PRODUCTION VALUES
 MIN_DEFECT_PIXELS = 50
 MIN_DEFECT_PERCENTAGE = 0.005  # 0.5%
 MIN_BBOX_AREA = 100
+
+# ===========================
+# OPENAI CONFIGURATION
+# ===========================
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+OPENAI_MODEL = "gpt-4-turbo"
+OPENAI_MAX_TOKENS = 1000
+OPENAI_TEMPERATURE = 0.1
 
 # ===========================
 # SECURITY SCANNER CONFIGURATION
@@ -148,4 +160,5 @@ if not MALWARE_HASH_FILE.exists():
     except Exception:
         pass  # Ignore if we can't create it
 
-print(f"Configuration loaded - Flask-AI + Security Scanner")
+print(f"Configuration loaded - Flask-AI + Security Scanner + OpenAI Integration")
+print(f"Production Mode - Stable thresholds for reliable performance")
