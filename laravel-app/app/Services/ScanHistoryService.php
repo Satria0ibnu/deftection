@@ -14,6 +14,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class ScanHistoryService
 {
+
     public function getScans(array $filters): LengthAwarePaginator
     {
         $canViewAll = auth()->user()->can('viewAny', Scan::class);
@@ -137,6 +138,7 @@ class ScanHistoryService
                 'total_defect' => $scan->total_defect,
                 'username' => $scan->username,
                 'user_role' => $scan->user_role,
+                'annotated_image_url' => $scan->annotated_image_url,
                 'created_at' => $scan->created_at->toISOString(),
                 'updated_at' => $scan->updated_at->toISOString(),
             ]);
