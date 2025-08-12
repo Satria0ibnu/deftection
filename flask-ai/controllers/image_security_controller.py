@@ -237,8 +237,24 @@ class ImageSecurityController:
             filename = None
             is_full_scan = False
 
+                # ENHANCED DEBUG OUTPUT
+            print(f"=== REQUEST DEBUG INFO ===")
             print(f"Request content type: {request.content_type}")
             print(f"Request method: {request.method}")
+            print(f"Request.is_json: {request.is_json}")
+            print(f"Request.files keys: {list(request.files.keys()) if request.files else 'No files'}")
+            print(f"Request.form keys: {list(request.form.keys()) if request.form else 'No form data'}")
+            
+            # Check if we have raw data
+            try:
+                if hasattr(request, 'data') and request.data:
+                    print(f"Request.data length: {len(request.data)}")
+                    print(f"Request.data preview: {request.data[:100]}")
+            except Exception as e:
+                print(f"Could not access request.data: {e}")
+
+                print(f"Request content type: {request.content_type}")
+                print(f"Request method: {request.method}")
 
             # Method 1: Handle JSON requests (base64 encoded images) - PRIORITY
             if request.is_json or 'application/json' in str(request.content_type):
