@@ -15,6 +15,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DefectTypeController;
 use App\Http\Controllers\RealtimeScanController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\RealtimeFrameController;
 use App\Http\Controllers\RealtimeAnalysisController;
 
 Route::permanentRedirect('/', '/login');
@@ -73,30 +74,21 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/{user}', [UserController::class, 'destroy'])->name('users.destroy');
   });
 
-  // DEFECT TYPES
-  Route::prefix('database/defect-types')->group(function () {
-    // User list
-    Route::get('/', function () {
-      return Inertia::render('Database/DefectTypes/Index', [
-        'defectTypes' => [],
-        'filters' => [],
-        'meta' => [],
-      ]);
-    })->name('defect-types.index');
-  });
 
   // REPORTS
   Route::prefix('reports')->name('reports.')->group(function () {
 
     // Single scan report
     Route::get('single/{scan}', [ReportController::class, 'generateSingleReport'])
-      ->name('single.generate')
-      ->middleware('can:generateReport,scan');
+      ->name('single.generate');
 
     // Batch report - requires authentication, authorization handled in controller
     Route::get('batch', [ReportController::class, 'generateBatchReport'])
-      ->name('batch.generate')
-      ->middleware('can:generateBatchReport,App\Models\Scan');
+      ->name('batch.generate');
+
+    // Realtime session report
+    Route::get('session/{realtimeSession}', [ReportController::class, 'generateRealtimeSessionReport'])
+      ->name('session.generate');
 
     // // Preview routes ( for test)
     // Route::get('preview/single/{scan}', [ReportController::class, 'previewSingleReport'])
@@ -162,6 +154,7 @@ Route::middleware(['auth'])->group(function () {
   // Realtime session store (realtime analysis)
   Route::get('real-time-analysis', [RealtimeController::class, 'create'])->name('sessions.create');
   Route::post('real-time-analysis', [RealtimeController::class, 'store'])->name('sessions.store');
+
   // Session list
   Route::prefix('analysis/session-history')->group(function () {
     Route::get('/', [RealtimeController::class, 'index'])->name('sessions.index');
@@ -169,10 +162,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/check-updates', [RealtimeController::class, 'indexCheck'])->middleware('throttle:120,1')->name('sessions.index.check');
     Route::get('/force-refresh', [RealtimeController::class, 'indexRefresh'])->middleware('throttle:60,1')->name('sessions.index.refresh');
 
-    // Realtime Session Details (Realtime scan index)
-    Route::get('/{realtimeSession}', [RealtimeScanController::class, 'index'])->name('sessions_scan.index');
-    // Realtime scan details
-    Route::get('/{realtimeSession}/scan/{scan}', [RealtimeScanController::class, 'scan'])->name('sessions_scan.show');
+    Route::get('/{realtimeSession}', [RealtimeController::class, 'show'])->name('sessions_scan.index');
+
 
     // Realtime Session  operations
     Route::delete('/{realtimeSession}', [RealtimeController::class, 'destroy'])->name('sessions.destroy');
@@ -223,6 +214,10 @@ Route::middleware(['auth'])->group(function () {
       ->name('realtime.sessions.status')
       ->middleware('throttle:120,1');
   });
+
+  Route::post('/process-frame', [RealtimeFrameController::class, 'processFrame'])
+    ->name('realtime.sessions.process_frame')
+    ->middleware('throttle:300,1'); // Allow high frequency for realtime processing
 });
 
 Route::get('/home', function () {

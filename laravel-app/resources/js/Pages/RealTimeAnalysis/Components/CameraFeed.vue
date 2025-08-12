@@ -80,9 +80,10 @@ const startDetection = async () => {
             videoRef.value.play();
             videoRef.value.onplay = () => {
                 isCameraActive.value = true;
-                isPaused.value = false; // Ensure not paused on start
+                isPaused.value = false;
                 emit("started");
                 drawBoundingBoxes();
+                // DON'T start scan loop automatically - wait for parent to control this
             };
         }
     } catch (error) {
@@ -141,8 +142,13 @@ const saveAnalyzedFrame = async () => {
         canvas.toBlob((blob) => resolve(blob), "image/jpeg");
     });
 };
+const startScanning = () => {
+    if (isCameraActive.value && !isPaused.value && props.autoScanEnabled) {
+        startScanLoop();
+    }
+};
 
-defineExpose({ saveAnalyzedFrame });
+defineExpose({ saveAnalyzedFrame, resumeSession, pauseSession, startScanning });
 
 const captureAndEmitForAnalysis = () => {
     if (!isCameraActive.value || isPaused.value) return;
@@ -201,29 +207,29 @@ onUnmounted(() => stopDetection(false));
 
 <template>
     <div
-        class="flex flex-col justify-center border border-gray-200 dark:border-dark-700 rounded-lg p-6"
+        class="flex flex-col justify-center p-6 border border-gray-200 dark:border-dark-700 rounded-lg"
     >
         <!-- Header with Title and Action Buttons -->
         <div
-            class="flex flex-col items-center justify-between mb-4 sm:flex-row gap-3"
+            class="flex sm:flex-row flex-col justify-between items-center gap-3 mb-4"
         >
             <div class="flex gap-2">
                 <h2
-                    class="truncate text-base font-medium tracking-wide text-gray-800 dark:text-dark-100"
+                    class="font-medium text-gray-800 dark:text-dark-100 text-base truncate tracking-wide"
                 >
                     Camera Feed
                 </h2>
                 <!-- Live Indicator for Auto-Scanning -->
-                <div v-if="isScanning" class="flex items-center ml-4 gap-1">
+                <div v-if="isScanning" class="flex items-center gap-1 ml-4">
                     <span class="flex w-3 h-3">
                         <span
-                            class="absolute inline-flex w-3 h-3 bg-red-400 rounded-full opacity-75 animate-ping"
+                            class="inline-flex absolute bg-red-400 opacity-75 rounded-full w-3 h-3 animate-ping"
                         ></span>
                         <span
-                            class="relative inline-flex w-3 h-3 bg-red-500 rounded-full"
+                            class="inline-flex relative bg-red-500 rounded-full w-3 h-3"
                         ></span>
                     </span>
-                    <span class="text-sm text-red-300">Scanning...</span>
+                    <span class="text-red-300 text-sm">Scanning...</span>
                 </div>
             </div>
             <div class="flex space-x-2">
@@ -231,7 +237,7 @@ onUnmounted(() => stopDetection(false));
                 <button
                     v-if="!isCameraActive"
                     @click="startDetection"
-                    class="btn-base btn gap-2 this:success bg-this text-white hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90"
+                    class="gap-2 bg-this hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 text-white btn-base btn this:success"
                 >
                     <font-awesome-icon icon="fa-solid fa-play" />
                     Start Session
@@ -239,7 +245,7 @@ onUnmounted(() => stopDetection(false));
                 <button
                     v-else-if="!isPaused"
                     @click="pauseSession"
-                    class="btn-base btn gap-2 this:warning bg-this text-white hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90"
+                    class="gap-2 bg-this hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 text-white btn-base btn this:warning"
                 >
                     <font-awesome-icon icon="fa-solid fa-pause" />
                     Pause Session
@@ -247,7 +253,7 @@ onUnmounted(() => stopDetection(false));
                 <button
                     v-else
                     @click="resumeSession"
-                    class="btn-base btn gap-2 this:success bg-this text-white hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90"
+                    class="gap-2 bg-this hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 text-white btn-base btn this:success"
                 >
                     <font-awesome-icon icon="fa-solid fa-play" />
                     Resume
@@ -257,7 +263,7 @@ onUnmounted(() => stopDetection(false));
                 <button
                     @click="stopDetection(true)"
                     :disabled="!isCameraActive"
-                    class="btn-base btn gap-2 this:error bg-this text-white hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 disabled:bg-this-light dark:disabled:bg-this-darker"
+                    class="gap-2 bg-this hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 disabled:bg-this-light dark:disabled:bg-this-darker text-white btn-base btn this:error"
                 >
                     <font-awesome-icon icon="fa-solid fa-stop" />
                     Stop Session
@@ -267,7 +273,7 @@ onUnmounted(() => stopDetection(false));
 
         <!-- Video Display Area -->
         <div
-            class="relative w-full overflow-hidden bg-black rounded-md aspect-video"
+            class="relative bg-black rounded-md w-full aspect-video overflow-hidden"
         >
             <video
                 ref="videoRef"
@@ -279,21 +285,21 @@ onUnmounted(() => stopDetection(false));
             <!-- Bounding Box Canvas Overlay -->
             <canvas
                 ref="boundingBoxCanvasRef"
-                class="absolute top-0 left-0 w-full h-full"
+                class="top-0 left-0 absolute w-full h-full"
             >
             </canvas>
 
             <!-- Paused State Overlay -->
             <div
                 v-if="isPaused"
-                class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-black bg-opacity-70 backdrop-blur-sm"
+                class="absolute inset-0 flex flex-col justify-center items-center bg-black bg-opacity-70 backdrop-blur-sm p-4 text-center"
             >
                 <font-awesome-icon
                     icon="fa-solid fa-pause"
                     size="3x"
                     class="text-white"
                 />
-                <p class="mt-4 text-2xl font-medium text-white">
+                <p class="mt-4 font-medium text-white text-2xl">
                     Session Paused
                 </p>
             </div>
@@ -301,11 +307,11 @@ onUnmounted(() => stopDetection(false));
             <!-- Placeholder shown when the camera is off -->
             <div
                 v-if="!isCameraActive"
-                class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-gray-200 dark:bg-dark-800 bg-opacity-80"
+                class="absolute inset-0 flex flex-col justify-center items-center bg-gray-200 dark:bg-dark-800 bg-opacity-80 p-4 text-center"
             >
                 <font-awesome-icon icon="fa-solid fa-video-slash" size="2xl" />
                 <p
-                    class="mt-4 mb-2 text-lg font-medium text-gray-700 dark:text-dark-100"
+                    class="mt-4 mb-2 font-medium text-gray-700 dark:text-dark-100 text-lg"
                 >
                     Camera feed will appear here
                 </p>
@@ -313,7 +319,7 @@ onUnmounted(() => stopDetection(false));
                 <!-- Display error message if camera access fails -->
                 <p
                     v-if="errorMessage"
-                    class="max-w-md mt-2 text-sm text-red-400"
+                    class="mt-2 max-w-md text-red-400 text-sm"
                 >
                     {{ errorMessage }}
                 </p>

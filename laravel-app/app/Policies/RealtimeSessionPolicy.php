@@ -79,13 +79,4 @@ class RealtimeSessionPolicy
     {
         return $user->role === 'admin';
     }
-
-    /**
-     * Determine whether the user can generate batch reports.
-     * Users can generate batch reports for their own data, admins for any data.
-     */
-    public function generateBatchReport(User $user): bool
-    {
-        return true;
-    }
 }

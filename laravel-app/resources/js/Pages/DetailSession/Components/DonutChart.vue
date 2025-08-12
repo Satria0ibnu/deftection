@@ -11,18 +11,9 @@ const props = defineProps({
 });
 
 // --- Chart Data Processing ---
-// This computed property processes the session data into the format needed for the chart.
 // It expects a `defectDistribution` object like: { 'Scratch': 10, 'Dent': 5 }
 const chartData = computed(() => {
     const distribution = props.session.defectDistribution || {};
-
-    // If the distribution from props is empty, use mock data as a fallback.
-    if (Object.keys(distribution).length === 0) {
-        return {
-            labels: ["Scratch", "Dent", "Paint Chip", "Corrosion"],
-            data: [44, 55, 13, 33],
-        };
-    }
 
     return {
         labels: Object.keys(distribution),
@@ -31,7 +22,6 @@ const chartData = computed(() => {
 });
 
 // --- Chart Configuration ---
-// The series for a donut chart is a simple array of numbers.
 const donutChartSeries = computed(() => chartData.value.data);
 
 // The options for the donut chart, adapted from your original and reference components.
@@ -75,17 +65,17 @@ const donutChartOptions = computed(() => {
 </script>
 
 <template>
-    <div class="p-6 bg-white rounded-lg shadow dark:bg-dark-800">
+    <div class="bg-white dark:bg-dark-800 shadow p-6 rounded-lg">
         <h2
             class="font-medium text-gray-800 dark:text-dark-100 text-sm-plus tracking-wide"
         >
             Defect Type Distribution
         </h2>
-        <div class="h-auto mt-4">
+        <div class="mt-4 h-auto">
             <!-- Display a message if there is no data to show -->
             <div
                 v-if="!donutChartSeries.length"
-                class="flex items-center justify-center h-64 text-gray-500 dark:text-dark-300"
+                class="flex justify-center items-center h-64 text-gray-500 dark:text-dark-300"
             >
                 No defect data available.
             </div>

@@ -1,5 +1,13 @@
 <script setup>
 import { ref, computed } from "vue";
+import { useForm } from "@inertiajs/vue3";
+import { route } from "ziggy-js";
+import {
+    successToast,
+    errorToast,
+    deleteConfirmDialog,
+    exportConfirmDialog,
+} from "@/utils/swal";
 
 // Import Shared Components
 import Tablewrapper from "../../Shared/Table/Tablewrapper.vue";
@@ -15,71 +23,22 @@ import Summary from "./Components/Summary.vue";
 import DonutChart from "./Components/DonutChart.vue";
 import PieChart from "./Components/PieChart.vue";
 
-// Import Page-Specific Components (we can create these next)
-// For now, we'll build their content directly into this page for simplicity.
-
 // --- Props ---
-// This page will receive the session data from the controller.
 const props = defineProps({
     session: { type: Object, required: true },
 });
 
-// --- Mock Data ---
-// This represents the data for a single, complete session.
-const mockSession = ref({
-    id: "SESS-002",
-    date: "21/07/2025",
-    startTime: "10:01:15",
-    endTime: "11:13:27",
-    duration: "1 hour 12 minutes",
-    total_scans: 340,
-    good_scans: 314,
-    defected_scans: 26,
-    defect_rate: 7.8,
-    status: "Completed",
-    // The list of individual scans that belong to this session
-    scans: [
-        {
-            id: 101,
-            filename: "scan_001.png",
-            created_at: "2025-07-21T10:01:15Z",
-            status: "good",
-            anomaly_score: 0.123,
-            original_path:
-                "https://placehold.co/100x60/34D399/FFFFFF?text=Good",
-        },
-        {
-            id: 102,
-            filename: "scan_002.png",
-            created_at: "2025-07-21T10:02:30Z",
-            status: "good",
-            anomaly_score: 0.234,
-            original_path:
-                "https://placehold.co/100x60/34D399/FFFFFF?text=Good",
-        },
-        {
-            id: 103,
-            filename: "scan_003.png",
-            created_at: "2025-07-21T10:03:45Z",
-            status: "defect",
-            anomaly_score: 0.891,
-            original_path:
-                "https://placehold.co/100x60/F87171/FFFFFF?text=Defect",
-        },
-        {
-            id: 104,
-            filename: "scan_004.png",
-            created_at: "2025-07-21T10:05:00Z",
-            status: "good",
-            anomaly_score: 0.15,
-            original_path:
-                "https://placehold.co/100x60/34D399/FFFFFF?text=Good",
-        },
-        // ... more scan objects
-    ],
+// Loading states
+const isDeleting = ref(false);
+const isExporting = ref(false);
+
+// Check if any operation is in progress
+const isOperationInProgress = computed(() => {
+    return isDeleting.value || isExporting.value;
 });
 
-const session = computed(() => mockSession.value); // Use mock data for now
+// --- Data Processing ---
+const session = computed(() => props.session);
 
 // --- Helper Functions ---
 const getStatusClass = (status) => {
@@ -89,27 +48,159 @@ const getStatusClass = (status) => {
 };
 
 const formatDecimal = (value) => Number(value).toFixed(3);
+
+// Handle download with confirmation
+const handleDownload = async () => {
+    try {
+        // Show export confirmation dialog
+        const result = await exportConfirmDialog({
+            title: "Export session report?",
+            text: `This will generate and download a PDF report for session "${session.value.id}". Are you sure you want to proceed?`,
+        });
+
+        if (result.isConfirmed) {
+            await performExport();
+        }
+    } catch (error) {
+        console.error("Export confirmation failed:", error);
+        errorToast("Failed to show export confirmation dialog");
+    }
+};
+
+// Perform the actual export
+const performExport = async () => {
+    try {
+        isExporting.value = true;
+
+        // Create a form for the export request
+        const form = document.createElement("form");
+        form.method = "GET";
+        form.action = route("reports.session.generate", session.value.id);
+        form.target = "_blank";
+
+        // Add CSRF token if available
+        const csrfToken = document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute("content");
+        if (csrfToken) {
+            const csrfInput = document.createElement("input");
+            csrfInput.type = "hidden";
+            csrfInput.name = "_token";
+            csrfInput.value = csrfToken;
+            form.appendChild(csrfInput);
+        }
+
+        // Append form to body, submit, then remove
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+
+        // Show success message
+        successToast(
+            "Session report generation started! The download will begin shortly.",
+            10000
+        );
+
+        console.log("Export initiated for session ID:", session.value.id);
+    } catch (error) {
+        console.error("Export request failed:", error);
+        errorToast("Failed to initiate session report generation.");
+    } finally {
+        isExporting.value = false;
+    }
+};
+
+// Handle delete with confirmation
+const handleDelete = async () => {
+    try {
+        // Show confirmation dialog with session details
+        const result = await deleteConfirmDialog(
+            'session "' + session.value.id + '"'
+        );
+
+        if (result.isConfirmed) {
+            await performDelete();
+        }
+    } catch (error) {
+        console.error("Delete confirmation failed:", error);
+        errorToast("Failed to show delete confirmation dialog");
+    }
+};
+
+// Perform the actual deletion
+const performDelete = async () => {
+    try {
+        isDeleting.value = true;
+
+        const form = useForm({});
+
+        form.delete(route("sessions.destroy", session.value.id), {
+            preserveState: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                handleDeleteSuccess();
+            },
+            onError: (errors) => {
+                handleDeleteError(errors);
+            },
+            onFinish: () => {
+                isDeleting.value = false;
+            },
+        });
+    } catch (error) {
+        console.error("Delete operation failed:", error);
+        errorToast("An unexpected error occurred while deleting the session.");
+        isDeleting.value = false;
+    }
+};
+
+// Handle successful deletion
+const handleDeleteSuccess = () => {
+    console.log("Session deleted successfully:", session.value.id);
+
+    successToast("Session deleted successfully!");
+
+    // Navigate to session history or reload page
+    window.location.href = route("sessions.index");
+};
+
+// Handle deletion error
+const handleDeleteError = (errors) => {
+    console.error("Delete operation failed:", errors);
+
+    let errorMessage =
+        "An unexpected error occurred while deleting the session.";
+
+    // Check for specific error messages
+    if (errors.message) {
+        errorMessage = errors.message;
+    } else if (errors.error) {
+        errorMessage = errors.error;
+    }
+
+    errorToast(errorMessage);
+};
 </script>
 
 <template>
     <div class="flex flex-col gap-6">
-        <!-- Section 1: Session Header -->
+        <!-- Session Header -->
         <Header
             :session="session"
             @download="handleDownload"
             @delete="handleDelete"
         />
 
-        <!-- Section 2: Key Metrics Summary -->
+        <!-- Key Metrics Summary -->
         <Summary :session="session" />
 
-        <!-- Section 3: Charts -->
+        <!-- Charts -->
         <div class="gap-6 grid grid-cols-1 sm:grid-cols-2">
             <DonutChart :session="session" />
             <PieChart :session="session" />
         </div>
 
-        <!-- Section 3: Scans Table -->
+        <!-- Scans Table -->
         <Tablewrapper>
             <TableContainer>
                 <Table>

@@ -1,5 +1,3 @@
-// Add these changes to your RealTimeAnalysis/Index.vue
-
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
 import { useForm } from "@inertiajs/vue3";
@@ -54,6 +52,20 @@ const startSession = async () => {
     sessionError.value = null;
 
     try {
+        // First check Flask API health before creating session
+        console.log("Checking Flask AI health before starting session...");
+        const healthResponse = await axios.get(
+            `${
+                import.meta.env.FLASK_API_URL || "http://localhost:5001"
+            }/api/health`
+        );
+
+        if (!healthResponse.data || healthResponse.data.status !== "ok") {
+            throw new Error(
+                "Flask AI server is not healthy. Cannot start session."
+            );
+        }
+
         sessionForm.camera_location =
             sessionConfig.selectedCameraId || "Default Camera";
         sessionForm.session_config = {
@@ -61,7 +73,7 @@ const startSession = async () => {
             autoCaptureEnabled: sessionConfig.autoCaptureEnabled,
         };
 
-        const response = await axios.post("/api/realtime/sessions/start", {
+        const response = await axios.post(route("realtime.sessions.start"), {
             camera_location: sessionForm.camera_location,
             session_config: sessionForm.session_config,
         });
@@ -80,6 +92,12 @@ const startSession = async () => {
     } catch (error) {
         sessionError.value = error.response?.data?.message || error.message;
         console.error("Error starting session:", error);
+
+        // If health check fails, show specific error
+        if (error.message.includes("Flask AI server")) {
+            sessionError.value =
+                "AI Detection Server is offline. Please check the Flask AI service.";
+        }
     } finally {
         sessionLoading.value = false;
     }
@@ -105,11 +123,30 @@ const resumeSession = async () => {
 
     sessionLoading.value = true;
     try {
+        // Check Flask health before resuming
+        console.log("Checking Flask AI health before resuming session...");
+        const healthResponse = await axios.get(
+            `${
+                import.meta.env.VITE_FLASK_API_URL || "http://localhost:5001"
+            }/api/health`
+        );
+
+        if (!healthResponse.data || healthResponse.data.status !== "healthy") {
+            throw new Error(
+                "Flask AI server is not healthy. Cannot resume session."
+            );
+        }
+
         const response = await axios.post("/api/realtime/sessions/resume");
         currentSession.value = response.data.session;
         console.log("Session resumed successfully");
     } catch (error) {
         sessionError.value = error.response?.data?.message || error.message;
+
+        if (error.message.includes("Flask AI server")) {
+            sessionError.value =
+                "AI Detection Server is offline. Session cannot be resumed.";
+        }
     } finally {
         sessionLoading.value = false;
     }
@@ -169,7 +206,7 @@ const stopSession = async () => {
 
 const getCurrentSession = async () => {
     try {
-        const response = await axios.get("/api/realtime/sessions/current");
+        const response = await axios.get(route("realtime.sessions.current"));
         currentSession.value = response.data.session;
 
         if (response.data.session) {
@@ -265,77 +302,164 @@ const sessionStatusText = computed(() => {
 // --- Main Analysis Logic (updated with session tracking) ---
 const handleFrameForAnalysis = async (frameData) => {
     // Only process if we have an active session
-    if (!isSessionActive.value) {
+    console.log("Current session:", currentSession.value);
+    console.log("Session status:", currentSession.value?.session_status);
+    console.log("Is session active:", isSessionActive.value);
+
+    if (!hasActiveOrPausedSession.value) {
         console.warn("No active session - frame analysis skipped");
         return;
     }
 
-    // 1. Simulate API call
-    const fakeApiResponse = await simulateApiCall();
+    try {
+        console.log("Sending frame blob directly to Laravel backend...");
 
-    // 2. Pass detection data down to CameraFeed to draw the boxes
-    currentDetections.value = fakeApiResponse.detections;
+        // Create FormData with the blob directly (faster than base64)
+        const formData = new FormData();
+        formData.append("frame_blob", frameData.blob, "frame.jpg");
+        formData.append("session_id", currentSession.value.id);
+        formData.append("timestamp", frameData.timestamp.toISOString());
 
-    // 3. Wait for the next frame to ensure boxes are drawn
-    await new Promise((resolve) => requestAnimationFrame(resolve));
+        // Call the real API endpoint with multipart data
+        const response = await axios.post(
+            route("realtime.sessions.process_frame"),
+            formData,
+            {
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                },
+            }
+        );
 
-    // 4. Call the child component to get a NEW screenshot that includes the overlay
-    if (cameraFeedRef.value) {
-        const blobWithOverlay = await cameraFeedRef.value.saveAnalyzedFrame();
+        // LOG THE COMPLETE RESPONSE
+        console.log("=== COMPLETE LARAVEL RESPONSE ===");
+        console.log("Response status:", response.status);
+        console.log("Response headers:", response.headers);
+        console.log("Response data:", response.data);
+        console.log("=== END RESPONSE ===");
 
-        if (blobWithOverlay) {
-            // 5. Process the result using the NEW blob
-            stats.totalFrames++;
-            if (fakeApiResponse.status === "good") {
-                stats.goodProducts++;
-                addScreenshot(blobWithOverlay, "Good", frameData.timestamp);
-            } else if (fakeApiResponse.status === "defected") {
-                stats.defectiveProducts++;
-                addScreenshot(blobWithOverlay, "Defect", frameData.timestamp);
+        const apiResponse = response.data;
+
+        if (apiResponse.success) {
+            console.log("Frame analysis successful:", {
+                status: apiResponse.status,
+                anomaly_score: apiResponse.anomaly_score,
+                processing_time: apiResponse.processing_time,
+            });
+
+            // LOG THE DETECTION RESULTS
+            console.log("=== DETECTION RESULTS ===");
+            console.log("Detections array:", apiResponse.detections);
+            console.log("Session stats:", apiResponse.session_stats);
+            console.log("=== END DETECTION RESULTS ===");
+
+            // Update detection data for bounding box display
+            currentDetections.value = apiResponse.detections || [];
+
+            // Wait for the next frame to ensure boxes are drawn
+            await new Promise((resolve) => requestAnimationFrame(resolve));
+
+            // Get screenshot with overlay for local display
+            if (cameraFeedRef.value) {
+                const blobWithOverlay =
+                    await cameraFeedRef.value.saveAnalyzedFrame();
+
+                if (blobWithOverlay) {
+                    // Update local stats based on real API response
+                    stats.totalFrames = apiResponse.session_stats.total_frames;
+                    stats.goodProducts = apiResponse.session_stats.good_count;
+                    stats.defectiveProducts =
+                        apiResponse.session_stats.defect_count;
+
+                    // Add screenshot to local display
+                    const screenshotType =
+                        apiResponse.status === "defect" ? "Defect" : "Good";
+                    addScreenshot(
+                        blobWithOverlay,
+                        screenshotType,
+                        frameData.timestamp
+                    );
+
+                    // Log processing performance
+                    const totalProcessingTime = Object.values(
+                        apiResponse.processing_time || {}
+                    ).reduce((a, b) => a + b, 0);
+                    if (totalProcessingTime > 0) {
+                        console.log(
+                            `Frame processed in ${totalProcessingTime.toFixed(
+                                3
+                            )}s`
+                        );
+                    }
+                }
             }
 
-            // 6. Here you would also send this data to your backend to update the session
-            // updateSessionStats();
+            // Clear bounding boxes after display time
+            setTimeout(() => {
+                currentDetections.value = [];
+            }, 2500);
+        } else {
+            console.error("Frame analysis failed:", apiResponse);
+            sessionError.value =
+                "Frame analysis failed. Check connection to AI server.";
         }
-    }
+    } catch (error) {
+        console.error("=== ERROR PROCESSING FRAME ===");
+        console.error("Error object:", error);
+        console.error("Error response:", error.response);
+        console.error("Error response data:", error.response?.data);
+        console.error("Error response status:", error.response?.status);
+        console.error("=== END ERROR ===");
 
-    // 7. Clear bounding boxes after a delay
-    setTimeout(() => {
+        // Handle different types of errors gracefully
+        if (error.response?.status === 403) {
+            sessionError.value =
+                "Not authorized to process frames for this session.";
+        } else if (error.response?.status === 400) {
+            sessionError.value =
+                "Session is not active. Cannot process frames.";
+        } else if (error.response?.status === 500) {
+            sessionError.value = "AI detection server error. Please try again.";
+        } else if (error.response?.status === 429) {
+            console.warn("Rate limit hit, slowing down frame processing");
+            return;
+        } else {
+            sessionError.value = "Network error. Check your connection.";
+        }
+
+        // Clear any existing detections on error
         currentDetections.value = [];
-    }, 2500);
-};
-
-const simulateApiCall = () => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const isDefect = Math.random() > 0.6; // 40% chance of defect
-            resolve({
-                status: isDefect ? "defected" : "good",
-                detections: isDefect
-                    ? [
-                          { label: "Product", bbox: [150, 200, 400, 250] },
-                          { label: "Scratch", bbox: [250, 280, 150, 20] },
-                      ]
-                    : [{ label: "Product", bbox: [150, 200, 400, 250] }],
-            });
-        }, 500); // Simulate 500ms network latency
-    });
+    }
 };
 
 // --- Event Handlers (updated with session management) ---
 const handleDetectionStarted = async () => {
     console.log("Detection starting...");
 
-    if (!isSessionActive.value) {
-        console.log("No active session. Starting new session...");
-        await startSession();
-    }
-
-    if (isSessionActive.value) {
+    // First check if we have a paused session and resume it
+    if (isSessionPaused.value) {
         console.log(
-            "Detection started with active session:",
+            "Session is paused. Resuming session:",
             currentSession.value.id
         );
+        await resumeSession();
+        // After resuming, start scanning
+        if (cameraFeedRef.value) {
+            cameraFeedRef.value.startScanning();
+        }
+    }
+    // Only start new session if we don't have any session at all
+    else if (!hasActiveOrPausedSession.value) {
+        console.log("No session exists. Starting new session...");
+        await startSession();
+        // Only start scanning AFTER session is successfully created
+        if (isSessionActive.value && cameraFeedRef.value) {
+            cameraFeedRef.value.startScanning();
+        }
+    }
+    // If we already have an active session, just start scanning
+    else if (isSessionActive.value && cameraFeedRef.value) {
+        cameraFeedRef.value.startScanning();
     }
 };
 
@@ -415,151 +539,6 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <!-- Session Status Bar -->
-    <div
-        v-if="isSessionActive || sessionLoading || sessionError"
-        class="mb-6 p-4 border rounded-lg"
-        :class="{
-            'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800':
-                isSessionActive,
-            'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800':
-                sessionLoading,
-            'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800':
-                sessionError,
-        }"
-    >
-        <!-- Active Session -->
-        <div v-if="isSessionActive" class="flex justify-between items-center">
-            <div class="flex items-center space-x-3">
-                <div class="flex items-center space-x-2">
-                    <div
-                        class="bg-green-500 rounded-full w-3 h-3 animate-pulse"
-                    ></div>
-                    <span
-                        class="font-medium text-green-800 dark:text-green-200"
-                    >
-                        {{ sessionStatusText }}
-                    </span>
-                </div>
-                <div class="text-green-600 dark:text-green-300 text-sm">
-                    ID: {{ currentSession.id }} | Duration:
-                    {{ sessionDuration }}
-                </div>
-            </div>
-            <div class="flex space-x-2">
-                <button
-                    @click="pauseSession"
-                    :disabled="sessionLoading"
-                    class="bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 px-3 py-2 rounded-md text-white text-sm disabled:cursor-not-allowed"
-                >
-                    {{ sessionLoading ? "Pausing..." : "Pause" }}
-                </button>
-                <button
-                    @click="stopSession"
-                    :disabled="sessionLoading"
-                    class="bg-red-600 hover:bg-red-700 disabled:opacity-50 px-3 py-2 rounded-md text-white text-sm disabled:cursor-not-allowed"
-                >
-                    {{ sessionLoading ? "Stopping..." : "Stop" }}
-                </button>
-            </div>
-        </div>
-
-        <!-- Paused Session -->
-        <div
-            v-else-if="isSessionPaused"
-            class="flex justify-between items-center"
-        >
-            <div class="flex items-center space-x-3">
-                <div class="flex items-center space-x-2">
-                    <div class="bg-yellow-500 rounded-full w-3 h-3"></div>
-                    <span
-                        class="font-medium text-yellow-800 dark:text-yellow-200"
-                    >
-                        {{ sessionStatusText }}
-                    </span>
-                </div>
-                <div class="text-yellow-600 dark:text-yellow-300 text-sm">
-                    ID: {{ currentSession.id }} | Duration:
-                    {{ sessionDuration }}
-                </div>
-            </div>
-            <div class="flex space-x-2">
-                <button
-                    @click="resumeSession"
-                    :disabled="sessionLoading"
-                    class="bg-green-600 hover:bg-green-700 disabled:opacity-50 px-3 py-2 rounded-md text-white text-sm disabled:cursor-not-allowed"
-                >
-                    {{ sessionLoading ? "Resuming..." : "Resume" }}
-                </button>
-                <button
-                    @click="stopSession"
-                    :disabled="sessionLoading"
-                    class="bg-red-600 hover:bg-red-700 disabled:opacity-50 px-3 py-2 rounded-md text-white text-sm disabled:cursor-not-allowed"
-                >
-                    {{ sessionLoading ? "Stopping..." : "Stop" }}
-                </button>
-            </div>
-        </div>
-
-        <!-- Loading -->
-        <div v-else-if="sessionLoading" class="flex items-center space-x-3">
-            <div
-                class="border-2 border-yellow-600 border-t-transparent rounded-full w-5 h-5 animate-spin"
-            ></div>
-            <span class="font-medium text-yellow-800 dark:text-yellow-200">
-                Managing session...
-            </span>
-        </div>
-
-        <!-- Error -->
-        <div v-else-if="sessionError" class="flex justify-between items-center">
-            <div class="flex items-center space-x-3">
-                <svg
-                    class="w-5 h-5 text-red-600"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                >
-                    <path
-                        fill-rule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                        clip-rule="evenodd"
-                    ></path>
-                </svg>
-                <span class="font-medium text-red-800 dark:text-red-200">
-                    Session Error: {{ sessionError }}
-                </span>
-            </div>
-            <button
-                @click="sessionError = null"
-                class="text-red-600 hover:text-red-700 text-sm underline"
-            >
-                Dismiss
-            </button>
-        </div>
-    </div>
-
-    <!-- No Active Session Prompt -->
-    <div
-        v-if="!hasActiveOrPausedSession && !sessionLoading && !sessionError"
-        class="bg-blue-50 dark:bg-blue-900/20 mb-6 p-4 border border-blue-200 dark:border-blue-800 rounded-lg"
-    >
-        <div class="flex justify-between items-center">
-            <div>
-                <h3 class="font-medium text-blue-800 dark:text-blue-200">
-                    Ready to Start Detection
-                </h3>
-                <p class="mt-1 text-blue-600 dark:text-blue-300 text-sm">
-                    Start a new session to begin real-time defect detection
-                </p>
-            </div>
-            <button
-                @click="startSession"
-                class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-md text-white text-sm"
-            >
-                Start Session
-            </button>
-        </div>
-    </div>
     <!-- Main Content -->
     <div class="relative w-full">
         <div class="gap-6 grid grid-cols-1 lg:grid-cols-3">
