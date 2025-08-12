@@ -174,35 +174,28 @@ Route::middleware(['auth'])->group(function () {
   Route::prefix('api/realtime/sessions')->group(function () {
     // Start a new session
     Route::post('/start', [RealtimeAnalysisController::class, 'startSession'])
-      ->name('realtime.sessions.start')
-      ->middleware('throttle:10,1'); // Limit to 10 requests per minute
+      ->name('realtime.sessions.start');
 
     // Pause a session
     Route::post('/pause', [RealtimeAnalysisController::class, 'pauseSession'])
-      ->name('realtime.sessions.pause')
-      ->middleware('throttle:10,1');
+      ->name('realtime.sessions.pause');
 
     Route::post('/{session}/pause', [RealtimeAnalysisController::class, 'pauseSession'])
-      ->name('realtime.sessions.pause.specific')
-      ->middleware('throttle:10,1');
+      ->name('realtime.sessions.pause.specific');
 
     // Resume a session
     Route::post('/resume', [RealtimeAnalysisController::class, 'resumeSession'])
-      ->name('realtime.sessions.resume')
-      ->middleware('throttle:10,1');
+      ->name('realtime.sessions.resume');
 
     Route::post('/{session}/resume', [RealtimeAnalysisController::class, 'resumeSession'])
-      ->name('realtime.sessions.resume.specific')
       ->middleware('throttle:10,1');
 
     // Stop a session (with optional session ID)
     Route::post('/stop', [RealtimeAnalysisController::class, 'stopSession'])
-      ->name('realtime.sessions.stop')
-      ->middleware('throttle:10,1');
+      ->name('realtime.sessions.stop');
 
     Route::post('/{session}/stop', [RealtimeAnalysisController::class, 'stopSession'])
-      ->name('realtime.sessions.stop.specific')
-      ->middleware('throttle:10,1');
+      ->name('realtime.sessions.stop.specific');
 
     // Get current active session
     Route::get('/current', [RealtimeAnalysisController::class, 'getCurrentSession'])

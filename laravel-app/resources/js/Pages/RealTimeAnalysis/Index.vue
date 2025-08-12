@@ -474,7 +474,41 @@ const handleDetectionStopped = async () => {
         // Simulate a delay for processing the session report
         setTimeout(async () => {
             console.log("Processing timeout reached, calling stopSession");
-            await stopSession();
+            try {
+                await stopSession();
+            } catch (error) {
+                console.error("=== ERROR STOPPING SESSION ===");
+                console.error("Error message:", error.message);
+                console.error("Error response status:", error.response?.status);
+                console.error("Error response data:", error.response?.data);
+                console.error(
+                    "Error response headers:",
+                    error.response?.headers
+                );
+                console.error("Full error object:", error);
+                console.error("=== END ERROR ===");
+
+                sessionError.value =
+                    error.response?.data?.message || error.message;
+
+                // Show the actual error message to user
+                if (error.response?.data?.message) {
+                    console.log(
+                        "Laravel error message:",
+                        error.response.data.message
+                    );
+                    sessionError.value = error.response.data.message;
+                } else if (error.response?.data?.error) {
+                    console.log("Laravel error:", error.response.data.error);
+                    sessionError.value = error.response.data.error;
+                }
+
+                // If it's a 404, it means no session was found - clear the current session
+                if (error.response?.status === 404) {
+                    console.log("Session not found, clearing current session");
+                    currentSession.value = null;
+                }
+            }
         }, 2000); // 2-second delay
     } else {
         console.log("No active/paused session, just showing modal");
