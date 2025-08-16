@@ -39,10 +39,10 @@ class EnhancedAPIServer:
 
         # Setup logging
         self._setup_logging()
-        
+
         # Initialize services (flask-ai main base with enhanced detection)
         self.detection_service = DetectionService()
-        
+
         # Initialize controllers (flask-ai main base with enhanced frame processing)
         self.detection_controller = DetectionController(self.detection_service)
 
@@ -51,9 +51,9 @@ class EnhancedAPIServer:
 
         # Setup routes
         self._setup_routes()
-        
+
         print("ENHANCED API Server initialized (Flask-AI + Security Scanner + Real-time Frame Processing)")
-    
+
     def _setup_logging(self):
         """Setup logging"""
         logging.basicConfig(
@@ -68,7 +68,7 @@ class EnhancedAPIServer:
 
     def _setup_routes(self):
         """Setup all API endpoints - ENHANCED with real-time frame processing"""
-        
+
         # ===========================
         # FLASK-AI ROUTES (MAIN BASE) - ENHANCED
         # ===========================
@@ -85,7 +85,7 @@ class EnhancedAPIServer:
         @self.app.route('/api/system/status', methods=['GET'])
         def system_status():
             return self.detection_controller.get_system_status()
-        
+
         # Detection endpoints (flask-ai) - ENHANCED
         @self.app.route('/api/detection/image', methods=['POST'])
         def detect_image():
@@ -115,9 +115,9 @@ class EnhancedAPIServer:
         @self.app.route('/api/config/reset', methods=['PUT'])
         def reset_thresholds():
             return self.detection_controller.reset_detection_thresholds(request)
-        
 
-        
+
+
         # ===========================
         # COMBINED ENDPOINT - ENHANCED
         # ===========================
@@ -147,7 +147,7 @@ class EnhancedAPIServer:
                 else:
                     defect_data = defect_result
                     defect_status_code = 200
-                
+
                 # Check if security scan requested - ENHANCED for both content types
                 is_scan_threat = True  # DEFAULT TRUE as requested
 
@@ -386,7 +386,7 @@ class EnhancedAPIServer:
                 }, 400
 
             self.logger.info(f"Security scan - Successfully extracted: {len(image_data)} bytes, filename: {filename}")
-            
+
             # ENHANCED: Use JSON approach instead of form-data to avoid file pointer issues
             import base64
             image_base64 = base64.b64encode(image_data).decode('utf-8')
@@ -482,7 +482,7 @@ class EnhancedAPIServer:
         print("ENHANCED: Real-time frame processing with same quality as combined endpoint")
         print("ENHANCED: Frame-specific optimizations for real-time performance")
         print("=" * 85)
-        
+
         self.app.run(host=self.host, port=self.port, debug=debug, threaded=True, use_reloader=False)
 
 

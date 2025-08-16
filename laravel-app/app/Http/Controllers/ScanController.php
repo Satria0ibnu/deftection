@@ -242,6 +242,14 @@ class ScanController extends Controller
             // Transform scan data using the service
             $analysisData = $this->scanDetailService->transformScanForAnalysis($scan);
 
+            Log::info('Scan details loaded', [
+                'scan_id' => $scan->id,
+                'user_id' => auth()->id(),
+                'filename' => $scan->filename,
+                'created_at' => $scan->created_at->toISOString(),
+                'analysis_data' => $analysisData,
+            ]);
+
             return Inertia::render('DetailScan/Index', [
                 'analysis' => $analysisData,
                 'title' => 'Scan Analysis Details',
@@ -294,7 +302,7 @@ class ScanController extends Controller
             $payload = [
                 'image_base64' => $base64Image,
                 'filename' => $originalFilename,
-                'is_scan_threat' => $request->boolean('is_scan_threat', false),
+                'is_scan_threat' => $request->boolean('is_scan_threat', true),
             ];
 
             // 3. Send the request as JSON
@@ -321,8 +329,8 @@ class ScanController extends Controller
             }
 
             $data = $response->json(); // Assuming results are nested under a 'data' key
-            // Log::info('Successfully parsed JSON response from Flask.', ['data' => $data]);
-            Log::info('Successfully parsed JSON response from Flask.');
+            Log::info('Successfully parsed JSON response from Flask.', ['data' => $data]);
+            // Log::info('Successfully parsed JSON response from Flask.');
 
             // Store both images only now
             $originalPath = Storage::disk('public')->putFileAs('images/original', $userImage, $originalFilename);
@@ -384,9 +392,11 @@ class ScanController extends Controller
                     'scan_id' => $scan->id,
                     'hash' => $data['security_scan']['hash'] ?? null,
                     'status' => $data['security_scan']['status'] ?? null,
-                    'threat_level' => $data['security_scan']['threat_level'] ?? null,
-                    'qr_content' => $data['security_scan']['qr_content'] ?? null,
-                    'issues' => $data['security_scan']['issues'] ?? [],
+                    'risk_level' => $data['security_scan']['risk_level'] ?? null,
+                    'flags' => $data['security_scan']['flags'] ?? [],
+                    'details' => $data['security_scan']['details'] ?? null,
+                    'possible_attack' => $data['security_scan']['possible_attack'] ?? null,
+                    'processing_time_ms' => number_format(($data['security_scan']['processing_time_ms'] ?? 0) * 1000, 3, '.', ''),
                 ]);
                 Log::info('Scan threat information stored successfully.', ['scan_id' => $scan->id]);
             }
