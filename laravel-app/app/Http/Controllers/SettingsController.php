@@ -201,4 +201,15 @@ class SettingsController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Could not connect to API.'], 504);
         }
     }
+
+    public function getDatabaseStatus()
+    {
+        try {
+            DB::connection()->getPdo();
+            return response()->json(['status' => 'Connected']);
+        } catch (\Exception $e) {
+            Log::error('Database connection error', ['error' => $e->getMessage()]);
+            return response()->json(['status' => 'Disconnected'], 500);
+        }
+    }
 }

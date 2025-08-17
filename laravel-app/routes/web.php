@@ -90,6 +90,7 @@ Route::middleware(['auth'])->group(function () {
   Route::prefix('settings')->name('settings.')->group(function () {
     Route::get('/', [SettingsController::class, 'index'])->name('index');
     Route::get('/settings/api-health', [SettingsController::class, 'getApiHealthStatus'])->name('api_health');
+    Route::get('/settings/database-status', [SettingsController::class, 'getDatabaseStatus'])->name('database_status');
 
     // Account Settings
     Route::patch('/account-name', [UserController::class, 'updateAccountName'])->name('account_name.update');

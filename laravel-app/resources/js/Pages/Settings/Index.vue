@@ -9,6 +9,7 @@ import GeneralSettings from "./Components/GeneralSettings.vue";
 import AdvancedSettings from "./Components/AdvancedSettings.vue";
 import ConfirmationModal from "./Components/Modals/ConfirmationModal.vue";
 import { successToast } from "@/utils/swal";
+import axios from "axios";
 
 // --- Props ---
 // NEW: Define the props that will be passed from the Laravel backend.
@@ -49,6 +50,16 @@ const settings = reactive({
     },
 });
 
+const fetchDatabaseStatus = async () => {
+    try {
+        const response = await axios.get(route("settings.database_status"));
+        settings.advanced.systemInfo["Database"] = response.data.status;
+    } catch (error) {
+        console.error("Failed to fetch database status:", error);
+        settings.advanced.systemInfo["Database"] = "Disconnected";
+    }
+};
+
 const fetchApiHealth = async () => {
     try {
         const response = await axios.get(route("settings.api_health"));
@@ -60,10 +71,8 @@ const fetchApiHealth = async () => {
             data.service_status === "operational"
         ) {
             settings.advanced.systemInfo["API Status"] = "Connected";
-            settings.advanced.systemInfo["Database"] = "Connected"; // Or derive from another field if available
         } else {
             settings.advanced.systemInfo["API Status"] = "Error";
-            settings.advanced.systemInfo["Database"] = "Unknown";
         }
 
         if (
@@ -88,7 +97,6 @@ const fetchApiHealth = async () => {
         settings.advanced.systemInfo["API Status"] = "Disconnected";
         settings.advanced.systemInfo["Models Loaded"] = "Unknown";
         settings.advanced.systemInfo["System Version"] = "Unknown";
-        settings.advanced.systemInfo["Database"] = "Unknown";
     }
 };
 
