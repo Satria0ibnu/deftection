@@ -133,7 +133,6 @@ const role = usePage().props.auth.user.role;
                 </NavCollapse>
                 <NavCollapse
                     :active="
-                        $page.component === 'Database/Product/Index' ||
                         $page.component === 'Database/User/Index' ||
                         $page.component === 'Database/DefectType/Index'
                     "
@@ -159,14 +158,6 @@ const role = usePage().props.auth.user.role;
                     </template>
 
                     <template #content>
-                        <NavCollapseLink
-                            :href="route('products.index')"
-                            :active="
-                                $page.component === 'Database/Product/Index'
-                            "
-                        >
-                            Products
-                        </NavCollapseLink>
                         <NavCollapseLink
                             :href="route('defect_types.index')"
                             :active="
