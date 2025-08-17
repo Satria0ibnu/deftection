@@ -173,46 +173,31 @@ Route::middleware(['auth'])->group(function () {
   // REALTIME SESSION API ENDPOINTS
   Route::prefix('api/realtime/sessions')->group(function () {
     // Start a new session
-    Route::post('/start', [RealtimeAnalysisController::class, 'startSession'])
-      ->name('realtime.sessions.start');
+    Route::post('/start', [RealtimeAnalysisController::class, 'startSession'])->name('realtime.sessions.start');
 
     // Pause a session
-    Route::post('/pause', [RealtimeAnalysisController::class, 'pauseSession'])
-      ->name('realtime.sessions.pause');
-
-    Route::post('/{session}/pause', [RealtimeAnalysisController::class, 'pauseSession'])
-      ->name('realtime.sessions.pause.specific');
+    Route::post('/pause', [RealtimeAnalysisController::class, 'pauseSession'])->name('realtime.sessions.pause');
+    Route::post('/{session}/pause', [RealtimeAnalysisController::class, 'pauseSession'])->name('realtime.sessions.pause.specific');
 
     // Resume a session
-    Route::post('/resume', [RealtimeAnalysisController::class, 'resumeSession'])
-      ->name('realtime.sessions.resume');
-
-    Route::post('/{session}/resume', [RealtimeAnalysisController::class, 'resumeSession'])
-      ->middleware('throttle:10,1');
+    Route::post('/resume', [RealtimeAnalysisController::class, 'resumeSession'])->name('realtime.sessions.resume');
+    Route::post('/{session}/resume', [RealtimeAnalysisController::class, 'resumeSession']);
 
     // Stop a session (with optional session ID)
-    Route::post('/stop', [RealtimeAnalysisController::class, 'stopSession'])
-      ->name('realtime.sessions.stop');
-
-    Route::post('/{session}/stop', [RealtimeAnalysisController::class, 'stopSession'])
-      ->name('realtime.sessions.stop.specific');
+    Route::post('/stop', [RealtimeAnalysisController::class, 'stopSession'])->name('realtime.sessions.stop');
+    Route::post('/{session}/stop', [RealtimeAnalysisController::class, 'stopSession'])->name('realtime.sessions.stop.specific');
 
     // Get current active session
-    Route::get('/current', [RealtimeAnalysisController::class, 'getCurrentSession'])
-      ->name('realtime.sessions.current')
-      ->middleware('throttle:60,1'); // Allow more frequent checks
+    Route::get('/current', [RealtimeAnalysisController::class, 'getCurrentSession'])->name('realtime.sessions.current');
 
     // Get session status (for polling)
-    Route::get('/{session}/status', [RealtimeAnalysisController::class, 'getSessionStatus'])
-      ->name('realtime.sessions.status')
-      ->middleware('throttle:120,1');
+    Route::get('/{session}/status', [RealtimeAnalysisController::class, 'getSessionStatus'])->name('realtime.sessions.status');
   });
 
-  Route::post('/process-frame', [RealtimeFrameController::class, 'processFrame'])
-    ->name('realtime.sessions.process_frame')
-    ->middleware('throttle:300,1'); // Allow high frequency for realtime processing
+  Route::post('/process-frame', [RealtimeFrameController::class, 'processFrame'])->name('realtime.sessions.process_frame');
 });
 
-Route::get('/home', function () {
-  return Inertia::render('Database/ProductOld');
-});
+
+// Route::get('/home', function () {
+//   return Inertia::render('Database/ProductOld');
+// });

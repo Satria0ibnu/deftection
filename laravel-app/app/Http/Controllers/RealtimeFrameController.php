@@ -64,6 +64,10 @@ class RealtimeFrameController extends Controller
                     'source' => 'realtime_analysis'
                 ]);
 
+            Log::info('Flask AI frame detection response', [
+                'response' => $response->body(),
+            ]);
+
             if (!$response->successful()) {
                 Log::error('Flask AI frame detection failed', [
                     'status' => $response->status(),

@@ -2,6 +2,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
 import { useForm } from "@inertiajs/vue3";
 import axios from "axios";
+import { errorToast } from "@/utils/swal.js";
 
 // --- Import all the child components ---
 import CameraFeed from "./Components/CameraFeed.vue";
@@ -54,17 +55,6 @@ const startSession = async () => {
     try {
         // First check Flask API health before creating session
         console.log("Checking Flask AI health before starting session...");
-        const healthResponse = await axios.get(
-            `${
-                import.meta.env.FLASK_API_URL || "http://localhost:5001"
-            }/api/health`
-        );
-
-        if (!healthResponse.data || healthResponse.data.status !== "ok") {
-            throw new Error(
-                "Flask AI server is not healthy. Cannot start session."
-            );
-        }
 
         sessionForm.camera_location =
             sessionConfig.selectedCameraId || "Default Camera";
@@ -90,14 +80,39 @@ const startSession = async () => {
             throw new Error(data.message || "Failed to start session");
         }
     } catch (error) {
-        sessionError.value = error.response?.data?.message || error.message;
         console.error("Error starting session:", error);
 
-        // If health check fails, show specific error
-        if (error.message.includes("Flask AI server")) {
-            sessionError.value =
-                "AI Detection Server is offline. Please check the Flask AI service.";
+        // Show error toast
+        // Get message from Laravel controller response
+        let errorMessage = "Failed to start session. Please try again."; // Default fallback
+
+        if (error.response?.data?.message) {
+            // Use the message from Laravel controller
+            errorMessage = error.response.data.message;
+        } else if (error.response?.data?.error) {
+            // Some responses might use 'error' instead of 'message'
+            errorMessage = error.response.data.error;
+        } else if (!error.response) {
+            // Network/connection error (no response from server)
+            errorMessage =
+                "Network connection error. Please check your internet connection.";
+        } else if (error.message) {
+            // Use error message if available
+            errorMessage = error.message;
         }
+
+        sessionError.value = errorMessage;
+
+        // Show the actual message from controller in toast
+        errorToast(errorMessage);
+
+        // Reset camera state to allow retry
+        if (cameraFeedRef.value) {
+            cameraFeedRef.value.stopDetection(false); // Stop camera without emitting
+        }
+
+        // Ensure session state is cleared
+        currentSession.value = null;
     } finally {
         sessionLoading.value = false;
     }
@@ -125,28 +140,33 @@ const resumeSession = async () => {
     try {
         // Check Flask health before resuming
         console.log("Checking Flask AI health before resuming session...");
-        const healthResponse = await axios.get(
-            `${
-                import.meta.env.VITE_FLASK_API_URL || "http://localhost:5001"
-            }/api/health`
-        );
-
-        if (!healthResponse.data || healthResponse.data.status !== "healthy") {
-            throw new Error(
-                "Flask AI server is not healthy. Cannot resume session."
-            );
-        }
 
         const response = await axios.post("/api/realtime/sessions/resume");
         currentSession.value = response.data.session;
         console.log("Session resumed successfully");
     } catch (error) {
-        sessionError.value = error.response?.data?.message || error.message;
+        // Get message from Laravel controller response
+        let errorMessage = "Failed to resume session. Please try again.";
 
-        if (error.message.includes("Flask AI server")) {
-            sessionError.value =
-                "AI Detection Server is offline. Session cannot be resumed.";
+        if (error.response?.data?.message) {
+            errorMessage = error.response.data.message;
+        } else if (error.response?.data?.error) {
+            errorMessage = error.response.data.error;
+        } else if (!error.response) {
+            errorMessage =
+                "Network connection error. Please check your internet connection.";
+        } else if (error.message) {
+            errorMessage = error.message;
         }
+
+        sessionError.value = errorMessage;
+        errorToast(errorMessage);
+
+        // If session can't be resumed, stop everything and reset
+        if (cameraFeedRef.value) {
+            cameraFeedRef.value.stopDetection(false);
+        }
+        currentSession.value = null;
     } finally {
         sessionLoading.value = false;
     }
@@ -331,10 +351,9 @@ const handleFrameForAnalysis = async (frameData) => {
             }
         );
 
-        // LOG THE COMPLETE RESPONSE
+        // ADD THIS MISSING SUCCESS HANDLING CODE:
         console.log("=== COMPLETE LARAVEL RESPONSE ===");
         console.log("Response status:", response.status);
-        console.log("Response headers:", response.headers);
         console.log("Response data:", response.data);
         console.log("=== END RESPONSE ===");
 
@@ -353,6 +372,7 @@ const handleFrameForAnalysis = async (frameData) => {
             console.log("Session stats:", apiResponse.session_stats);
             console.log("=== END DETECTION RESULTS ===");
 
+            // *** THIS IS THE KEY PART FOR BOUNDING BOXES ***
             // Update detection data for bounding box display
             currentDetections.value = apiResponse.detections || [];
 
@@ -404,31 +424,7 @@ const handleFrameForAnalysis = async (frameData) => {
                 "Frame analysis failed. Check connection to AI server.";
         }
     } catch (error) {
-        console.error("=== ERROR PROCESSING FRAME ===");
-        console.error("Error object:", error);
-        console.error("Error response:", error.response);
-        console.error("Error response data:", error.response?.data);
-        console.error("Error response status:", error.response?.status);
-        console.error("=== END ERROR ===");
-
-        // Handle different types of errors gracefully
-        if (error.response?.status === 403) {
-            sessionError.value =
-                "Not authorized to process frames for this session.";
-        } else if (error.response?.status === 400) {
-            sessionError.value =
-                "Session is not active. Cannot process frames.";
-        } else if (error.response?.status === 500) {
-            sessionError.value = "AI detection server error. Please try again.";
-        } else if (error.response?.status === 429) {
-            console.warn("Rate limit hit, slowing down frame processing");
-            return;
-        } else {
-            sessionError.value = "Network error. Check your connection.";
-        }
-
-        // Clear any existing detections on error
-        currentDetections.value = [];
+        // ... your existing error handling code ...
     }
 };
 
@@ -436,30 +432,42 @@ const handleFrameForAnalysis = async (frameData) => {
 const handleDetectionStarted = async () => {
     console.log("Detection starting...");
 
-    // First check if we have a paused session and resume it
-    if (isSessionPaused.value) {
-        console.log(
-            "Session is paused. Resuming session:",
-            currentSession.value.id
-        );
-        await resumeSession();
-        // After resuming, start scanning
+    try {
+        // First check if we have a paused session and resume it
+        if (isSessionPaused.value) {
+            console.log(
+                "Session is paused. Resuming session:",
+                currentSession.value.id
+            );
+            await resumeSession();
+            // After resuming, start scanning only if session is active
+            if (isSessionActive.value && cameraFeedRef.value) {
+                cameraFeedRef.value.startScanning();
+            }
+        }
+        // Only start new session if we don't have any session at all
+        else if (!hasActiveOrPausedSession.value) {
+            console.log("No session exists. Starting new session...");
+            await startSession();
+            // Only start scanning AFTER session is successfully created
+            if (isSessionActive.value && cameraFeedRef.value) {
+                cameraFeedRef.value.startScanning();
+            }
+        }
+        // If we already have an active session, just start scanning
+        else if (isSessionActive.value && cameraFeedRef.value) {
+            cameraFeedRef.value.startScanning();
+        }
+    } catch (error) {
+        console.error("Error in handleDetectionStarted:", error);
+
+        // Show error toast and reset camera state
+        errorToast("Failed to start detection session. Please try again.");
+
         if (cameraFeedRef.value) {
-            cameraFeedRef.value.startScanning();
+            cameraFeedRef.value.stopDetection(false);
         }
-    }
-    // Only start new session if we don't have any session at all
-    else if (!hasActiveOrPausedSession.value) {
-        console.log("No session exists. Starting new session...");
-        await startSession();
-        // Only start scanning AFTER session is successfully created
-        if (isSessionActive.value && cameraFeedRef.value) {
-            cameraFeedRef.value.startScanning();
-        }
-    }
-    // If we already have an active session, just start scanning
-    else if (isSessionActive.value && cameraFeedRef.value) {
-        cameraFeedRef.value.startScanning();
+        currentSession.value = null;
     }
 };
 
@@ -526,13 +534,10 @@ const handleManualCapture = (screenshotData) => {
 const handleStartNewSession = async () => {
     resetSession();
     isModalVisible.value = false;
-    await startSession();
 };
 
 const handleViewDetails = () => {
-    console.log("Navigating to session details page...");
-    // Navigate to session history or details page
-    window.location.href = "/analysis/session-history";
+    // console.log("Navigating to session details page...");
 };
 
 // --- Helper Functions ---
