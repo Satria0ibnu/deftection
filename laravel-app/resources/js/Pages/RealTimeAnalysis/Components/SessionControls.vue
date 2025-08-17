@@ -6,7 +6,7 @@ import { ref, onMounted, watch } from "vue";
 const cameraDevices = ref([]);
 // Holds the v-model values for the form inputs
 const selectedCameraId = ref(localStorage.getItem("selectedCameraId") || null);
-const selectedInterval = ref(500);
+const selectedInterval = ref(1000);
 const autoCaptureEnabled = ref(true);
 
 // --- Emits ---
@@ -158,10 +158,10 @@ watch(autoCaptureEnabled, (isEnabled) => {
                         v-model="selectedInterval"
                         class="peer ltr:pr-9 rtl:pl-9 border-gray-300 hover:border-gray-400 focus:border-primary-600 dark:hover:border-dark-400 dark:focus:border-primary-500 dark:border-dark-450 form-select-base form-select"
                     >
-                        <option :value="1000">1 Second (1 FPS)</option>
-                        <option :value="500">0.5 Seconds (2 FPS)</option>
-                        <option :value="250">0.25 Seconds (4 FPS)</option>
-                        <option :value="100">0.1 Seconds (10 FPS)</option>
+                        <option :value="2000">2 seconds</option>
+                        <option :value="1000">1 second</option>
+                        <option :value="800">0.8 seconds</option>
+                        <option :value="600">0.6 seconds</option>
                     </select>
                     <div
                         class="top-0 ltr:right-0 rtl:left-0 absolute flex justify-center items-center w-9 h-full text-gray-400 dark:text-dark-300 dark:peer-focus:text-primary-500 peer-focus:text-primary-600 transition-colors pointer-events-none suffix"

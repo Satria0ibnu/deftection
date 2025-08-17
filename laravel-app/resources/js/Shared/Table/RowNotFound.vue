@@ -20,9 +20,11 @@ defineProps({ label: { type: String, default: "No results found" } });
                     />
                 </svg>
                 <p class="mt-2 font-medium text-sm">{{ label }}</p>
-                <p class="mt-1 text-xs">
-                    Try adjusting your search or filter criteria.
-                </p>
+                <slot name="description">
+                    <p class="mt-1 text-xs">
+                        Try adjusting your search or filter criteria.
+                    </p>
+                </slot>
             </div>
         </td>
     </tr>

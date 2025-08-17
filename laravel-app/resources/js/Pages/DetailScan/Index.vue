@@ -237,7 +237,7 @@ const handleDeleteError = (errors) => {
                         'opacity-50 cursor-not-allowed': isOperationInProgress,
                     }"
                 >
-                    <div v-if="isExporting" class="flex items-center">
+                    <div v-if="isExporting" class="flex items-center gap-2">
                         <svg
                             class="mr-2 w-4 h-4 animate-spin"
                             xmlns="http://www.w3.org/2000/svg"
@@ -260,7 +260,7 @@ const handleDeleteError = (errors) => {
                         </svg>
                         <span>Exporting...</span>
                     </div>
-                    <div v-else class="flex items-center">
+                    <div v-else class="flex items-center gap-2">
                         <font-awesome-icon icon="fa-solid fa-download" />
                         <span>Download</span>
                     </div>
@@ -273,7 +273,7 @@ const handleDeleteError = (errors) => {
                         'opacity-50 cursor-not-allowed': isOperationInProgress,
                     }"
                 >
-                    <div v-if="isDeleting" class="flex items-center">
+                    <div v-if="isDeleting" class="flex items-center gap-2">
                         <svg
                             class="mr-2 w-4 h-4 animate-spin"
                             xmlns="http://www.w3.org/2000/svg"
@@ -296,7 +296,7 @@ const handleDeleteError = (errors) => {
                         </svg>
                         <span>Deleting...</span>
                     </div>
-                    <div v-else class="flex items-center">
+                    <div v-else class="flex items-center gap-2">
                         <font-awesome-icon icon="fa-solid fa-trash-can" />
                         <span>Delete</span>
                     </div>

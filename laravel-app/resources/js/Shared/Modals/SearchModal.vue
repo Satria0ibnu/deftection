@@ -75,11 +75,6 @@ const pageGroups = ref([
         name: "Database",
         pages: [
             {
-                name: "Products",
-                href: route("products.index"),
-                icon: "fa-solid fa-box",
-            },
-            {
                 name: "Defect Types",
                 href: route("defect_types.index"),
                 icon: "fa-solid fa-bug",

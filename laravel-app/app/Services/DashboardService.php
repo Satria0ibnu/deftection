@@ -23,6 +23,7 @@ class DashboardService
             'defectType' => $this->getDefectTypeDistribution(),
             'performanceTrend' => $this->getPerformanceTrend(30),
             'recentAnalyses' => $this->getRecentAnalysesOnly(5),
+            'analysesOverview' => $this->getAnalysesOverviewOnly(),
         ];
     }
 
@@ -305,6 +306,26 @@ class DashboardService
     }
 
     /**
+     * Calculate overall good rate
+     */
+    private function getGoodRate(): float
+    {
+        $userId = auth()->id();
+
+        $totalAnalyses = Scan::where('user_id', $userId)->count() +
+            RealtimeScan::whereHas('realtimeSession', function ($query) use ($userId) {
+                $query->where('user_id', $userId);
+            })->count();
+
+        $totalSuccess = Scan::where('user_id', $userId)->where('is_defect', false)->count() +
+            RealtimeScan::whereHas('realtimeSession', function ($query) use ($userId) {
+                $query->where('user_id', $userId);
+            })->where('is_defect', false)->count();
+
+        return $totalAnalyses > 0 ? round(($totalSuccess / $totalAnalyses) * 100, 2) : 0;
+    }
+
+    /**
      * Get average processing time
      */
     private function getAverageProcessingTime(): float
@@ -322,6 +343,38 @@ class DashboardService
             ->value('avg_time') ?? 0;
 
         return round(($scanAvg + $realtimeAvg) / 2, 2);
+    }
+
+        /**
+     * Get the average AI confidence score across all defect detections.
+     * The confidence score from the database (0.0 to 1.0) is converted to a percentage (0 to 100).
+     */
+    private function getAverageAiConfidence(): float
+    {
+        $userId = auth()->id();
+
+        // Calculate average confidence from standard image scans
+        $scanConfidenceAvg = ScanDefect::whereHas('scan', function ($query) use ($userId) {
+            $query->where('user_id', $userId);
+        })->avg('confidence_score') ?? 0;
+
+        // Calculate average confidence from real-time scans
+        $realtimeConfidenceAvg = RealtimeScanDefect::whereHas('realtimeScan.realtimeSession', function ($query) use ($userId) {
+            $query->where('user_id', $userId);
+        })->avg('confidence_score') ?? 0;
+
+        // Create an array of the averages that are greater than zero
+        $validAverages = array_filter([$scanConfidenceAvg, $realtimeConfidenceAvg]);
+
+        if (empty($validAverages)) {
+            return 0.0;
+        }
+
+        // Calculate the average of the available (non-zero) averages
+        $averageOfAverages = array_sum($validAverages) / count($validAverages);
+
+        // Convert to percentage and round to 2 decimal places
+        return round($averageOfAverages * 100, 2);
     }
 
     /**
@@ -346,5 +399,18 @@ class DashboardService
     public function getDefectTrendOnly(?string $filterMonth = null): array
     {
         return $this->getDailyTrendOnly(30);
+    }
+
+    /**
+     * Get analyses overview data (legacy method for backward compatibility)
+     */
+    public function getAnalysesOverviewOnly(): array
+    {
+        return [
+            'avgProcessingTime' => $this->getAverageProcessingTime(),
+            'goodRate' => $this->getGoodRate(),
+            'defectRate' => $this->getDefectRate(),
+            'aiConfidence' => $this->getAverageAiConfidence(),
+        ];
     }
 }

@@ -1044,8 +1044,8 @@ if (props.userCan.viewAllScans) {
                                     formatDecimal(
                                         scan?.total_processing_time,
                                         "0",
-                                        3
-                                    ) + " s"
+                                        2
+                                    ) + " ms"
                                 }}
                             </div>
                         </TableCell>

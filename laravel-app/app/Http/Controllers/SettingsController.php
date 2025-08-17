@@ -180,4 +180,25 @@ class SettingsController extends Controller
         // 3. Redirect back with a success message
         return back()->with('success', 'Settings have been reset to their default values.');
     }
+
+    public function getApiHealthStatus()
+    {
+        // Get the Flask API URL from your .env file for security
+        $apiUrl = env('FLASK_API_URL') . '/api/security/health';
+
+        try {
+            $response = Http::timeout(5)->get($apiUrl);
+
+            if ($response->successful()) {
+                return response()->json($response->json());
+            }
+
+            // Return a structured error if the API is reachable but returns an error
+            return response()->json(['status' => 'error', 'message' => 'API returned an error.'], 502);
+
+        } catch (\Exception $e) {
+            // Return a structured error for connection issues
+            return response()->json(['status' => 'error', 'message' => 'Could not connect to API.'], 504);
+        }
+    }
 }

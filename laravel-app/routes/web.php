@@ -32,20 +32,6 @@ Route::middleware(['auth'])->group(function () {
   //DASHBOARD
   Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-  // PRODUCTS
-  Route::prefix('database/products')->group(function () {
-    // Product list
-    Route::get('/', [ProductController::class, 'index'])->name('products.index');
-    Route::get('/api', [ProductController::class, 'indexApi'])->middleware('throttle:60,1')->name('products.index.api');
-    Route::get('/check-updates', [ProductController::class, 'indexCheck'])->middleware('throttle:120,1')->name('products.index.check');
-    Route::get('/force-refresh', [ProductController::class, 'indexRefresh'])->middleware('throttle:60,1')->name('products.index.refresh');
-    Route::get('/{product}', [ProductController::class, 'showApi'])->middleware('throttle:60,1')->name('products.show.api');
-    // Product operations
-    Route::post('/', [ProductController::class, 'store'])->name('products.store');
-    Route::put('/{product}', [ProductController::class, 'update'])->name('products.update');
-    Route::delete('/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
-  });
-
   // DEFECT TYPES
   Route::prefix('database/defectTypes')->group(function () {
     // Defect Type list
@@ -103,6 +89,7 @@ Route::middleware(['auth'])->group(function () {
   //SETTINGS
   Route::prefix('settings')->name('settings.')->group(function () {
     Route::get('/', [SettingsController::class, 'index'])->name('index');
+    Route::get('/settings/api-health', [SettingsController::class, 'getApiHealthStatus'])->name('api_health');
 
     // Account Settings
     Route::patch('/account-name', [UserController::class, 'updateAccountName'])->name('account_name.update');

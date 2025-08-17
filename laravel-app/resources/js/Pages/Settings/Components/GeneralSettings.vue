@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from "vue";
+import { usePage } from "@inertiajs/vue3";
 
 // --- Props ---
 // This component receives the current detection settings from the parent page.
@@ -9,6 +10,8 @@ const props = defineProps({
         required: true,
     },
 });
+
+const role = usePage().props.auth.user.role;
 
 // --- Emits ---
 // Defines the event that will be sent to the parent component.
@@ -32,11 +35,11 @@ const form = computed({
         class="px-6 py-5 bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-dark-800 dark:shadow-none dark:border-none"
     >
         <!-- Section 1: Detection Configuration -->
-        <div class="flex flex-col">
+        <div v-if="role === 'admin'" class="flex flex-col">
             <h2
                 class="mb-1 flex items-center text-lg font-semibold text-gray-900 dark:text-dark-50"
             >
-                Detection Configuration
+                Detection Configuration (Admin Only)
             </h2>
             <p class="mb-6 text-xs text-gray-400 dark:text-dark-300">
                 Configure AI detection parameters and thresholds.
@@ -106,7 +109,10 @@ const form = computed({
             </div>
         </div>
 
-        <hr class="my-6 border-gray-200 dark:border-dark-600" />
+        <hr
+            v-if="role === 'admin'"
+            class="my-6 border-gray-200 dark:border-dark-600"
+        />
 
         <!-- Section 2: Export Settings -->
         <div>
@@ -130,8 +136,12 @@ const form = computed({
                                 class="form-select-base form-select block w-full max-w-xs mt-1 text-sm ltr:pr-9 rtl:pl-9 peer border-gray-300 hover:border-gray-400 focus:border-primary-600 dark:border-dark-450 dark:hover:border-dark-400 dark:focus:border-primary-500"
                             >
                                 <option value="pdf">PDF Report</option>
-                                <option value="csv">CSV Data</option>
-                                <option value="json">JSON Raw Data</option>
+                                <option value="csv" disabled>
+                                    CSV Report (Soon)
+                                </option>
+                                <option value="json" disabled>
+                                    JSON Report (Soon)
+                                </option>
                             </select>
                             <div
                                 class="suffix ltr:right-0 rtl:left-0 pointer-events-none absolute top-0 flex h-full w-9 items-center justify-center transition-colors text-gray-400 peer-focus:text-primary-600 dark:text-dark-300 dark:peer-focus:text-primary-500"
