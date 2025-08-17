@@ -1,7 +1,6 @@
 # core/enhanced_detection.py - BALANCED: Equal opportunity for all defect types
 """
 BALANCED: Enhanced defect prediction analysis with fair scoring across all defect types
-- Background class (0) completely skipped
 - Balanced quality scoring to prevent bias towards specific defect types
 - Equal area thresholds and confidence weighting
 - Multi-candidate consideration with weighted selection

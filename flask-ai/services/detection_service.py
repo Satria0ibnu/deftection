@@ -1,8 +1,8 @@
 """
 Detection Service FIXED - Background class skip and accurate bounding boxes
-FIXED: Background class (0) completely skipped from defect processing
-FIXED: Accurate single bounding box per defect type
-FIXED: OpenAI validation integration for bounding box accuracy
+Background class (0) completely skipped from defect processing
+Accurate single bounding box per defect type
+OpenAI validation integration for bounding box accuracy
 """
 
 import os
