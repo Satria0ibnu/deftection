@@ -41,13 +41,56 @@ const settings = reactive({
     detection: JSON.parse(JSON.stringify(props.savedSettings.detection)),
     advanced: {
         systemInfo: {
-            "System Version": "v2.0.0",
-            "API Status": "Connected",
-            "Models Loaded": "Yes",
+            "System Version": "Checking...",
+            "API Status": "Checking...",
+            "Models Loaded": "Checking...",
             Database: "Connected",
         },
     },
 });
+
+const fetchApiHealth = async () => {
+    try {
+        const response = await axios.get(route("settings.api_health"));
+        const data = response.data;
+
+        // Map API response to our settings object
+        if (
+            data.status === "healthy" &&
+            data.service_status === "operational"
+        ) {
+            settings.advanced.systemInfo["API Status"] = "Connected";
+            settings.advanced.systemInfo["Database"] = "Connected"; // Or derive from another field if available
+        } else {
+            settings.advanced.systemInfo["API Status"] = "Error";
+            settings.advanced.systemInfo["Database"] = "Unknown";
+        }
+
+        if (
+            data.service_info &&
+            data.service_info.yara_rules_compiled &&
+            data.service_info.malware_hashes_loaded > 0
+        ) {
+            settings.advanced.systemInfo["Models Loaded"] = "Yes";
+        } else {
+            settings.advanced.systemInfo["Models Loaded"] = "No";
+        }
+
+        if (data.service_info && data.service_info.version) {
+            settings.advanced.systemInfo[
+                "System Version"
+            ] = `v${data.service_info.version}`;
+        } else {
+            settings.advanced.systemInfo["System Version"] = "Unknown";
+        }
+    } catch (error) {
+        console.error("Failed to fetch API health:", error);
+        settings.advanced.systemInfo["API Status"] = "Disconnected";
+        settings.advanced.systemInfo["Models Loaded"] = "Unknown";
+        settings.advanced.systemInfo["System Version"] = "Unknown";
+        settings.advanced.systemInfo["Database"] = "Unknown";
+    }
+};
 
 // --- Form Management ---
 const settingsForm = useForm({
@@ -83,6 +126,7 @@ watch(
 // MODIFIED: This now simply takes a snapshot of the initial server-provided state.
 onMounted(() => {
     updatePristineState();
+    fetchApiHealth();
 });
 
 // --- Tab Configuration ---
