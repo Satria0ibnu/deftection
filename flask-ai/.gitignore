@@ -26,3 +26,6 @@ Thumbs.db
 
 # Environment or secret config (jika ada)
 .env
+
+# Generated Yara rules
+security_data/yara_rules
