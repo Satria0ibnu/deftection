@@ -2,6 +2,7 @@
 import { Link } from "@inertiajs/vue3";
 import { route } from "ziggy-js";
 import { formatDistanceToNow, format } from "date-fns";
+import RowNotFound from "../../../Shared/Table/RowNotFound.vue";
 
 const props = defineProps({
     analyses: {
@@ -83,11 +84,6 @@ const getStatusClass = (status) => {
                     </tr>
                 </thead>
                 <tbody class="group/tbody table-tbody">
-                    <tr v-if="analyses.length === 0">
-                        <td colspan="5" class="p-4 text-gray-500 text-center">
-                            No recent analyses found.
-                        </td>
-                    </tr>
                     <tr
                         v-for="item in analyses"
                         :key="item.id"
@@ -178,6 +174,15 @@ const getStatusClass = (status) => {
                             </Link>
                         </td>
                     </tr>
+
+                    <RowNotFound
+                        v-if="analyses.length === 0"
+                        label="No recent analyses found"
+                    >
+                        <template #description>
+                            <p class="mt-1 text-xs">Try scanning a new image</p>
+                        </template>
+                    </RowNotFound>
                 </tbody>
             </table>
         </div>
