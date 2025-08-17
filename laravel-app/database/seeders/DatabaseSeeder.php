@@ -17,7 +17,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             // ProductSeeder::class,
-            // DefectTypeSeeder::class,
+            DefectTypeSeeder::class,
             // MockSeeder::class,
 
 
