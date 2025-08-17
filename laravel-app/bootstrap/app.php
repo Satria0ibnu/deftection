@@ -25,6 +25,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // Middleware for API requests globally
         $middleware->api(append: []);
 
+        // ignore csrf tokens for api routes
+        $middleware->validateCsrfTokens(except: [
+            'api/*',
+        ]);
+
         // Middleware for guest users
         $middleware->redirectGuestsTo(fn(Request $request) => route('login'));
 
@@ -33,6 +38,7 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
+
 
         $exceptions->render(function (NotFoundHttpException $e, $request) {
             if (! $request->expectsJson()) return null;

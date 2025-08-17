@@ -7,6 +7,7 @@ const props = defineProps({
     autoScanEnabled: { type: Boolean, default: false },
     scanInterval: { type: Number, default: 1000 },
     detections: { type: Array, default: () => [] },
+    sessionActive: { type: Boolean, default: false }, // ← ADDED: Session state control
 });
 
 // --- Emits ---
@@ -25,11 +26,18 @@ const boundingBoxCanvasRef = ref(null);
 // --- Component State ---
 const stream = ref(null);
 const isCameraActive = ref(false);
-const isPaused = ref(false); // NEW: State to handle pause/resume
+const isPaused = ref(false);
 const errorMessage = ref("");
 const scanTimer = ref(null);
+
+// --- UPDATED: Now includes sessionActive condition ---
 const isScanning = computed(
-    () => props.autoScanEnabled && isCameraActive.value && !isPaused.value
+    () =>
+        props.autoScanEnabled &&
+        isCameraActive.value &&
+        !isPaused.value &&
+        props.sessionActive
+    //                                                                        ↑ ADDED: Session must be active
 );
 
 // --- Drawing Logic ---
@@ -80,9 +88,11 @@ const startDetection = async () => {
             videoRef.value.play();
             videoRef.value.onplay = () => {
                 isCameraActive.value = true;
-                isPaused.value = false; // Ensure not paused on start
+                isPaused.value = false;
                 emit("started");
                 drawBoundingBoxes();
+                // NOTE: Scanning will only start when sessionActive becomes true
+                // due to the updated isScanning computed property
             };
         }
     } catch (error) {
@@ -123,8 +133,6 @@ const resumeSession = () => {
 };
 
 const saveAnalyzedFrame = async () => {
-    // This function is exposed to the parent but is no longer tied to a button.
-    // It remains available for programmatic use if needed.
     return new Promise((resolve) => {
         if (!isCameraActive.value) {
             resolve(null);
@@ -142,10 +150,33 @@ const saveAnalyzedFrame = async () => {
     });
 };
 
-defineExpose({ saveAnalyzedFrame });
+const startScanning = () => {
+    // UPDATED: Check both camera AND session state
+    if (
+        isCameraActive.value &&
+        !isPaused.value &&
+        props.autoScanEnabled &&
+        props.sessionActive
+    ) {
+        startScanLoop();
+    }
+};
+
+defineExpose({
+    saveAnalyzedFrame,
+    resumeSession,
+    pauseSession,
+    startScanning,
+    stopDetection,
+});
 
 const captureAndEmitForAnalysis = () => {
-    if (!isCameraActive.value || isPaused.value) return;
+    // UPDATED: Additional safety check - don't capture if session not active
+    if (!isCameraActive.value || isPaused.value || !props.sessionActive) {
+        console.log("Skipping frame capture - session not active");
+        return;
+    }
+
     const canvas = snapshotCanvasRef.value;
     const video = videoRef.value;
     canvas.width = video.videoWidth;
@@ -162,33 +193,70 @@ const captureAndEmitForAnalysis = () => {
 
 const startScanLoop = () => {
     stopScanLoop();
-    if (props.autoScanEnabled && props.scanInterval > 0) {
+    // UPDATED: Additional check before starting loop
+    if (
+        props.autoScanEnabled &&
+        props.scanInterval > 0 &&
+        props.sessionActive
+    ) {
+        console.log("Starting scan loop - session is active");
         scanTimer.value = setInterval(
             captureAndEmitForAnalysis,
             props.scanInterval
+        );
+    } else {
+        console.log(
+            "Scan loop not started - session not active or auto-scan disabled"
         );
     }
 };
 
 const stopScanLoop = () => {
-    if (scanTimer.value) clearInterval(scanTimer.value);
+    if (scanTimer.value) {
+        console.log("Stopping scan loop");
+        clearInterval(scanTimer.value);
+    }
     scanTimer.value = null;
 };
 
 // --- Watchers ---
+// UPDATED: Now reacts to sessionActive changes too
 watch(isScanning, (isNowScanning) => {
+    console.log("isScanning changed:", isNowScanning);
     if (isNowScanning) {
         startScanLoop();
     } else {
         stopScanLoop();
     }
 });
+
+// UPDATED: Watch sessionActive prop changes
+watch(
+    () => props.sessionActive,
+    (newSessionActive) => {
+        console.log("sessionActive changed:", newSessionActive);
+        if (
+            newSessionActive &&
+            isCameraActive.value &&
+            props.autoScanEnabled &&
+            !isPaused.value
+        ) {
+            console.log("Session became active - starting scan loop");
+            startScanLoop();
+        } else if (!newSessionActive) {
+            console.log("Session became inactive - stopping scan loop");
+            stopScanLoop();
+        }
+    }
+);
+
 watch(
     () => props.scanInterval,
     () => {
         if (isScanning.value) startScanLoop();
     }
 );
+
 watch(
     () => props.deviceId,
     (nv, ov) => {
@@ -201,37 +269,51 @@ onUnmounted(() => stopDetection(false));
 
 <template>
     <div
-        class="flex flex-col justify-center border border-gray-200 dark:border-dark-700 rounded-lg p-6"
+        class="flex flex-col justify-center p-6 border border-gray-200 dark:border-dark-700 rounded-lg"
     >
         <!-- Header with Title and Action Buttons -->
         <div
-            class="flex flex-col items-center justify-between mb-4 sm:flex-row gap-3"
+            class="flex sm:flex-row flex-col justify-between items-center gap-3 mb-4"
         >
             <div class="flex gap-2">
                 <h2
-                    class="truncate text-base font-medium tracking-wide text-gray-800 dark:text-dark-100"
+                    class="font-medium text-gray-800 dark:text-dark-100 text-base truncate tracking-wide"
                 >
                     Camera Feed
                 </h2>
-                <!-- Live Indicator for Auto-Scanning -->
-                <div v-if="isScanning" class="flex items-center ml-4 gap-1">
+                <!-- UPDATED: More specific live indicator -->
+                <div v-if="isScanning" class="flex items-center gap-1 ml-4">
                     <span class="flex w-3 h-3">
                         <span
-                            class="absolute inline-flex w-3 h-3 bg-red-400 rounded-full opacity-75 animate-ping"
+                            class="inline-flex absolute bg-red-400 opacity-75 rounded-full w-3 h-3 animate-ping"
                         ></span>
                         <span
-                            class="relative inline-flex w-3 h-3 bg-red-500 rounded-full"
+                            class="inline-flex relative bg-red-500 rounded-full w-3 h-3"
                         ></span>
                     </span>
-                    <span class="text-sm text-red-300">Scanning...</span>
+                    <span class="text-red-300 text-sm">Scanning...</span>
+                </div>
+                <!-- UPDATED: Show waiting state when camera active but session not ready -->
+                <div
+                    v-else-if="isCameraActive && !props.sessionActive"
+                    class="flex items-center gap-1 ml-4"
+                >
+                    <span class="flex w-3 h-3">
+                        <span
+                            class="inline-flex relative bg-yellow-500 rounded-full w-3 h-3"
+                        ></span>
+                    </span>
+                    <span class="text-yellow-300 text-sm"
+                        >Waiting for session...</span
+                    >
                 </div>
             </div>
             <div class="flex space-x-2">
-                <!-- UPDATED: Dynamic Start/Pause/Resume Button -->
+                <!-- Camera control buttons remain the same -->
                 <button
                     v-if="!isCameraActive"
                     @click="startDetection"
-                    class="btn-base btn gap-2 this:success bg-this text-white hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90"
+                    class="gap-2 bg-this hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 text-white btn-base btn this:success"
                 >
                     <font-awesome-icon icon="fa-solid fa-play" />
                     Start Session
@@ -239,7 +321,7 @@ onUnmounted(() => stopDetection(false));
                 <button
                     v-else-if="!isPaused"
                     @click="pauseSession"
-                    class="btn-base btn gap-2 this:warning bg-this text-white hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90"
+                    class="gap-2 bg-this hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 text-white btn-base btn this:warning"
                 >
                     <font-awesome-icon icon="fa-solid fa-pause" />
                     Pause Session
@@ -247,17 +329,16 @@ onUnmounted(() => stopDetection(false));
                 <button
                     v-else
                     @click="resumeSession"
-                    class="btn-base btn gap-2 this:success bg-this text-white hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90"
+                    class="gap-2 bg-this hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 text-white btn-base btn this:success"
                 >
                     <font-awesome-icon icon="fa-solid fa-play" />
                     Resume
                 </button>
 
-                <!-- Stop Button -->
                 <button
                     @click="stopDetection(true)"
                     :disabled="!isCameraActive"
-                    class="btn-base btn gap-2 this:error bg-this text-white hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 disabled:bg-this-light dark:disabled:bg-this-darker"
+                    class="gap-2 bg-this hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 disabled:bg-this-light dark:disabled:bg-this-darker text-white btn-base btn this:error"
                 >
                     <font-awesome-icon icon="fa-solid fa-stop" />
                     Stop Session
@@ -267,7 +348,7 @@ onUnmounted(() => stopDetection(false));
 
         <!-- Video Display Area -->
         <div
-            class="relative w-full overflow-hidden bg-black rounded-md aspect-video"
+            class="relative bg-black rounded-md w-full aspect-video overflow-hidden"
         >
             <video
                 ref="videoRef"
@@ -279,41 +360,58 @@ onUnmounted(() => stopDetection(false));
             <!-- Bounding Box Canvas Overlay -->
             <canvas
                 ref="boundingBoxCanvasRef"
-                class="absolute top-0 left-0 w-full h-full"
+                class="top-0 left-0 absolute w-full h-full"
             >
             </canvas>
 
             <!-- Paused State Overlay -->
             <div
                 v-if="isPaused"
-                class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-black bg-opacity-70 backdrop-blur-sm"
+                class="absolute inset-0 flex flex-col justify-center items-center bg-black bg-opacity-70 backdrop-blur-sm p-4 text-center"
             >
                 <font-awesome-icon
                     icon="fa-solid fa-pause"
                     size="3x"
                     class="text-white"
                 />
-                <p class="mt-4 text-2xl font-medium text-white">
+                <p class="mt-4 font-medium text-white text-2xl">
                     Session Paused
+                </p>
+            </div>
+
+            <!-- UPDATED: Show waiting state overlay when camera active but session not ready -->
+            <div
+                v-else-if="isCameraActive && !props.sessionActive"
+                class="absolute inset-0 flex flex-col justify-center items-center bg-blue-900 bg-opacity-70 backdrop-blur-sm p-4 text-center"
+            >
+                <font-awesome-icon
+                    icon="fa-solid fa-clock"
+                    size="3x"
+                    class="text-blue-200"
+                />
+                <p class="mt-4 font-medium text-blue-100 text-2xl">
+                    Waiting for Session
+                </p>
+                <p class="mt-2 text-blue-200 text-sm">
+                    Camera ready - waiting for backend session to start
                 </p>
             </div>
 
             <!-- Placeholder shown when the camera is off -->
             <div
-                v-if="!isCameraActive"
-                class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-gray-200 dark:bg-dark-800 bg-opacity-80"
+                v-else-if="!isCameraActive"
+                class="absolute inset-0 flex flex-col justify-center items-center bg-gray-200 dark:bg-dark-800 bg-opacity-80 p-4 text-center"
             >
                 <font-awesome-icon icon="fa-solid fa-video-slash" size="2xl" />
                 <p
-                    class="mt-4 mb-2 text-lg font-medium text-gray-700 dark:text-dark-100"
+                    class="mt-4 mb-2 font-medium text-gray-700 dark:text-dark-100 text-lg"
                 >
                     Camera feed will appear here
                 </p>
                 <p v-if="!errorMessage">Click "Start Session" to begin</p>
-                <!-- Display error message if camera access fails -->
                 <p
                     v-if="errorMessage"
-                    class="max-w-md mt-2 text-sm text-red-400"
+                    class="mt-2 max-w-md text-red-400 text-sm"
                 >
                     {{ errorMessage }}
                 </p>

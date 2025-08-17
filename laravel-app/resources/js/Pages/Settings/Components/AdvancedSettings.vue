@@ -1,5 +1,6 @@
 <script setup>
-import { computed, onMounted } from "vue";
+import { usePage } from "@inertiajs/vue3";
+const role = usePage().props.auth.user.role;
 
 // --- Props ---
 const props = defineProps({
@@ -11,7 +12,12 @@ const props = defineProps({
 
 // --- Emits ---
 // Defines events for the dangerous actions. The parent component will handle these.
-const emit = defineEmits(["update:settings", "clear-data", "reset-settings"]);
+const emit = defineEmits([
+    "update:settings",
+    "clear-all-data",
+    "clear-my-data",
+    "reset-settings",
+]);
 
 // Helper to get status text color
 const getStatusColor = (status) => {
@@ -69,21 +75,44 @@ const getStatusColor = (status) => {
             </h2>
             <div class="mt-4 space-y-4">
                 <div
+                    v-if="role === 'admin'"
+                    class="flex flex-col pb-4 mb-4 border-b border-red-200 sm:flex-row sm:items-center sm:justify-between dark:border-red-500/30"
+                >
+                    <div>
+                        <p
+                            class="mb-1 text-sm font-medium text-gray-800 dark:text-dark-100"
+                        >
+                            Clear All Analysis Data (Admin Only)
+                        </p>
+                        <p class="text-xs text-gray-400 dark:text-dark-300">
+                            Permanently delete all users analysis history and
+                            uploaded images.
+                        </p>
+                    </div>
+                    <button
+                        @click="emit('clear-all-data')"
+                        class="btn btn-base px-6 py-2 mt-2 gap-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md shadow-sm sm:mt-0 sm:ml-4 hover:bg-red-700"
+                    >
+                        <font-awesome-icon icon="fa-solid fa-dumpster" />
+                        Wipe Data
+                    </button>
+                </div>
+                <div
                     class="flex flex-col sm:flex-row sm:items-center sm:justify-between"
                 >
                     <div>
                         <p
                             class="mb-1 text-sm font-medium text-gray-800 dark:text-dark-100"
                         >
-                            Clear All Analysis Data
+                            Clear My Data
                         </p>
                         <p class="text-xs text-gray-400 dark:text-dark-300">
-                            Permanently delete all analysis history and uploaded
-                            images.
+                            Permanently delete all your analysis data and
+                            uploaded images.
                         </p>
                     </div>
                     <button
-                        @click="emit('clear-data')"
+                        @click="emit('clear-my-data')"
                         class="btn btn-base px-6 py-2 mt-2 gap-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md shadow-sm sm:mt-0 sm:ml-4 hover:bg-red-700"
                     >
                         <font-awesome-icon icon="fa-solid fa-trash-can" />

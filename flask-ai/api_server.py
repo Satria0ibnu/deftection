@@ -18,7 +18,7 @@ from io import BytesIO
 # Import controllers from flask-ai (main base)
 from controllers.detection_controller import DetectionController
 
-# Import services from flask-ai (main base) 
+# Import services from flask-ai (main base)
 from services.detection_service import DetectionService
 
 # Import security scanning components from pythonsec2
@@ -29,31 +29,31 @@ class EnhancedAPIServer:
     ENHANCED API Server: Flask-AI (main) + Security Scanner + Real-time Frame Processing
     Support both JSON and form-data requests with enhanced frame processing
     """
-    
+
     def __init__(self, host='0.0.0.0', port=5000):
         self.app = Flask(__name__)
         CORS(self.app)
-        
+
         self.host = host
         self.port = port
-        
+
         # Setup logging
         self._setup_logging()
-        
+
         # Initialize services (flask-ai main base with enhanced detection)
         self.detection_service = DetectionService()
-        
+
         # Initialize controllers (flask-ai main base with enhanced frame processing)
         self.detection_controller = DetectionController(self.detection_service)
-        
+
         # Initialize security scanner (from pythonsec2)
         self.security_controller = ImageSecurityController()
-        
+
         # Setup routes
         self._setup_routes()
-        
+
         print("ENHANCED API Server initialized (Flask-AI + Security Scanner + Real-time Frame Processing)")
-    
+
     def _setup_logging(self):
         """Setup logging"""
         logging.basicConfig(
@@ -65,32 +65,32 @@ class EnhancedAPIServer:
             ]
         )
         self.logger = logging.getLogger(__name__)
-    
+
     def _setup_routes(self):
         """Setup all API endpoints - ENHANCED with real-time frame processing"""
-        
+
         # ===========================
         # FLASK-AI ROUTES (MAIN BASE) - ENHANCED
         # ===========================
-        
+
         # Health and system endpoints (flask-ai)
         @self.app.route('/api/health', methods=['GET'])
         def health_check():
             return self.detection_controller.health_check()
-        
+
         @self.app.route('/api/system/info', methods=['GET'])
         def system_info():
             return self.detection_controller.get_system_info()
-        
+
         @self.app.route('/api/system/status', methods=['GET'])
         def system_status():
             return self.detection_controller.get_system_status()
-        
+
         # Detection endpoints (flask-ai) - ENHANCED
         @self.app.route('/api/detection/image', methods=['POST'])
         def detect_image():
             return self.detection_controller.process_image(request)
-        
+
         @self.app.route('/api/detection/frame', methods=['POST'])
         def detect_frame():
             """
@@ -98,30 +98,30 @@ class EnhancedAPIServer:
             Now supports enhanced detection, smart processing, and adaptive thresholds
             """
             return self.detection_controller.process_frame(request)
-        
+
         @self.app.route('/api/detection/batch', methods=['POST'])
         def detect_batch():
             return self.detection_controller.process_batch(request)
-        
+
         # Configuration endpoints (flask-ai)
         @self.app.route('/api/config/thresholds', methods=['GET'])
         def get_thresholds():
             return self.detection_controller.get_detection_thresholds()
-        
+
         @self.app.route('/api/config/thresholds', methods=['PUT'])
         def update_thresholds():
             return self.detection_controller.update_detection_thresholds(request)
-        
+
         @self.app.route('/api/config/reset', methods=['PUT'])
         def reset_thresholds():
             return self.detection_controller.reset_detection_thresholds(request)
-        
 
-        
+
+
         # ===========================
         # COMBINED ENDPOINT - ENHANCED
         # ===========================
-        
+
         @self.app.route('/api/detection/combined', methods=['POST'])
         def detect_combined():
             """
@@ -130,10 +130,10 @@ class EnhancedAPIServer:
             """
             try:
                 self.logger.info(f"Combined detection request - Content-Type: {request.content_type}")
-                
+
                 # Get defect detection result first
                 defect_result = self.detection_controller.process_image(request)
-                
+
                 # Extract JSON response from Flask response object
                 if hasattr(defect_result, 'get_json'):
                     defect_data = defect_result.get_json()
@@ -147,49 +147,49 @@ class EnhancedAPIServer:
                 else:
                     defect_data = defect_result
                     defect_status_code = 200
-                
+
                 # Check if security scan requested - ENHANCED for both content types
                 is_scan_threat = True  # DEFAULT TRUE as requested
-                
+
                 if request.is_json or 'application/json' in str(request.content_type):
                     json_data = request.get_json()
                     if json_data:
                         is_scan_threat = json_data.get('is_scan_threat', True)  # Default TRUE
                 elif request.form:
                     is_scan_threat = request.form.get('is_scan_threat', 'true').lower() == 'true'
-                
+
                 self.logger.info(f"Security scan requested: {is_scan_threat}")
-                
+
                 if is_scan_threat:
                     # ENHANCED: Create proper security scan request with image data
                     try:
                         # Create a new request object for security scan with proper image data
                         security_result = self._perform_security_scan_with_proper_data(request)
-                        
+
                         # Extract security response
                         if isinstance(security_result, tuple):
                             security_data, security_status_code = security_result
                         else:
                             security_data = security_result
                             security_status_code = 200
-                        
+
                         # Merge responses if both successful
                         if defect_status_code == 200 and security_status_code == 200:
                             # Ensure defect_data has the right structure
                             if not isinstance(defect_data, dict):
                                 defect_data = {'data': defect_data} if defect_data else {'data': {}}
-                            
+
                             # Add security scan to defect result
                             defect_data['security_scan'] = security_data.get('data', security_data)
                             defect_data['combined_analysis'] = True
                             defect_data['timestamp'] = datetime.now().isoformat()
-                            
+
                             return jsonify(defect_data), 200
                         else:
                             # Return defect result with security error info
                             if not isinstance(defect_data, dict):
                                 defect_data = {'data': defect_data} if defect_data else {'data': {}}
-                            
+
                             defect_data['security_scan'] = {
                                 'status': 'error',
                                 'error': 'Security scan failed',
@@ -197,15 +197,15 @@ class EnhancedAPIServer:
                             }
                             defect_data['combined_analysis'] = True
                             defect_data['timestamp'] = datetime.now().isoformat()
-                            
+
                             return jsonify(defect_data), defect_status_code
-                    
+
                     except Exception as security_error:
                         self.logger.error(f"Security scan error: {security_error}")
                         # Return defect result with security error info
                         if not isinstance(defect_data, dict):
                             defect_data = {'data': defect_data} if defect_data else {'data': {}}
-                        
+
                         defect_data['security_scan'] = {
                             'status': 'error',
                             'error': f'Security scan failed: {str(security_error)}',
@@ -213,18 +213,18 @@ class EnhancedAPIServer:
                         }
                         defect_data['combined_analysis'] = True
                         defect_data['timestamp'] = datetime.now().isoformat()
-                        
+
                         return jsonify(defect_data), defect_status_code
                 else:
                     # Return only defect detection
                     if not isinstance(defect_data, dict):
                         defect_data = {'data': defect_data} if defect_data else {'data': {}}
-                    
+
                     defect_data['combined_analysis'] = False
                     defect_data['timestamp'] = datetime.now().isoformat()
-                    
+
                     return jsonify(defect_data), defect_status_code
-                    
+
             except Exception as e:
                 self.logger.error(f"Combined detection error: {e}")
                 return jsonify({
@@ -233,11 +233,11 @@ class EnhancedAPIServer:
                     'timestamp': datetime.now().isoformat(),
                     'combined_analysis': False
                 }), 500
-        
+
         # ===========================
         # SECURITY SCANNER ENDPOINTS - ENHANCED
         # ===========================
-        
+
         @self.app.route('/api/security/scan', methods=['POST'])
         def security_scan():
             """
@@ -246,7 +246,7 @@ class EnhancedAPIServer:
             Parameter: is_full_scan (boolean) - from request
             """
             return self.security_controller.scan_image(request)
-        
+
         @self.app.route('/api/security/scan/laravel', methods=['POST'])
         def security_scan_laravel():
             """
@@ -255,20 +255,20 @@ class EnhancedAPIServer:
             Parameter: is_full_scan (boolean) - from request
             """
             return self.security_controller.scan_image_laravel(request)
-        
+
         # Security health endpoints
         @self.app.route('/api/security/health', methods=['GET'])
         def security_health():
             return self.security_controller.health_check()
-        
+
         @self.app.route('/api/security/stats', methods=['GET'])
         def security_stats():
             return self.security_controller.get_scanner_stats()
-        
+
         # ===========================
         # ERROR HANDLERS
         # ===========================
-        
+
         @self.app.errorhandler(404)
         def not_found(error):
             return jsonify({
@@ -276,7 +276,7 @@ class EnhancedAPIServer:
                 'message': 'The requested API endpoint does not exist',
                 'timestamp': datetime.now().isoformat()
             }), 404
-        
+
         @self.app.errorhandler(500)
         def internal_error(error):
             return jsonify({
@@ -284,7 +284,7 @@ class EnhancedAPIServer:
                 'message': 'An internal error occurred while processing the request',
                 'timestamp': datetime.now().isoformat()
             }), 500
-        
+
         @self.app.errorhandler(400)
         def bad_request(error):
             return jsonify({
@@ -292,7 +292,7 @@ class EnhancedAPIServer:
                 'message': 'Invalid request data or parameters',
                 'timestamp': datetime.now().isoformat()
             }), 400
-        
+
         @self.app.errorhandler(413)
         def file_too_large(error):
             return jsonify({
@@ -300,7 +300,7 @@ class EnhancedAPIServer:
                 'message': 'File exceeds maximum allowed size',
                 'timestamp': datetime.now().isoformat()
             }), 413
-        
+
         @self.app.errorhandler(415)
         def unsupported_media_type(error):
             return jsonify({
@@ -309,70 +309,70 @@ class EnhancedAPIServer:
                 'supported_types': ['application/json', 'multipart/form-data'],
                 'timestamp': datetime.now().isoformat()
             }), 415
-    
+
     def _perform_security_scan_with_proper_data(self, original_request):
         """FIXED: Perform security scan with proper image data transfer - NO MOCK"""
         try:
             # Extract image data from the original request
             image_data = None
             filename = None
-            
+
             self.logger.info(f"Security scan - extracting data from request type: {original_request.content_type}")
             self.logger.info(f"Security scan - is_json: {original_request.is_json}")
             self.logger.info(f"Security scan - files available: {list(original_request.files.keys()) if original_request.files else 'None'}")
-            
+
             if original_request.is_json or 'application/json' in str(original_request.content_type):
                 # JSON request
                 json_data = original_request.get_json()
                 if json_data:
                     self.logger.info(f"Security scan - JSON keys: {list(json_data.keys())}")
-                    
+
                     # Get base64 image data
-                    image_base64 = (json_data.get('image_base64') or 
-                                  json_data.get('image') or 
+                    image_base64 = (json_data.get('image_base64') or
+                                  json_data.get('image') or
                                   json_data.get('file_base64') or
                                   json_data.get('data'))
-                    
+
                     filename = json_data.get('filename', 'security_scan.jpg')
-                    
+
                     if image_base64:
                         # Handle data URI format
                         if isinstance(image_base64, str) and ',' in image_base64:
                             image_base64 = image_base64.split(',')[1]
-                        
+
                         import base64
                         image_data = base64.b64decode(image_base64)
                         self.logger.info(f"Security scan - JSON image data decoded: {len(image_data)} bytes")
                     else:
                         self.logger.error("Security scan - No base64 image data found in JSON")
-            
+
             elif original_request.files:
                 # Form-data request
                 self.logger.info("Security scan - Processing form-data request")
-                
+
                 for field_name in ['image', 'file', 'upload', 'data']:
                     if field_name in original_request.files:
                         file_obj = original_request.files[field_name]
                         if file_obj.filename != '':
                             self.logger.info(f"Security scan - Found file in field '{field_name}': {file_obj.filename}")
-                            
+
                             # Reset file pointer to beginning
                             file_obj.seek(0)
                             image_data = file_obj.read()
                             filename = file_obj.filename or 'security_scan.jpg'
                             # Reset file pointer again for potential reuse
                             file_obj.seek(0)
-                            
+
                             self.logger.info(f"Security scan - Form file data read: {len(image_data)} bytes")
                             break
                         else:
                             self.logger.warning(f"Security scan - Field '{field_name}' has empty filename")
-                
+
                 if not image_data:
                     self.logger.error(f"Security scan - No valid file found in form fields: {list(original_request.files.keys())}")
             else:
                 self.logger.error("Security scan - Request is neither JSON nor form-data")
-            
+
             if not image_data:
                 self.logger.error("Security scan - No image data extracted from request")
                 return {
@@ -384,7 +384,7 @@ class EnhancedAPIServer:
                         'status': 'error'
                     }
                 }, 400
-            
+
             self.logger.info(f"Security scan - Successfully extracted: {len(image_data)} bytes, filename: {filename}")
             
             # FIXED: Direct call to security controller with proper data
@@ -410,7 +410,7 @@ class EnhancedAPIServer:
                     self.content_type = 'multipart/form-data'
                     self.is_json = False
                     self.method = 'POST'
-                
+
                 def get_json(self):
                     return None
             
@@ -422,9 +422,9 @@ class EnhancedAPIServer:
             result = self.security_controller.scan_image_laravel(direct_request)
             
             self.logger.info(f"Security scan - Controller returned: {type(result)}")
-            
+
             return result
-            
+
         except Exception as e:
             self.logger.error(f"Error in security scan with proper data: {e}")
             import traceback
@@ -438,7 +438,7 @@ class EnhancedAPIServer:
                     'status': 'error'
                 }
             }, 500
-    
+
     def run(self, debug=False):
         """Start the ENHANCED API server"""
         print("Starting ENHANCED API Server (Flask-AI + Security Scanner + Real-time Frame Processing)")
@@ -447,7 +447,7 @@ class EnhancedAPIServer:
         print()
         print("FLASK-AI ENDPOINTS (Main Base) - ENHANCED:")
         print(f"  Health Check: GET /api/health")
-        print(f"  System Info:  GET /api/system/info") 
+        print(f"  System Info:  GET /api/system/info")
         print(f"  Detect Image: POST /api/detection/image")
         print(f"                Support: JSON (image_base64) + Form-data (image/file)")
         print(f"  Detect Frame: POST /api/detection/frame [ENHANCED]")
@@ -468,7 +468,7 @@ class EnhancedAPIServer:
         print(f"                 Support: JSON (image_base64/image/file_base64/data) + Form-data")
         print(f"                 Param: is_full_scan=true/false")
         print(f"  Laravel Format: POST /api/security/scan/laravel")
-        print(f"                  Support: JSON (image_base64/image/file_base64/data) + Form-data") 
+        print(f"                  Support: JSON (image_base64/image/file_base64/data) + Form-data")
         print(f"                  Param: is_full_scan=true/false")
         print(f"  Security Health: GET /api/security/health")
         print(f"  Security Stats:  GET /api/security/stats")
@@ -488,7 +488,7 @@ class EnhancedAPIServer:
         print("ENHANCED: Real-time frame processing with same quality as combined endpoint")
         print("ENHANCED: Frame-specific optimizations for real-time performance")
         print("=" * 85)
-        
+
         self.app.run(host=self.host, port=self.port, debug=debug, threaded=True, use_reloader=False)
 
 

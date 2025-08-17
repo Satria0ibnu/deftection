@@ -22,14 +22,14 @@ class DetectionService:
         self.detector = None
         self.is_initialized = False
         self.initialization_error = None
-        
+
         # Frame-specific optimizations cache
         self.frame_cache = {
             'last_processed_time': 0,
             'consecutive_good_frames': 0,
             'model_warmup_done': False
         }
-        
+
         # Smart Configuration for real-time processing
         self.smart_config = {
             'smart_enabled': True,
@@ -54,32 +54,32 @@ class DetectionService:
             'enable_confidence_boosting': True,
             'background_class_skip': True  # FIXED: Skip background class
         }
-        
+
         # In-memory configuration
         self.config = {
             'anomaly_threshold': 0.7,
             'defect_confidence_threshold': 0.85
         }
-        
+
         # Setup logging
         self.logger = logging.getLogger(__name__)
-        
+
         # Initialize components
         self._initialize_components()
-    
+
     def _initialize_components(self):
         """Initialize detection components - requires real detector"""
         try:
             self.logger.info("Initializing FIXED detection service...")
             
             self.detector = create_detector()
-            
+
             if not self.detector or not self.detector.is_ready():
                 raise RuntimeError("Detector initialization failed or not ready")
             
             self._calculate_adaptive_thresholds()
             self._warmup_models()
-            
+
             self.is_initialized = True
             self.logger.info("FIXED detection service ready - background class skip enabled")
             
@@ -94,12 +94,12 @@ class DetectionService:
         try:
             if not self.smart_config['frame_optimizations']['enable_model_caching']:
                 return
-            
+
             # Create dummy image for warmup
             dummy_image = np.random.randint(0, 255, (512, 512, 3), dtype=np.uint8)
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
             cv2.imwrite(temp_file.name, dummy_image)
-            
+
             # Warmup detection pipeline
             try:
                 self.detector.detect_anomaly(temp_file.name)
@@ -117,30 +117,30 @@ class DetectionService:
         """Calculate adaptive thresholds for real-time processing"""
         anomaly_sens = self.smart_config['anomaly_sensitivity']
         defect_sens = self.smart_config['defect_sensitivity']
-        
+
         self.smart_config['current_anomaly_threshold'] = self.smart_config['sensitivity_thresholds']['anomaly'][anomaly_sens]
         self.smart_config['current_defect_threshold'] = self.smart_config['sensitivity_thresholds']['defect'][defect_sens]
         
         self.logger.info(f"Adaptive thresholds - Anomaly: {self.smart_config['current_anomaly_threshold']}, "
                         f"Defect: {self.smart_config['current_defect_threshold']}")
-    
-    def process_frame(self, image_data, filename, temp_file_path, fast_mode=True, include_annotation=True, 
+
+    def process_frame(self, image_data, filename, temp_file_path, fast_mode=True, include_annotation=True,
                      use_smart_processing=True, sensitivity_level=None):
         """
         FIXED: Process frame with proper background class handling
         """
         if not self.is_initialized:
             raise RuntimeError("Detection service not initialized")
-        
+
         start_time = time.time()
-        
+
         try:
             self.logger.info(f"Processing FIXED frame (smart: {use_smart_processing}, fast: {fast_mode}): {filename}")
             
             # Update sensitivity if provided
             if sensitivity_level and sensitivity_level in ['low', 'medium', 'high']:
                 self._update_sensitivity_for_frame(sensitivity_level)
-            
+
             # Check if we can skip processing for consecutive good frames
             if fast_mode and self._should_skip_processing():
                 return self._create_skip_result(filename, start_time)
@@ -183,9 +183,9 @@ class DetectionService:
             
             self.logger.info(f"FIXED frame processed - Decision: {result.get('final_decision')} "
                            f"in {time.time() - start_time:.3f}s")
-            
+
             return result
-            
+
         except Exception as e:
             self.logger.error(f"Error processing FIXED frame: {e}")
             raise RuntimeError(f"Frame processing failed: {e}")
@@ -195,12 +195,12 @@ class DetectionService:
         self.smart_config['anomaly_sensitivity'] = sensitivity_level
         self.smart_config['defect_sensitivity'] = sensitivity_level
         self._calculate_adaptive_thresholds()
-    
+
     def _should_skip_processing(self):
         """Check if we can skip processing based on consecutive good frames"""
         if not self.smart_config['frame_optimizations']['enable_model_caching']:
             return False
-        
+
         threshold = self.smart_config['frame_optimizations']['skip_consecutive_good_threshold']
         return self.frame_cache['consecutive_good_frames'] >= threshold
     
@@ -242,9 +242,9 @@ class DetectionService:
             
             # Apply smart final decision
             result = self._smart_final_decision_for_frames(result)
-            
+
             return result
-            
+
         except Exception as e:
             self.logger.error(f"Error in FIXED frame processing: {e}")
             raise RuntimeError(f"Fixed frame processing failed: {e}")
@@ -289,7 +289,7 @@ class DetectionService:
                 result['single_bbox_per_defect_type'] = True
             
             return result
-            
+
         except Exception as e:
             self.logger.error(f"Error in fixed frame analysis: {e}")
             return result
@@ -298,7 +298,7 @@ class DetectionService:
         """Apply smart processing for real-time frames with single bbox enforcement"""
         try:
             defect_classification = result.get('defect_classification', {})
-            
+
             # Get bounding boxes
             if 'defect_analysis' in defect_classification:
                 bounding_boxes = defect_classification['defect_analysis'].get('bounding_boxes', {})
@@ -306,14 +306,14 @@ class DetectionService:
             else:
                 bounding_boxes = defect_classification.get('bounding_boxes', {})
                 defect_statistics = defect_classification.get('defect_statistics', {})
-            
+
             if not bounding_boxes:
                 return result
             
             # FIXED: Ensure single bounding box per defect type
             filtered_boxes = {}
             filtered_stats = {}
-            
+
             for defect_type, boxes in bounding_boxes.items():
                 if not boxes or defect_type == 'background':  # Skip background
                     continue
@@ -336,13 +336,13 @@ class DetectionService:
             else:
                 defect_classification['bounding_boxes'] = filtered_boxes
                 defect_classification['defect_statistics'] = filtered_stats
-            
+
             result['detected_defect_types'] = list(filtered_boxes.keys())
             result['frame_smart_processing'] = True
             result['single_bbox_enforced'] = True
             
             return result
-            
+
         except Exception as e:
             self.logger.error(f"Error in frame smart processing: {e}")
             return result
@@ -405,9 +405,9 @@ class DetectionService:
             'single_bbox_per_type': True,
             'frame_optimized': True
         })
-        
+
         return new_stats
-    
+
     def _smart_final_decision_for_frames(self, result):
         """Make smart final decision for frames using real data only"""
         try:
@@ -431,7 +431,7 @@ class DetectionService:
             
             # Critical defect check
             has_critical_defects = self._check_critical_defects_fast(result)
-            
+
             if has_critical_defects:
                 final_decision = 'DEFECT'
                 decision_reason = 'critical_defects_frame'
@@ -447,7 +447,7 @@ class DetectionService:
             else:
                 final_decision = 'GOOD'
                 decision_reason = 'no_issues_frame'
-            
+
             # Update result
             result['final_decision'] = final_decision
             result['frame_smart_decision'] = {
@@ -459,28 +459,28 @@ class DetectionService:
                 'has_critical_defects': has_critical_defects,
                 'background_excluded': True
             }
-            
+
             # Update anomaly detection
             anomaly_detection['threshold_used'] = frame_threshold
             anomaly_detection['decision'] = final_decision
             result['anomaly_detection'] = anomaly_detection
-            
+
             return result
-            
+
         except Exception as e:
             self.logger.error(f"Error in frame smart decision: {e}")
             return result
-    
+
     def _check_critical_defects_fast(self, result):
         """Fast critical defect check for frames"""
         try:
             defect_class = result.get('defect_classification', {})
-            
+
             if 'defect_analysis' in defect_class:
                 bboxes = defect_class['defect_analysis'].get('bounding_boxes', {})
             else:
                 bboxes = defect_class.get('bounding_boxes', {})
-            
+
             for defect_type, boxes in bboxes.items():
                 if defect_type == 'background':  # Skip background
                     continue
@@ -490,12 +490,12 @@ class DetectionService:
                         area_pct = box.get('area_percentage', 0)
                         if area_pct > 3.0:
                             return True
-                        
+
             return False
-            
+
         except Exception:
             return False
-    
+
     def _apply_real_time_optimizations(self, result, fast_mode):
         """Apply real-time specific optimizations"""
         try:
@@ -509,25 +509,25 @@ class DetectionService:
             }
             
             return result
-            
+
         except Exception as e:
             self.logger.error(f"Error applying real-time optimizations: {e}")
             return result
-    
+
     def _update_frame_cache(self, result):
         """Update frame processing cache"""
         try:
             current_time = time.time()
             self.frame_cache['last_processed_time'] = current_time
-            
+
             if result.get('final_decision') == 'GOOD':
                 self.frame_cache['consecutive_good_frames'] += 1
             else:
                 self.frame_cache['consecutive_good_frames'] = 0
-                
+
         except Exception as e:
             self.logger.error(f"Error updating frame cache: {e}")
-    
+
     def _process_frame_standard(self, image_data, filename, temp_file_path, fast_mode):
         """Standard frame processing fallback"""
         try:
@@ -547,7 +547,7 @@ class DetectionService:
                     result['background_class_skipped'] = True
             
             return result
-            
+
         except Exception as e:
             self.logger.error(f"Error in standard frame processing: {e}")
             raise RuntimeError(f"Standard frame processing failed: {e}")
@@ -556,10 +556,10 @@ class DetectionService:
         """Process single image - FIXED processing with background class skip"""
         if not self.is_initialized:
             raise RuntimeError("Detection service not initialized")
-        
+
         try:
             self.logger.info(f"Processing image (smart: {use_smart_processing}): {filename}")
-            
+
             if temp_file_path:
                 image_path = temp_file_path
             else:
@@ -567,7 +567,7 @@ class DetectionService:
                 temp_file.write(image_data)
                 temp_file.close()
                 image_path = temp_file.name
-            
+
             result = self.detector.process_image(image_path)
             
             if not result:
@@ -595,7 +595,7 @@ class DetectionService:
             self.logger.info(f"Image processed - Decision: {result.get('final_decision')}")
             
             return result
-            
+
         except Exception as e:
             self.logger.error(f"Error processing image: {e}")
             if not temp_file_path and 'image_path' in locals() and os.path.exists(image_path):
@@ -645,36 +645,36 @@ class DetectionService:
         try:
             from utils.stateless_visualization import create_annotated_image_base64
             return create_annotated_image_base64(image_path, result)
-            
+
         except ImportError:
             import cv2
             import base64
-            
+
             image = cv2.imread(image_path)
             if image is None:
                 return None
-            
+
             annotated_image = self._annotate_image_with_insights(image, result)
-            
+
             _, buffer = cv2.imencode('.jpg', annotated_image, [cv2.IMWRITE_JPEG_QUALITY, 85])
             return base64.b64encode(buffer).decode('utf-8')
-            
+
         except Exception as e:
             self.logger.error(f"Error generating annotated image: {e}")
             return None
-    
+
     def _annotate_image_with_insights(self, image, result):
         """Add annotations to image WITHOUT text overlays"""
         try:
             import cv2
             from config import DEFECT_COLORS, SPECIFIC_DEFECT_CLASSES
-            
+
             annotated = image.copy()
             height, width = annotated.shape[:2]
-            
+
             decision = result.get('final_decision', 'UNKNOWN')
             anomaly_score = result.get('anomaly_detection', {}).get('anomaly_score', 0.0)
-            
+
             if decision == 'GOOD':
                 annotated = cv2.copyMakeBorder(annotated, 5, 5, 5, 5, cv2.BORDER_CONSTANT, value=(0, 255, 0))
                 # REMOVED: cv2.putText for "GOOD"
@@ -690,23 +690,23 @@ class DetectionService:
             # REMOVED: Background skip indicator
             
             return annotated
-            
+
         except Exception as e:
             self.logger.error(f"Error annotating image: {e}")
             return image
-    
+
     def _draw_bounding_boxes(self, image, defect_classification):
         """Draw bounding boxes for defects - excluding background"""
         try:
             import cv2
             from config import DEFECT_COLORS, SPECIFIC_DEFECT_CLASSES
-            
+
             defect_analysis = defect_classification.get('defect_analysis', {})
             bounding_boxes = defect_analysis.get('bounding_boxes', {})
-            
+
             if not bounding_boxes:
                 bounding_boxes = defect_classification.get('bounding_boxes', {})
-            
+
             for defect_type, boxes in bounding_boxes.items():
                 # FIXED: Skip background class
                 if defect_type == 'background':
@@ -717,20 +717,20 @@ class DetectionService:
                     if class_name == defect_type:
                         defect_class_id = class_id
                         break
-                
+
                 if defect_class_id is not None and defect_class_id in DEFECT_COLORS:
                     color = DEFECT_COLORS[defect_class_id]
                 else:
                     default_colors = [(255, 0, 0), (0, 255, 255), (255, 255, 0), (255, 0, 255), (0, 255, 0)]
                     color = default_colors[hash(defect_type) % len(default_colors)]
-                
+
                 for bbox in boxes:
                     x, y = bbox['x'], bbox['y']
                     w, h = bbox['width'], bbox['height']
-                    
+
                     thickness = 3 if bbox.get('frame_confidence_boosted') else 2
                     cv2.rectangle(image, (x, y), (x + w, y + h), color, thickness)
-                    
+
                     label = defect_type.upper()
                     if bbox.get('frame_confidence_boosted'):
                         label += "*"
@@ -739,32 +739,32 @@ class DetectionService:
                     
                     cv2.putText(image, label, (x, y - 5),
                               cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
-                
+
         except Exception as e:
             self.logger.error(f"Error drawing bounding boxes: {e}")
-    
+
     def _apply_integrated_smart_processing(self, result):
         """Apply integrated smart processing to results with background exclusion"""
         try:
             if not self.smart_config['enable_intelligent_filtering']:
                 return result
-            
+
             defect_classification = result.get('defect_classification', {})
-            
+
             if 'defect_analysis' in defect_classification:
                 bounding_boxes = defect_classification['defect_analysis'].get('bounding_boxes', {})
                 defect_statistics = defect_classification['defect_analysis'].get('defect_statistics', {})
             else:
                 bounding_boxes = defect_classification.get('bounding_boxes', {})
                 defect_statistics = defect_classification.get('defect_statistics', {})
-            
+
             if not bounding_boxes:
                 return result
-            
+
             filtered_boxes = {}
             filtered_stats = {}
             original_count = sum(len(boxes) for boxes in bounding_boxes.values())
-            
+
             for defect_type, boxes in bounding_boxes.items():
                 # FIXED: Skip background class completely
                 if not boxes or defect_type == 'background':
@@ -778,17 +778,17 @@ class DetectionService:
                     filtered_stats[defect_type] = self._recalculate_stats_for_single_bbox(
                         single_box, defect_statistics.get(defect_type, {})
                     )
-            
+
             if 'defect_analysis' in defect_classification:
                 defect_classification['defect_analysis']['bounding_boxes'] = filtered_boxes
                 defect_classification['defect_analysis']['defect_statistics'] = filtered_stats
             else:
                 defect_classification['bounding_boxes'] = filtered_boxes
                 defect_classification['defect_statistics'] = filtered_stats
-            
+
             result['detected_defect_types'] = list(filtered_boxes.keys())
             result = self._smart_final_decision_integrated(result)
-            
+
             filtered_count = sum(len(boxes) for boxes in filtered_boxes.values())
             result['smart_processing'] = {
                 'original_detections': original_count,
@@ -799,9 +799,9 @@ class DetectionService:
                 'background_class_excluded': True,
                 'single_bbox_per_type_enforced': True
             }
-            
+
             return result
-            
+
         except Exception as e:
             self.logger.error(f"Error in integrated smart processing: {e}")
             return result
@@ -811,7 +811,7 @@ class DetectionService:
         try:
             anomaly_detection = result.get('anomaly_detection', {})
             anomaly_score = anomaly_detection.get('anomaly_score', 0.0)
-            
+
             adaptive_threshold = self.smart_config['current_anomaly_threshold']
             detected_defects = result.get('detected_defect_types', [])
             
@@ -827,7 +827,7 @@ class DetectionService:
                     bboxes = defect_class['defect_analysis'].get('bounding_boxes', {})
                 else:
                     bboxes = defect_class.get('bounding_boxes', {})
-                
+
                 for defect_type, boxes in bboxes.items():
                     if defect_type == 'background':  # Skip background
                         continue
@@ -839,10 +839,10 @@ class DetectionService:
                         elif area_pct > 10.0:
                             has_critical_defects = True
                             break
-            
+
             is_anomalous_adaptive = anomaly_score > adaptive_threshold
             has_significant_defects = len(detected_defects) > 0
-            
+
             if has_critical_defects:
                 final_decision = 'DEFECT'
                 decision_reason = 'critical_defects_detected'
@@ -861,7 +861,7 @@ class DetectionService:
             else:
                 final_decision = 'GOOD'
                 decision_reason = 'no_significant_issues'
-            
+
             result['final_decision'] = final_decision
             result['smart_decision'] = {
                 'reason': decision_reason,
@@ -873,13 +873,13 @@ class DetectionService:
                 'confidence_level': 'high' if abs(anomaly_score - adaptive_threshold) > 0.2 else 'medium',
                 'background_excluded': True
             }
-            
+
             anomaly_detection['threshold_used'] = adaptive_threshold
             anomaly_detection['decision'] = final_decision
             result['anomaly_detection'] = anomaly_detection
-            
+
             return result
-            
+
         except Exception as e:
             self.logger.error(f"Error in integrated smart final decision: {e}")
             return result
@@ -928,9 +928,9 @@ class DetectionService:
         
         try:
             from config import OPENAI_API_KEY, OPENAI_MODEL
-            
+
             system_info = self.detector.get_system_info()
-            
+
             system_info.update({
                 'service_status': 'operational' if self.is_initialized else 'degraded',
                 'real_time_processing': {
@@ -957,9 +957,9 @@ class DetectionService:
                 'api_version': '1.0.0',
                 'mode': 'fixed_detection_with_background_skip'
             })
-            
+
             return system_info
-            
+
         except Exception as e:
             self.logger.error(f"Error getting system info: {e}")
             raise RuntimeError(f"System info unavailable: {e}")
@@ -967,7 +967,7 @@ class DetectionService:
     def get_current_status(self):
         """Get current system status"""
         from config import OPENAI_API_KEY
-        
+
         return {
             'system_ready': self.is_initialized,
             'detector_ready': self.detector.is_ready() if self.detector else False,
@@ -1047,15 +1047,15 @@ class DetectionService:
                 if key in ['anomaly_threshold', 'defect_confidence_threshold']:
                     if not isinstance(value, (int, float)) or not (0 <= value <= 1):
                         raise ValueError(f"Invalid value for {key}: must be between 0 and 1")
-            
+
             self.config.update(new_thresholds)
             self.logger.info(f"Thresholds updated: {new_thresholds}")
             return True
-            
+
         except Exception as e:
             self.logger.error(f"Error updating thresholds: {e}")
             return False
-    
+
     def get_thresholds(self):
         """Get current detection thresholds"""
         return {
@@ -1067,7 +1067,7 @@ class DetectionService:
             'background_class_skip_enabled': True,  # FIXED
             'single_bbox_per_type_enabled': True  # FIXED
         }
-    
+
     def _get_current_load(self):
         """Get current system load"""
         try:
@@ -1083,7 +1083,7 @@ class DetectionService:
                 'memory_percent': 0,
                 'status': 'monitoring_unavailable'
             }
-    
+
     def _get_memory_usage(self):
         """Get memory usage information"""
         try:

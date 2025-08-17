@@ -28,7 +28,7 @@ class DetectionController:
             },
             'last_updated': datetime.now().isoformat()
         }
-    
+
     def health_check(self):
         """Health check - real status only"""
         try:
@@ -55,7 +55,7 @@ class DetectionController:
                 'error': str(e),
                 'timestamp': datetime.now().isoformat()
             }), 500
-    
+
     def get_system_info(self):
         """Get system information - real data only"""
         try:
@@ -65,7 +65,7 @@ class DetectionController:
                 
             info['mode'] = 'real_time_enhanced'
             info['supported_content_types'] = ['application/json', 'multipart/form-data']
-            
+
             return jsonify({
                 'status': 'success',
                 'data': info,
@@ -78,7 +78,7 @@ class DetectionController:
                 'error': str(e),
                 'timestamp': datetime.now().isoformat()
             }), 500
-    
+
     def get_system_status(self):
         """Get current system status - real data only"""
         try:
@@ -88,7 +88,7 @@ class DetectionController:
                 
             status['mode'] = 'real_time_enhanced'
             status['supported_content_types'] = ['application/json', 'multipart/form-data']
-            
+
             return jsonify({
                 'status': 'success',
                 'data': status,
@@ -101,29 +101,29 @@ class DetectionController:
                 'error': str(e),
                 'timestamp': datetime.now().isoformat()
             }), 500
-    
+
     def process_image(self, request):
         """Process single image - real processing only"""
         start_time = time.time()
         temp_file = None
-        
+
         try:
             self.logger.info(f"Processing image - Method: {request.method}, Content-Type: {request.content_type}")
-            
+
             image_data, filename, validation_error = self._parse_image_request(request)
-            
+
             if validation_error:
                 return validation_error
-            
+
             self.logger.info(f"Processing image - filename: {filename}, size: {len(image_data)} bytes")
-            
+
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
             temp_file.write(image_data)
             temp_file.close()
             
             # REAL processing only
             result = self.detection_service.process_single_image(image_data, filename, temp_file.name)
-            
+
             if not result:
                 return jsonify({
                     'status': 'error',
@@ -152,31 +152,31 @@ class DetectionController:
             self.logger.info(f"Image processed - Decision: {result.get('final_decision')}")
             
             return jsonify(response)
-            
+
         except Exception as e:
             self.logger.error(f"Error processing image: {str(e)}")
-            
+
             return jsonify({
                 'status': 'error',
                 'error': f'Processing error: {str(e)}',
                 'timestamp': datetime.now().isoformat()
             }), 500
-        
+
         finally:
             if temp_file and os.path.exists(temp_file.name):
                 try:
                     os.unlink(temp_file.name)
                 except Exception as e:
                     self.logger.warning(f"Failed to cleanup temp file: {e}")
-    
+
     def process_batch(self, request):
         """Process batch - real processing only"""
         start_time = time.time()
         temp_files = []
-        
+
         try:
             images_data = self._parse_batch_request(request)
-            
+
             if not images_data:
                 return jsonify({
                     'status': 'error',
@@ -191,7 +191,7 @@ class DetectionController:
                 try:
                     image_data = image_item['data']
                     filename = image_item['filename']
-                    
+
                     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
                     temp_file.write(image_data)
                     temp_file.close()
@@ -207,13 +207,13 @@ class DetectionController:
                             'postprocessing_time': result.get('postprocessing_time', 0.0)
                         })
                         results.append(formatted_result)
-                    
+
                 except Exception as decode_error:
                     self.logger.warning(f"Error processing image {i+1}: {decode_error}")
                     continue
-            
+
             processing_time = time.time() - start_time
-            
+
             response = {
                 'status': 'success',
                 'batch_summary': {
@@ -232,7 +232,7 @@ class DetectionController:
             self.logger.info(f"Batch processed - {len(results)} results")
             
             return jsonify(response)
-            
+
         except Exception as e:
             self.logger.error(f"Error processing batch: {str(e)}")
             return jsonify({
@@ -240,7 +240,7 @@ class DetectionController:
                 'error': str(e),
                 'timestamp': datetime.now().isoformat()
             }), 500
-        
+
         finally:
             for temp_file in temp_files:
                 try:
@@ -248,28 +248,28 @@ class DetectionController:
                         os.unlink(temp_file)
                 except Exception as e:
                     self.logger.warning(f"Failed to cleanup temp file: {e}")
-    
+
     def process_frame(self, request):
         """Process frame - real processing only"""
         start_time = time.time()
         temp_file = None
-        
+
         try:
             self.logger.info(f"Processing frame - Method: {request.method}, Content-Type: {request.content_type}")
             
             # Parse frame request
             frame_data, filename, fast_mode, include_annotation, use_smart_processing, sensitivity_level, validation_error = self._parse_enhanced_frame_request(request)
-            
+
             if validation_error:
                 return validation_error
-            
+
             if len(frame_data) > 5 * 1024 * 1024:
                 return jsonify({
                     'status': 'error',
                     'error': 'Frame too large. Maximum size is 5MB',
                     'timestamp': datetime.now().isoformat()
                 }), 400
-            
+
             # Create temporary file
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
             temp_file.write(frame_data)
@@ -280,13 +280,13 @@ class DetectionController:
             
             # REAL frame processing
             result = self.detection_service.process_frame(
-                frame_data, filename, temp_file.name, 
-                fast_mode=fast_mode, 
+                frame_data, filename, temp_file.name,
+                fast_mode=fast_mode,
                 include_annotation=include_annotation,
                 use_smart_processing=use_smart_processing,
                 sensitivity_level=sensitivity_level
             )
-            
+
             if not result:
                 return jsonify({
                     'status': 'error',
@@ -301,7 +301,7 @@ class DetectionController:
                 'classification_processing_time': result.get('classification_processing_time', 0.0),
                 'postprocessing_time': result.get('postprocessing_time', 0.0)
             })
-            
+
             # Add real-time processing metadata
             response.update({
                 'real_time_enhanced': True,
@@ -313,9 +313,9 @@ class DetectionController:
             
             self.logger.info(f"Frame processed - Decision: {result.get('final_decision')} "
                            f"in {time.time() - start_time:.3f}s")
-            
+
             return jsonify(response)
-            
+
         except Exception as e:
             self.logger.error(f"Error processing frame: {str(e)}")
             
@@ -324,14 +324,14 @@ class DetectionController:
                 'error': f'Frame processing error: {str(e)}',
                 'timestamp': datetime.now().isoformat()
             }), 500
-        
+
         finally:
             if temp_file and os.path.exists(temp_file.name):
                 try:
                     os.unlink(temp_file.name)
                 except Exception as e:
                     self.logger.warning(f"Failed to cleanup temp file: {e}")
-    
+
     def _parse_enhanced_frame_request(self, request):
         """Parse enhanced frame request - real validation only"""
         try:
@@ -341,11 +341,11 @@ class DetectionController:
             include_annotation = True
             use_smart_processing = True
             sensitivity_level = None
-            
+
             # Method 1: Handle JSON requests
             if request.is_json or 'application/json' in str(request.content_type):
                 json_data = request.get_json()
-                
+
                 if not json_data:
                     return None, None, None, None, None, None, (jsonify({
                         'status': 'error',
@@ -360,11 +360,11 @@ class DetectionController:
                 include_annotation = json_data.get('include_annotation', True)
                 use_smart_processing = json_data.get('use_smart_processing', True)
                 sensitivity_level = json_data.get('sensitivity_level', 'medium')
-                
+
                 # Validate sensitivity level
                 if sensitivity_level not in ['low', 'medium', 'high']:
                     sensitivity_level = 'medium'
-                
+
                 if not frame_base64:
                     return None, None, None, None, None, None, (jsonify({
                         'status': 'error',
@@ -376,7 +376,7 @@ class DetectionController:
                 try:
                     if frame_base64.startswith('data:image'):
                         frame_base64 = frame_base64.split(',')[1]
-                    
+
                     frame_data = base64.b64decode(frame_base64)
                 except Exception as decode_error:
                     return None, None, None, None, None, None, (jsonify({
@@ -401,7 +401,7 @@ class DetectionController:
                 include_annotation = request.form.get('include_annotation', 'true').lower() == 'true'
                 use_smart_processing = request.form.get('use_smart_processing', 'true').lower() == 'true'
                 sensitivity_level = request.form.get('sensitivity_level', 'medium')
-            
+
             if not frame_data:
                 return None, None, None, None, None, None, (jsonify({
                     'status': 'error',
@@ -410,7 +410,7 @@ class DetectionController:
                 }), 400)
             
             return frame_data, filename, fast_mode, include_annotation, use_smart_processing, sensitivity_level, None
-            
+
         except Exception as e:
             return None, None, None, None, None, None, (jsonify({
                 'status': 'error',
@@ -466,9 +466,9 @@ class DetectionController:
                     'processing_mode': result.get('processing_mode', 'enhanced')
                 }
             }
-            
+
             return response
-            
+
         except Exception as e:
             self.logger.error(f"Error formatting frame response: {e}")
             raise RuntimeError(f"Failed to format frame response: {e}")
@@ -476,14 +476,14 @@ class DetectionController:
     def _extract_real_defects_for_frames(self, result):
         """Extract defects from REAL detection results - no mock data"""
         defects = []
-        
+
         try:
             defect_classification = result.get('defect_classification', {})
             
             # Get bounding boxes from REAL detection
             bounding_boxes = {}
             defect_statistics = {}
-            
+
             if 'defect_analysis' in defect_classification:
                 bounding_boxes = defect_classification['defect_analysis'].get('bounding_boxes', {})
                 defect_statistics = defect_classification['defect_analysis'].get('defect_statistics', {})
@@ -498,7 +498,7 @@ class DetectionController:
             # Get REAL image dimensions
             actual_image_width = 640
             actual_image_height = 640
-            
+
             if 'image_dimensions' in result:
                 actual_image_width = result['image_dimensions'].get('width', 640)
                 actual_image_height = result['image_dimensions'].get('height', 640)
@@ -507,7 +507,7 @@ class DetectionController:
             for defect_type, boxes in bounding_boxes.items():
                 if not boxes:
                     continue
-                
+
                 stats = defect_statistics.get(defect_type, {})
                 
                 # Use REAL combined bounding box
@@ -517,7 +517,7 @@ class DetectionController:
                     # Calculate REAL area percentage
                     total_defect_area = combined_bbox.get('area', combined_bbox.get('width', 0) * combined_bbox.get('height', 0))
                     total_image_area = actual_image_width * actual_image_height
-                    
+
                     if total_image_area > 0:
                         area_percentage = (total_defect_area / total_image_area) * 100
                         area_percentage = min(area_percentage, 100.0)
@@ -558,7 +558,7 @@ class DetectionController:
                         'total_regions': 1,
                         'combined_defect': True
                     }
-                    
+
                     defects.append(defect_info)
                     
                     self.logger.info(f"Real frame defect extracted: {defect_type}")
@@ -567,7 +567,7 @@ class DetectionController:
             self.logger.error(f"Error extracting real defects for frames: {e}")
         
         return defects
-    
+
     def _determine_frame_severity_level(self, area_percentage, defect_type):
         """Determine severity level for frame processing"""
         # Frame-specific severity thresholds
@@ -599,7 +599,7 @@ class DetectionController:
             # Method 1: Handle JSON requests
             if request.is_json or 'application/json' in str(request.content_type):
                 json_data = request.get_json()
-                
+
                 if not json_data:
                     return None, None, (jsonify({
                         'status': 'error',
@@ -609,7 +609,7 @@ class DetectionController:
                 
                 image_base64 = json_data.get('image_base64', '')
                 filename = json_data.get('filename', f"upload_{int(time.time())}.jpg")
-                
+
                 if not image_base64:
                     return None, None, (jsonify({
                         'status': 'error',
@@ -620,7 +620,7 @@ class DetectionController:
                 try:
                     if image_base64.startswith('data:image'):
                         image_base64 = image_base64.split(',')[1]
-                    
+
                     image_data = base64.b64decode(image_base64)
                 except Exception as decode_error:
                     return None, None, (jsonify({
@@ -641,7 +641,7 @@ class DetectionController:
                 
                 image_data = file.read()
                 filename = file.filename or f"upload_{int(time.time())}.jpg"
-            
+
             # Method 3: Try alternative form field names
             elif request.files:
                 for field_name in ['file', 'upload', 'data']:
@@ -651,7 +651,7 @@ class DetectionController:
                             image_data = file.read()
                             filename = file.filename or f"upload_{int(time.time())}.jpg"
                             break
-            
+
             if not image_data:
                 return None, None, (jsonify({
                     'status': 'error',
@@ -667,7 +667,7 @@ class DetectionController:
                 }), 400)
             
             return image_data, filename, None
-            
+
         except Exception as e:
             return None, None, (jsonify({
                 'status': 'error',
@@ -679,37 +679,37 @@ class DetectionController:
         """Parse batch request from both form-data and JSON"""
         try:
             images_data = []
-            
+
             # Method 1: Handle JSON batch requests
             if request.is_json or 'application/json' in str(request.content_type):
                 json_data = request.get_json()
-                
+
                 if not json_data or 'images' not in json_data:
                     return None
-                
+
                 json_images = json_data['images']
                 if not isinstance(json_images, list) or len(json_images) == 0:
                     return None
-                
+
                 for i, image_item in enumerate(json_images):
                     if 'image_base64' not in image_item:
                         continue
-                    
+
                     base64_data = image_item['image_base64']
                     if base64_data.startswith('data:image'):
                         base64_data = base64_data.split(',')[1]
-                    
+
                     try:
                         image_data = base64.b64decode(base64_data)
                         filename = image_item.get('filename', f"batch_image_{i+1}.jpg")
-                        
+
                         images_data.append({
                             'data': image_data,
                             'filename': filename
                         })
                     except Exception:
                         continue
-            
+
             # Method 2: Handle form-data batch
             elif request.files:
                 for key, file in request.files.items():
@@ -717,16 +717,16 @@ class DetectionController:
                         try:
                             image_data = file.read()
                             filename = file.filename or f"batch_{key}.jpg"
-                            
+
                             images_data.append({
                                 'data': image_data,
                                 'filename': filename
                             })
                         except Exception:
                             continue
-            
+
             return images_data if images_data else None
-            
+
         except Exception as e:
             self.logger.error(f"Batch request parsing failed: {e}")
             return None
@@ -737,13 +737,13 @@ class DetectionController:
             anomaly_detection = result.get('anomaly_detection', {})
             anomaly_score = anomaly_detection.get('anomaly_score', 0.0)
             anomaly_threshold = anomaly_detection.get('threshold_used', 0.3)
-            
+
             confidence_level = self._calculate_anomaly_confidence_level(anomaly_score, result.get('final_decision', 'UNKNOWN'))
             
             defects = self._extract_real_defects(result)
             
             annotated_image = result.get('annotated_image_base64', '')
-            
+
             response = {
                 'final_decision': result.get('final_decision', 'UNKNOWN'),
                 'preprocessing_time': timings['preprocessing_time'],
@@ -757,9 +757,9 @@ class DetectionController:
                 'filename': filename,
                 'defects': defects
             }
-            
+
             return response
-            
+
         except Exception as e:
             self.logger.error(f"Error formatting real response: {e}")
             raise RuntimeError(f"Failed to format response: {e}")
@@ -767,13 +767,13 @@ class DetectionController:
     def _extract_real_defects(self, result):
         """Extract defects from REAL detection results only - no mock data"""
         defects = []
-        
+
         try:
             defect_classification = result.get('defect_classification', {})
-            
+
             bounding_boxes = {}
             defect_statistics = {}
-            
+
             if 'defect_analysis' in defect_classification:
                 bounding_boxes = defect_classification['defect_analysis'].get('bounding_boxes', {})
                 defect_statistics = defect_classification['defect_analysis'].get('defect_statistics', {})
@@ -787,7 +787,7 @@ class DetectionController:
             
             actual_image_width = 640
             actual_image_height = 640
-            
+
             if 'image_dimensions' in result:
                 actual_image_width = result['image_dimensions'].get('width', 640)
                 actual_image_height = result['image_dimensions'].get('height', 640)
@@ -796,7 +796,7 @@ class DetectionController:
             for defect_type, boxes in bounding_boxes.items():
                 if not boxes:
                     continue
-                
+
                 stats = defect_statistics.get(defect_type, {})
                 
                 # Use REAL combined bounding box
@@ -806,7 +806,7 @@ class DetectionController:
                     # Calculate REAL area percentage
                     total_defect_area = combined_bbox.get('area', combined_bbox.get('width', 0) * combined_bbox.get('height', 0))
                     total_image_area = actual_image_width * actual_image_height
-                    
+
                     if total_image_area > 0:
                         area_percentage = (total_defect_area / total_image_area) * 100
                         area_percentage = min(area_percentage, 100.0)
@@ -824,7 +824,7 @@ class DetectionController:
                     # Check for REAL confidence boosting
                     confidence_boosted = combined_bbox.get('frame_confidence_boosted', False) or combined_bbox.get('confidence_boosted', False)
                     original_confidence = combined_bbox.get('original_confidence') if confidence_boosted else None
-                    
+
                     # Determine severity level
                     severity_level = combined_bbox.get('severity', self._determine_severity_level(area_percentage, defect_type))
                     
@@ -846,7 +846,7 @@ class DetectionController:
                         'original_confidence': original_confidence,
                         'detection_method': 'real_detection'
                     }
-                    
+
                     defects.append(defect_info)
                     
                     self.logger.info(f"Real defect extracted: {defect_type}")
@@ -876,7 +876,7 @@ class DetectionController:
                 return 'significant'
             else:
                 return 'critical'
-    
+
     def _calculate_anomaly_confidence_level(self, anomaly_score, final_decision):
         """Calculate anomaly confidence level"""
         if final_decision == 'GOOD':
@@ -897,7 +897,7 @@ class DetectionController:
                 return 'medium'
             else:
                 return 'low'
-    
+
     # Keep existing threshold management methods
     def get_detection_thresholds(self):
         """Get current detection thresholds"""
@@ -916,7 +916,7 @@ class DetectionController:
                 'error': str(e),
                 'timestamp': datetime.now().isoformat()
             }), 500
-    
+
     def update_detection_thresholds(self, request):
         """Update detection thresholds"""
         try:
@@ -932,14 +932,14 @@ class DetectionController:
                             new_thresholds[key] = float(value)
                         except (ValueError, TypeError):
                             pass
-            
+
             if not new_thresholds:
                 return jsonify({
                     'status': 'error',
                     'error': 'No threshold data provided',
                     'timestamp': datetime.now().isoformat()
                 }), 400
-            
+
             # Validate thresholds
             for key, value in new_thresholds.items():
                 if key in ['anomaly_threshold', 'defect_confidence_threshold']:
@@ -949,16 +949,16 @@ class DetectionController:
                             'error': f'{key} must be a number between 0 and 1',
                             'timestamp': datetime.now().isoformat()
                         }), 400
-            
+
             # Update configuration
             self.config['thresholds'].update(new_thresholds)
             self.config['last_updated'] = datetime.now().isoformat()
-            
+
             # Update detection service
             self.detection_service.update_thresholds(new_thresholds)
-            
+
             self.logger.info(f"Thresholds updated: {new_thresholds}")
-            
+
             return jsonify({
                 'status': 'success',
                 'data': {
@@ -968,7 +968,7 @@ class DetectionController:
                 'timestamp': datetime.now().isoformat(),
                 'mode': 'real_time_enhanced'
             })
-                
+
         except Exception as e:
             self.logger.error(f"Error updating thresholds: {e}")
             return jsonify({
@@ -976,7 +976,7 @@ class DetectionController:
                 'error': str(e),
                 'timestamp': datetime.now().isoformat()
             }), 500
-            
+
     def reset_detection_thresholds(self, request):
         """Reset detection thresholds to default values"""
         try:

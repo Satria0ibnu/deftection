@@ -38,7 +38,7 @@ class RealtimeAnalysisController extends Controller
                 }
 
                 $healthData = $healthResponse->json();
-                if ($healthData['status'] !== 'healthy' && $healthData['status'] !== 'ok') {
+                if ($healthData['status'] !== 'ok') {
                     return response()->json([
                         'error' => 'Flask API server is unhealthy',
                         'message' => 'Unable to start session. The detection service is not functioning properly.',
@@ -115,21 +115,6 @@ class RealtimeAnalysisController extends Controller
                 ],
                 'timestamp' => now()->toISOString()
             ], 201);
-        } catch (ValidationException $e) {
-            return response()->json([
-                'error' => 'Validation failed',
-                'message' => 'Invalid input data provided',
-                'errors' => $e->errors(),
-                'status' => 'failed',
-                'timestamp' => now()->toISOString()
-            ], 422);
-        } catch (AuthorizationException $e) {
-            return response()->json([
-                'error' => 'Unauthorized',
-                'message' => 'You are not authorized to create sessions',
-                'status' => 'failed',
-                'timestamp' => now()->toISOString()
-            ], 403);
         } catch (\Exception $e) {
             Log::error('Error starting realtime session: ' . $e->getMessage(), [
                 'user_id' => auth()->id(),

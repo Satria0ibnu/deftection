@@ -21,11 +21,11 @@ try:
     )
 except ImportError:
     print("Warning: Could not import from config, using fallback constants")
-    
+
     SPECIFIC_DEFECT_CLASSES = {
         0: "background",
         1: "damaged",
-        2: "missing_component", 
+        2: "missing_component",
         3: "open",
         4: "scratch",
         5: "stained"
@@ -61,9 +61,9 @@ def analyze_defect_predictions_enhanced(predicted_mask, confidence_scores, image
         class_mask = (predicted_mask == class_id)
         pixel_count = np.sum(class_mask)
         percentage = (pixel_count / total_pixels) * 100
-        
+
         print(f"Class {class_id} ({class_name}): {pixel_count} pixels ({percentage:.3f}%)")
-        
+
         analysis['class_distribution'][class_name] = {
             'pixel_count': int(pixel_count),
             'percentage': percentage,
@@ -397,11 +397,11 @@ def extract_balanced_bounding_box(mask, defect_type, h, w, total_pixels, confide
         
         # Find all defect pixels
         y_coords, x_coords = np.where(mask_uint8 > 0)
-        
+
         if len(x_coords) == 0 or len(y_coords) == 0:
             print(f"  No pixels found for {defect_type}")
             return None
-        
+
         print(f"  Found {len(x_coords)} defect pixels for {defect_type}")
         
         # BALANCED: Consistent bounding box calculation for all types
@@ -449,9 +449,9 @@ def extract_balanced_bounding_box(mask, defect_type, h, w, total_pixels, confide
         # Create balanced bounding box
         balanced_bbox = {
             'id': 1,
-            'x': min_x, 
-            'y': min_y, 
-            'width': width, 
+            'x': min_x,
+            'y': min_y,
+            'width': width,
             'height': height,
             'area': area,
             'area_percentage': float(area_percentage),
@@ -492,7 +492,7 @@ def extract_balanced_bounding_box(mask, defect_type, h, w, total_pixels, confide
 def get_quadrant(x, y, width, height):
     """Determine which quadrant of the image the defect is in"""
     mid_x, mid_y = width // 2, height // 2
-    
+
     if x < mid_x and y < mid_y:
         return "Top-Left"
     elif x >= mid_x and y < mid_y:
@@ -576,7 +576,7 @@ def calculate_defect_severity(area_percentage, defect_type):
 def analyze_defect_location(bbox, image_shape):
     """Analyze spatial information for defect location"""
     cx, cy = bbox['center_x'], bbox['center_y']
-    
+
     spatial_info = {
         'center_location': {
             'x': cx,
@@ -594,16 +594,16 @@ def analyze_defect_location(bbox, image_shape):
         'balanced_analysis': True,
         'total_regions_analyzed': 1
     }
-    
+
     return spatial_info
 
 def analyze_edge_proximity(bbox, image_shape):
     """Analyze proximity to image edges"""
     h, w = image_shape[:2] if len(image_shape) >= 2 else (image_shape[0], 640)
-    
+
     edge_distance_threshold = 0.1
     cx, cy = bbox['center_x'], bbox['center_y']
-    
+
     edges_near = []
     if cy < h * edge_distance_threshold:
         edges_near.append('top')
@@ -613,7 +613,7 @@ def analyze_edge_proximity(bbox, image_shape):
         edges_near.append('left')
     if cx > w * (1 - edge_distance_threshold):
         edges_near.append('right')
-    
+
     return {
         'near_edges': edges_near,
         'edge_count': len(edges_near),

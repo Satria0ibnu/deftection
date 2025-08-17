@@ -10,10 +10,12 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\RealtimeController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DefectTypeController;
 use App\Http\Controllers\RealtimeScanController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\RealtimeFrameController;
 use App\Http\Controllers\RealtimeAnalysisController;
 
 Route::permanentRedirect('/', '/login');
@@ -28,9 +30,7 @@ Route::middleware(['guest'])->group(function () {
 
 Route::middleware(['auth'])->group(function () {
   //DASHBOARD
-  Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard/Index');
-  })->name('dashboard');
+  Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
   // PRODUCTS
   Route::prefix('database/products')->group(function () {
@@ -74,30 +74,21 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/{user}', [UserController::class, 'destroy'])->name('users.destroy');
   });
 
-  // DEFECT TYPES
-  Route::prefix('database/defect-types')->group(function () {
-    // User list
-    Route::get('/', function () {
-      return Inertia::render('Database/DefectTypes/Index', [
-        'defectTypes' => [],
-        'filters' => [],
-        'meta' => [],
-      ]);
-    })->name('defect-types.index');
-  });
 
   // REPORTS
   Route::prefix('reports')->name('reports.')->group(function () {
 
     // Single scan report
     Route::get('single/{scan}', [ReportController::class, 'generateSingleReport'])
-      ->name('single.generate')
-      ->middleware('can:generateReport,scan');
+      ->name('single.generate');
 
     // Batch report - requires authentication, authorization handled in controller
     Route::get('batch', [ReportController::class, 'generateBatchReport'])
-      ->name('batch.generate')
-      ->middleware('can:generateBatchReport,App\Models\Scan');
+      ->name('batch.generate');
+
+    // Realtime session report
+    Route::get('session/{realtimeSession}', [ReportController::class, 'generateRealtimeSessionReport'])
+      ->name('session.generate');
 
     // // Preview routes ( for test)
     // Route::get('preview/single/{scan}', [ReportController::class, 'previewSingleReport'])
@@ -121,8 +112,11 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('/detection-settings', [SettingsController::class, 'update'])->name('detection_settings.update');
 
     // Clear Data
-    Route::delete('/clear-data', [SettingsController::class, 'clearData'])->name('clear_all_data');
+    Route::delete('/clear-all-data', [SettingsController::class, 'clearAllData'])->name('clear_all_data');
     Route::delete('/clear-my-data', [SettingsController::class, 'clearMyData'])->name('clear_my_data');
+
+    // Reset Settings
+    Route::post('/reset', [SettingsController::class, 'reset'])->name('reset');
   });
 
 
@@ -137,6 +131,10 @@ Route::middleware(['auth'])->group(function () {
   // scans store (image analysis)
   Route::get('/image-analysis', [ScanController::class, 'create'])->name('scans.create');
   Route::post('image-analysis', [ScanController::class, 'store'])->name('scans.store');
+  Route::post('image-analysis/batch', [ScanController::class, 'storeBatch'])->name('scans.store.batch');
+  Route::get('image-analysis/batch-status/{batchId}', [ScanController::class, 'getBatchStatus'])
+    ->name('scans.batch.status')
+    ->middleware('throttle:60,1'); // Limit to 60 requests per minute
   // Scan list
   Route::prefix('analysis/scan-history')->group(function () {
     Route::get('/', [ScanController::class, 'index'])->name('scans.index');
@@ -152,10 +150,11 @@ Route::middleware(['auth'])->group(function () {
   });
 
 
-  // REALTIME SESSIONS  
+  // REALTIME SESSIONS
   // Realtime session store (realtime analysis)
   Route::get('real-time-analysis', [RealtimeController::class, 'create'])->name('sessions.create');
   Route::post('real-time-analysis', [RealtimeController::class, 'store'])->name('sessions.store');
+
   // Session list
   Route::prefix('analysis/session-history')->group(function () {
     Route::get('/', [RealtimeController::class, 'index'])->name('sessions.index');
@@ -163,10 +162,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/check-updates', [RealtimeController::class, 'indexCheck'])->middleware('throttle:120,1')->name('sessions.index.check');
     Route::get('/force-refresh', [RealtimeController::class, 'indexRefresh'])->middleware('throttle:60,1')->name('sessions.index.refresh');
 
-    // Realtime Session Details (Realtime scan index)
-    Route::get('/{realtimeSession}', [RealtimeScanController::class, 'index'])->name('sessions_scan.index');
-    // Realtime scan details
-    Route::get('/{realtimeSession}/scan/{scan}', [RealtimeScanController::class, 'scan'])->name('sessions_scan.show');
+    Route::get('/{realtimeSession}', [RealtimeController::class, 'show'])->name('sessions_scan.index');
+
 
     // Realtime Session  operations
     Route::delete('/{realtimeSession}', [RealtimeController::class, 'destroy'])->name('sessions.destroy');
@@ -176,49 +173,31 @@ Route::middleware(['auth'])->group(function () {
   // REALTIME SESSION API ENDPOINTS
   Route::prefix('api/realtime/sessions')->group(function () {
     // Start a new session
-    Route::post('/start', [RealtimeAnalysisController::class, 'startSession'])
-      ->name('realtime.sessions.start')
-      ->middleware('throttle:10,1'); // Limit to 10 requests per minute
+    Route::post('/start', [RealtimeAnalysisController::class, 'startSession'])->name('realtime.sessions.start');
 
     // Pause a session
-    Route::post('/pause', [RealtimeAnalysisController::class, 'pauseSession'])
-      ->name('realtime.sessions.pause')
-      ->middleware('throttle:10,1');
-
-    Route::post('/{session}/pause', [RealtimeAnalysisController::class, 'pauseSession'])
-      ->name('realtime.sessions.pause.specific')
-      ->middleware('throttle:10,1');
+    Route::post('/pause', [RealtimeAnalysisController::class, 'pauseSession'])->name('realtime.sessions.pause');
+    Route::post('/{session}/pause', [RealtimeAnalysisController::class, 'pauseSession'])->name('realtime.sessions.pause.specific');
 
     // Resume a session
-    Route::post('/resume', [RealtimeAnalysisController::class, 'resumeSession'])
-      ->name('realtime.sessions.resume')
-      ->middleware('throttle:10,1');
-
-    Route::post('/{session}/resume', [RealtimeAnalysisController::class, 'resumeSession'])
-      ->name('realtime.sessions.resume.specific')
-      ->middleware('throttle:10,1');
+    Route::post('/resume', [RealtimeAnalysisController::class, 'resumeSession'])->name('realtime.sessions.resume');
+    Route::post('/{session}/resume', [RealtimeAnalysisController::class, 'resumeSession']);
 
     // Stop a session (with optional session ID)
-    Route::post('/stop', [RealtimeAnalysisController::class, 'stopSession'])
-      ->name('realtime.sessions.stop')
-      ->middleware('throttle:10,1');
-
-    Route::post('/{session}/stop', [RealtimeAnalysisController::class, 'stopSession'])
-      ->name('realtime.sessions.stop.specific')
-      ->middleware('throttle:10,1');
+    Route::post('/stop', [RealtimeAnalysisController::class, 'stopSession'])->name('realtime.sessions.stop');
+    Route::post('/{session}/stop', [RealtimeAnalysisController::class, 'stopSession'])->name('realtime.sessions.stop.specific');
 
     // Get current active session
-    Route::get('/current', [RealtimeAnalysisController::class, 'getCurrentSession'])
-      ->name('realtime.sessions.current')
-      ->middleware('throttle:60,1'); // Allow more frequent checks
+    Route::get('/current', [RealtimeAnalysisController::class, 'getCurrentSession'])->name('realtime.sessions.current');
 
     // Get session status (for polling)
-    Route::get('/{session}/status', [RealtimeAnalysisController::class, 'getSessionStatus'])
-      ->name('realtime.sessions.status')
-      ->middleware('throttle:120,1');
+    Route::get('/{session}/status', [RealtimeAnalysisController::class, 'getSessionStatus'])->name('realtime.sessions.status');
   });
+
+  Route::post('/process-frame', [RealtimeFrameController::class, 'processFrame'])->name('realtime.sessions.process_frame');
 });
 
-Route::get('/home', function () {
-  return Inertia::render('Database/ProductOld');
-});
+
+// Route::get('/home', function () {
+//   return Inertia::render('Database/ProductOld');
+// });
