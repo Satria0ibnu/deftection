@@ -125,7 +125,7 @@ const form = computed({
                 <label
                     for="exportFormat"
                     class="text-sm font-medium text-gray-800 dark:text-dark-100"
-                    >Export Format</label
+                    >Preferred Export Format</label
                 >
                 <div class="mt-1 max-w-xs">
                     <div class="input-root undefined">
@@ -134,10 +134,33 @@ const form = computed({
                                 v-model="form.exportFormat"
                                 id="exportFormat"
                                 class="form-select-base form-select block w-full max-w-xs mt-1 text-sm ltr:pr-9 rtl:pl-9 peer border-gray-300 hover:border-gray-400 focus:border-primary-600 dark:border-dark-450 dark:hover:border-dark-400 dark:focus:border-primary-500"
-                                disabled
                             >
                                 <option value="pdf">PDF Report</option>
+                                <option value="csv" disabled>
+                                    CSV Report (Soon)
+                                </option>
+                                <option value="json" disabled>
+                                    JSON Report (Soon)
+                                </option>
                             </select>
+                            <div
+                                class="suffix ltr:right-0 rtl:left-0 pointer-events-none absolute top-0 flex h-full w-9 items-center justify-center transition-colors text-gray-400 peer-focus:text-primary-600 dark:text-dark-300 dark:peer-focus:text-primary-500"
+                            >
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 20 20"
+                                    fill="currentColor"
+                                    aria-hidden="true"
+                                    data-slot="icon"
+                                    class="w-2/3"
+                                >
+                                    <path
+                                        fill-rule="evenodd"
+                                        d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
+                                        clip-rule="evenodd"
+                                    ></path>
+                                </svg>
+                            </div>
                         </div>
                     </div>
                 </div>
