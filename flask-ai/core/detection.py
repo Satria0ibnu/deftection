@@ -1,8 +1,7 @@
 # core/detection.py - Enhanced with Ultra-Strict OpenAI Prompts
 """
-Core detection logic with OpenAI analysis integration (OpenAI 1.x compatible)
+Core detection logic with OpenAI analysis integration 
 ENHANCED with ultra-strict RAG prompts for maximum sensitivity without changing API response format
-FIXED: OpenAI validation for bounding box accuracy and defect type correction
 """
 
 import cv2

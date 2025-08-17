@@ -1,4 +1,4 @@
-# utils/stateless_visualization.py - Product-aware visualization
+# utils/stateless_visualization.py 
 """
 Product-aware visualization utilities for generating annotated images
 Automatically detects product boundaries and applies appropriate borders
