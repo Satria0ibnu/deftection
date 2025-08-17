@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from "vue";
+import { usePage } from "@inertiajs/vue3";
 
 // --- Props ---
 // This component receives the current detection settings from the parent page.
@@ -9,6 +10,8 @@ const props = defineProps({
         required: true,
     },
 });
+
+const role = usePage().props.auth.user.role;
 
 // --- Emits ---
 // Defines the event that will be sent to the parent component.
@@ -32,11 +35,11 @@ const form = computed({
         class="px-6 py-5 bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-dark-800 dark:shadow-none dark:border-none"
     >
         <!-- Section 1: Detection Configuration -->
-        <div class="flex flex-col">
+        <div v-if="role === 'admin'" class="flex flex-col">
             <h2
                 class="mb-1 flex items-center text-lg font-semibold text-gray-900 dark:text-dark-50"
             >
-                Detection Configuration
+                Detection Configuration (Admin Only)
             </h2>
             <p class="mb-6 text-xs text-gray-400 dark:text-dark-300">
                 Configure AI detection parameters and thresholds.
@@ -106,7 +109,10 @@ const form = computed({
             </div>
         </div>
 
-        <hr class="my-6 border-gray-200 dark:border-dark-600" />
+        <hr
+            v-if="role === 'admin'"
+            class="my-6 border-gray-200 dark:border-dark-600"
+        />
 
         <!-- Section 2: Export Settings -->
         <div>
@@ -119,7 +125,7 @@ const form = computed({
                 <label
                     for="exportFormat"
                     class="text-sm font-medium text-gray-800 dark:text-dark-100"
-                    >Preferred Export Format</label
+                    >Export Format</label
                 >
                 <div class="mt-1 max-w-xs">
                     <div class="input-root undefined">

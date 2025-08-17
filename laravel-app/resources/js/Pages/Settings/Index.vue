@@ -5,7 +5,7 @@ import { router } from "@inertiajs/vue3";
 
 // --- Import Components & Utils ---
 import AccountSettings from "./Components/AccountSettings.vue";
-import DetectionSettings from "./Components/DetectionSettings.vue";
+import GeneralSettings from "./Components/GeneralSettings.vue";
 import AdvancedSettings from "./Components/AdvancedSettings.vue";
 import ConfirmationModal from "./Components/Modals/ConfirmationModal.vue";
 import { successToast } from "@/utils/swal";
@@ -95,9 +95,9 @@ const tabs = [
     },
     {
         id: "detection",
-        name: "Detection Settings",
-        component: DetectionSettings,
-        icon: "fa-solid fa-magnifying-glass",
+        name: "General ",
+        component: GeneralSettings,
+        icon: "fa-solid fa-wrench",
     },
     {
         id: "advanced",
