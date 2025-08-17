@@ -152,6 +152,23 @@ class ProcessBatchImages implements ShouldQueue
                     Log::info('Scan threat information stored successfully.', ['scan_id' => $scan->id]);
                 }
 
+                Log::info('Updating batch progress in cache.', ['batch_id' => $this->batchId]);
+
+                // 1. Get the current status from the cache
+                $status = Cache::get('batch_status_' . $this->batchId, [
+                    'processed' => 0,
+                    'total' => $total,
+                    'errors' => []
+                ]);
+
+                // 2. Increment the processed count
+                $status['processed']++;
+
+                // 3. Put the updated status back into the cache
+                Cache::put('batch_status_' . $this->batchId, $status, now()->addMinutes(30));
+
+                Log::info('Batch progress updated.', ['batch_id' => $this->batchId, 'processed' => $status['processed']]);
+
             } catch (Exception $e) {
                 Log::error('Batch scan processing failed for image', [
                     'batch_id' => $this->batchId,
@@ -163,7 +180,7 @@ class ProcessBatchImages implements ShouldQueue
                 ]);
             }
 
-            sleep(0.5); // Throttle processing to avoid overwhelming the API
+            sleep(1); // Throttle processing to avoid overwhelming the API
         }
 
         Log::info('Finished processing batch. Cleaning up temporary files.', ['batch_id' => $this->batchId]);

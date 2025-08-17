@@ -161,7 +161,7 @@ async function handleRunBatchAnalysis(files) {
                 isProcessing.value = false;
                 // Handle error state
             }
-        }, 100); // Check every 0.5 seconds
+        }, 1000); // Check every 1 seconds
     } catch (error) {
         console.error("Failed to start batch:", error);
         isProcessing.value = false;
