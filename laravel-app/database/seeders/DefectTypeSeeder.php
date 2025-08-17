@@ -19,31 +19,31 @@ class DefectTypeSeeder extends Seeder
         $defectTypes = [
             [
                 'id' => 1,
-                'label' => 'damaged',
+                'name' => 'damaged',
                 'slug' => 'damaged',
                 'description' => 'Item is broken, cracked, dented, or does not work properly',
             ],
             [
                 'id' => 2,
-                'label' => 'missing_component',
+                'name' => 'missing_component',
                 'slug' => 'missing_component',
                 'description' => 'Item is missing parts or pieces that should be included',
             ],
             [
                 'id' => 3,
-                'label' => 'open',
+                'name' => 'open',
                 'slug' => 'open',
                 'description' => 'Package has been opened or box is not sealed',
             ],
             [
                 'id' => 4,
-                'label' => 'scratch',
+                'name' => 'scratch',
                 'slug' => 'scratch',
                 'description' => 'Item has scratches or marks on the surface',
             ],
             [
                 'id' => 5,
-                'label' => 'stained',
+                'name' => 'stained',
                 'slug' => 'stained',
                 'description' => 'Item has stains, spots, or dirty marks on it',
             ],
