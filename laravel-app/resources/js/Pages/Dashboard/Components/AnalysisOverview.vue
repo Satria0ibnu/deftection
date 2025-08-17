@@ -2,24 +2,10 @@
 import { Link } from "@inertiajs/vue3";
 import { route } from "ziggy-js";
 
-// This component will need to get overview data from the parent or a separate API call
-// For now, we'll use static placeholders since the DashboardService doesn't provide this data yet
 const props = defineProps({
-    averageTime: {
-        type: Number,
-        default: 0.5,
-    },
-    successRate: {
-        type: Number,
-        default: 86,
-    },
-    defectRate: {
-        type: Number,
-        default: 15,
-    },
-    AIConfidence: {
-        type: Number,
-        default: 90,
+    analyses: {
+        type: Object,
+        required: true,
     },
 });
 </script>
@@ -44,7 +30,7 @@ const props = defineProps({
                 </svg>
                 <span>Avg Processing Time</span>
             </div>
-            {{ averageTime }}s
+            {{ analyses.avgProcessingTime }}ms
         </div>
         <div
             class="flex justify-between bg-this-darker/[0.07] dark:bg-this-lighter/10 py-2 border border-this-darker/20 dark:border-this-lighter/20 text-this-darker dark:text-this-lighter badge-base badge this:success"
@@ -62,9 +48,9 @@ const props = defineProps({
                         clip-rule="evenodd"
                     />
                 </svg>
-                <span>Success Rate</span>
+                <span>Good Rate</span>
             </div>
-            {{ successRate }}%
+            {{ analyses.goodRate }}%
         </div>
         <div
             class="flex justify-between bg-this-darker/[0.07] dark:bg-this-lighter/10 py-2 border border-this-darker/20 dark:border-this-lighter/20 text-this-darker dark:text-this-lighter badge-base badge this:error"
@@ -84,7 +70,7 @@ const props = defineProps({
                 </svg>
                 <span>Defect Rate</span>
             </div>
-            {{ defectRate }}%
+            {{ analyses.defectRate }}%
         </div>
         <div
             class="flex justify-between bg-this-darker/[0.07] dark:bg-this-lighter/10 py-2 border border-this-darker/20 dark:border-this-lighter/20 text-this-darker dark:text-this-lighter badge-base badge this:secondary"
@@ -104,7 +90,7 @@ const props = defineProps({
                 </svg>
                 <span>AI Confidence</span>
             </div>
-            {{ AIConfidence }}%
+            {{ analyses.aiConfidence }}%
         </div>
     </div>
     <div class="flex flex-col gap-4 mt-3">

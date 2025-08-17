@@ -28,6 +28,10 @@ const props = defineProps({
         type: Array,
         required: true,
     },
+    analysesOverview: {
+        type: Object,
+        required: true,
+    },
 });
 </script>
 
@@ -157,7 +161,7 @@ const props = defineProps({
                 Analysis Overview
             </h2>
 
-            <AnalysisOverview />
+            <AnalysisOverview :analyses="analysesOverview" />
         </div>
     </div>
 </template>
