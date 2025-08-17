@@ -222,7 +222,7 @@ const handleDeleteError = (errors) => {
                                 <div class="flex items-center">
                                     <img
                                         class="flex-shrink-0 rounded-md w-16 h-10 object-cover"
-                                        :src="scan.original_path"
+                                        :src="scan.annotated_path"
                                         alt="Scan Image"
                                     />
                                     <p

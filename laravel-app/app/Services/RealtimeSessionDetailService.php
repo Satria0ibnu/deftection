@@ -34,7 +34,8 @@ class RealtimeSessionDetailService
 
                 'status' => $scan->is_defect ? 'defect' : 'good',
                 'anomaly_score' => $scan->anomaly_score,
-                'original_path' => $this->getImagePath($scan->filename, $scan->is_defect),
+                'annotated_path' => $scan->annotated_path ? Storage::url($scan->annotated_path) : $this->getImagePath($scan->filename, $scan->is_defect),
+
             ];
         });
 
@@ -68,16 +69,7 @@ class RealtimeSessionDetailService
         }
 
         $endTime = $session->session_end ?? now();
-        $duration = abs($session->session_start->diffInSeconds($endTime));
-
-        $hours = floor($duration / 3600);
-        $minutes = floor(($duration % 3600) / 60);
-
-        if ($hours > 0) {
-            return "{$hours} hour" . ($hours > 1 ? 's' : '') . " {$minutes} minute" . ($minutes != 1 ? 's' : '');
-        }
-
-        return "{$minutes} minute" . ($minutes != 1 ? 's' : '');
+        return $session->session_start->diffForHumans($endTime, true);
     }
 
     /**
@@ -128,18 +120,21 @@ class RealtimeSessionDetailService
     /**
      * Get image path with proper placeholders for good/defect status
      */
-    private function getImagePath(string $filename, bool $isDefect = false): string
+
+    private function getImagePath(string $filename, bool $isDefect = false)
     {
-        // Check if file exists in storage
+        // First check for annotated image (from controller logic)
+        $annotatedPath = 'images/realtime/annotated/' . $filename;
+        if (Storage::disk('public')->exists($annotatedPath)) {
+            return Storage::url($annotatedPath);
+        }
+
+        // Check if original file exists in realtime_scans directory
         if (Storage::disk('public')->exists('realtime_scans/' . $filename)) {
             return Storage::url('realtime_scans/' . $filename);
         }
 
-        // Return placeholder based on status - matching your current format
-        if ($isDefect) {
-            return "";
-        } else {
-            return "";
-        }
+        // Return null if no image found
+        return null;
     }
 }
