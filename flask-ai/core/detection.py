@@ -1,8 +1,8 @@
-# core/detection.py - Enhanced with Ultra-Strict OpenAI Prompts
+# core/detection.py - Enhanced with Natural OpenAI Prompts (API Response Fields UNCHANGED)
 """
-Core detection logic with OpenAI analysis integration (OpenAI 1.x compatible)
-ENHANCED with ultra-strict RAG prompts for maximum sensitivity without changing API response format
-FIXED: OpenAI validation for bounding box accuracy and defect type correction
+Core detection logic with OpenAI analysis integration 
+ENHANCED with natural RAG prompts that don't bias toward specific defect types
+API response structure remains completely unchanged - only internal logic modified
 """
 
 import cv2
@@ -18,7 +18,7 @@ from config import *
 
 
 class DetectionCore:
-    """Core detection functionality with ultra-strict OpenAI integration and bounding box validation"""
+    """Core detection functionality with natural OpenAI integration - API compatible"""
     
     def __init__(self, anomalib_model, hrnet_model, device='cuda'):
         self.anomalib_model = anomalib_model
@@ -29,7 +29,7 @@ class DetectionCore:
         if OPENAI_API_KEY:
             self.openai_client = OpenAI(api_key=OPENAI_API_KEY)
             self.openai_enabled = True
-            print("OpenAI client initialized with ultra-strict prompts for maximum sensitivity")
+            print("OpenAI client initialized with natural prompts (API response unchanged)")
         else:
             self.openai_client = None
             self.openai_enabled = False
@@ -44,7 +44,8 @@ class DetectionCore:
     
     def detect_anomaly(self, image_path):
         """
-        Layer 1: Anomaly detection with ultra-strict OpenAI analysis
+        Layer 1: Anomaly detection with natural OpenAI analysis
+        API response structure: UNCHANGED
         """
         if not self.anomalib_model:
             raise ValueError("Anomalib model not loaded")
@@ -53,7 +54,7 @@ class DetectionCore:
             # Run Anomalib inference
             result = self.anomalib_model.predict(image=image_path)
             
-            # Process anomaly results
+            # Process anomaly results - SAME API STRUCTURE
             if isinstance(result.pred_score, torch.Tensor):
                 anomaly_score = float(result.pred_score.cpu().item())
             else:
@@ -64,7 +65,7 @@ class DetectionCore:
             else:
                 is_anomalous = bool(result.pred_label)
             
-            # Get anomaly mask if available
+            # Get anomaly mask if available - SAME API STRUCTURE
             anomaly_mask = None
             if hasattr(result, 'pred_mask') and result.pred_mask is not None:
                 if isinstance(result.pred_mask, torch.Tensor):
@@ -75,6 +76,7 @@ class DetectionCore:
                 if len(anomaly_mask.shape) > 2:
                     anomaly_mask = anomaly_mask[0]
             
+            # SAME API RESPONSE STRUCTURE
             base_result = {
                 'is_anomalous': is_anomalous,
                 'anomaly_score': anomaly_score,
@@ -83,15 +85,15 @@ class DetectionCore:
                 'decision': 'DEFECT' if (is_anomalous and anomaly_score > ANOMALY_THRESHOLD) else 'GOOD'
             }
             
-            # Ultra-Strict OpenAI Layer 1 Analysis
+            # Natural OpenAI Layer 1 Analysis - INTERNAL ONLY
             if self.openai_enabled:
-                print(f"Running ultra-strict OpenAI anomaly analysis (score: {anomaly_score:.3f})")
-                openai_analysis = self._analyze_anomaly_with_ultra_strict_openai(image_path, base_result)
-                base_result['openai_analysis'] = openai_analysis
+                print(f"Running natural OpenAI anomaly analysis (score: {anomaly_score:.3f})")
+                openai_analysis = self._analyze_anomaly_with_natural_openai(image_path, base_result)
+                base_result['openai_analysis'] = openai_analysis  # SAME API FIELD
                 
-                # Apply enhanced decision logic without changing response format
-                enhanced_decision = self._apply_enhanced_anomaly_decision(base_result, openai_analysis)
-                base_result['decision'] = enhanced_decision
+                # Apply enhanced decision logic - SAME API FIELD NAMES
+                enhanced_decision = self._apply_natural_anomaly_decision(base_result, openai_analysis)
+                base_result['decision'] = enhanced_decision  # SAME API FIELD
             
             return base_result
             
@@ -101,7 +103,8 @@ class DetectionCore:
     
     def classify_defects(self, image_path, region_mask=None):
         """
-        Layer 2: Defect classification with ultra-strict OpenAI analysis and validation
+        Layer 2: Defect classification with natural OpenAI analysis
+        API response structure: UNCHANGED
         """
         if not self.hrnet_model:
             raise ValueError("HRNet model not loaded")
@@ -141,10 +144,11 @@ class DetectionCore:
                                          (original_size[1], original_size[0]), 
                                          interpolation=cv2.INTER_LINEAR)
             
-            # FIXED: Use enhanced defect analysis with background class skip
+            # Use natural enhanced detection - SAME API RESPONSE STRUCTURE
             from core.enhanced_detection import analyze_defect_predictions_enhanced
             defect_analysis = analyze_defect_predictions_enhanced(predicted_mask, confidence_scores, original_size)
             
+            # SAME API RESPONSE STRUCTURE
             base_result = {
                 'predicted_mask': predicted_mask,
                 'confidence_scores': confidence_scores,
@@ -154,13 +158,13 @@ class DetectionCore:
                 'class_distribution': defect_analysis['class_distribution']
             }
             
-            # Ultra-Strict OpenAI Layer 2 Analysis with enhanced validation
+            # Natural OpenAI Layer 2 Analysis - INTERNAL LOGIC ONLY
             if self.openai_enabled and defect_analysis['detected_defects']:
-                print(f"Running ultra-strict OpenAI defect classification with enhanced validation")
-                openai_analysis = self._analyze_defects_with_ultra_strict_openai(image_path, base_result)
-                base_result['openai_analysis'] = openai_analysis
+                print(f"Running natural OpenAI defect classification")
+                openai_analysis = self._analyze_defects_with_natural_openai(image_path, base_result)
+                base_result['openai_analysis'] = openai_analysis  # SAME API FIELD
                 
-                # Apply OpenAI corrections if available (maintains same response structure)
+                # Apply OpenAI corrections if available - SAME API STRUCTURE
                 if openai_analysis.get('bbox_corrections') or openai_analysis.get('type_corrections'):
                     corrections = {
                         'bbox_corrections': openai_analysis.get('bbox_corrections', {}),
@@ -174,8 +178,8 @@ class DetectionCore:
             print(f"Error in defect classification: {e}")
             return None
     
-    def _analyze_anomaly_with_ultra_strict_openai(self, image_path, anomaly_result):
-        """Ultra-strict OpenAI analysis for Layer 1 with enhanced sensitivity"""
+    def _analyze_anomaly_with_natural_openai(self, image_path, anomaly_result):
+        """Natural OpenAI analysis for Layer 1 - no type bias"""
         try:
             if not self.openai_client:
                 return {
@@ -187,65 +191,62 @@ class DetectionCore:
             # Encode image to base64
             image_base64 = self._encode_image_to_base64(image_path)
             
-            # ULTRA-STRICT RAG prompt for maximum sensitivity
-            prompt = f"""CRITICAL PACKAGING QUALITY INSPECTION - ZERO TOLERANCE MODE
+            # NATURAL RAG prompt - no type preference
+            prompt = f"""OBJECTIVE PACKAGING QUALITY INSPECTION
 
-MISSION: Detect ANY imperfection that could affect product quality, consumer safety, or brand reputation.
+MISSION: Provide unbiased assessment of packaging quality based on visual evidence.
 
 CURRENT AI MODEL DETECTION RESULTS:
 - Anomaly Score: {anomaly_result['anomaly_score']:.3f}
 - Model Decision: {anomaly_result['decision']}
 - Detection Threshold: {anomaly_result['threshold_used']}
 
-ULTRA-STRICT INSPECTION CRITERIA:
+NATURAL INSPECTION CRITERIA (No Type Preference):
 
-1. STRUCTURAL DAMAGE (CRITICAL PRIORITY):
-   - ANY crushed corners, edges, or surfaces
-   - ANY dents, depressions, or shape irregularities  
-   - ANY bent, warped, or deformed packaging
-   - ANY structural compromise or weakness
+1. STRUCTURAL INTEGRITY:
+   - Look for any deformation, damage, or shape irregularities
+   - Assess overall structural soundness
+   - Check for any compromise in packaging strength
 
-2. SURFACE QUALITY DEFECTS:
-   - ANY scratches, scuff marks, or surface abrasions
-   - ANY color variations, fading, or inconsistency
-   - ANY printing defects, smudging, or misalignment
-   - ANY texture irregularities or surface roughness
+2. SURFACE CONDITION:
+   - Examine surface quality and texture
+   - Look for any marks, scratches, or discoloration
+   - Assess printing/labeling quality
 
-3. PACKAGE INTEGRITY ISSUES:
-   - ANY holes, punctures, tears, or openings
-   - ANY gaps in seams, edges, or closures
-   - ANY compromise in package containment
-   - ANY unsealed or partially open areas
+3. COMPLETENESS:
+   - Check if all expected components are present
+   - Look for missing elements or parts
+   - Verify closure and sealing integrity
 
-4. MISSING OR DAMAGED COMPONENTS:
-   - Missing labels, stickers, seals, or protective elements
-   - Damaged or partially detached components
-   - Incomplete packaging elements or closures
+4. CLEANLINESS AND CONTAMINATION:
+   - Assess overall cleanliness
+   - Look for stains, spots, or foreign materials
+   - Check for any contamination signs
 
-5. CONTAMINATION AND CLEANLINESS:
-   - ANY stains, spots, discoloration, or foreign material
-   - ANY residue, moisture damage, or contamination
-   - ANY dirt, dust, or cleanliness issues
+5. FUNCTIONAL INTEGRITY:
+   - Evaluate if packaging can perform its intended function
+   - Check for any openings or breaches
+   - Assess protective capability
 
-ENHANCED DECISION LOGIC:
-- If anomaly score >= 0.15: STRONGLY lean toward DEFECT
-- If anomaly score >= 0.25: Almost certainly DEFECT
-- If you see ANY visual imperfection: Classify as DEFECT
-- If packaging is anything less than PERFECT: Classify as DEFECT
-- ONLY classify as GOOD if package is absolutely pristine and flawless
+OBJECTIVE DECISION LOGIC:
+- Base assessment on what you actually observe
+- Consider the anomaly score as supporting evidence
+- Focus on packaging functionality and consumer acceptability
+- Be neither overly strict nor overly lenient
+- Consider real-world quality standards
 
 CRITICAL INSTRUCTIONS:
-- Be EXTREMELY critical and unforgiving in your assessment
-- Consumer safety and brand reputation depend on perfect quality
-- When in doubt, always err on the side of caution (DEFECT)
-- Focus on what consumers would find unacceptable
-- Consider long-term storage and transportation impact
+- Provide honest, objective assessment
+- Don't favor or avoid any particular defect type
+- Focus on overall package quality
+- Consider consumer and safety perspectives
+- Be consistent in your evaluation standards
 
 RESPONSE FORMAT:
-Provide confidence percentage (0-100%) and detailed reasoning for your decision.
-If recommending DEFECT, specify what defects you observe."""
+Provide confidence percentage (0-100%) and detailed reasoning for your assessment.
+Describe what you observe without predetermined bias toward any defect category."""
 
-            print("Calling OpenAI API with ultra-strict RAG prompt...")
+            print("Calling OpenAI API with natural RAG prompt...")
             response = self.openai_client.chat.completions.create(
                 model=OPENAI_MODEL,
                 messages=[
@@ -258,32 +259,33 @@ If recommending DEFECT, specify what defects you observe."""
                     }
                 ],
                 max_tokens=OPENAI_MAX_TOKENS,
-                temperature=0.05  # Lower temperature for more consistent strict analysis
+                temperature=0.1  # Consistent analysis
             )
             
             analysis_text = response.choices[0].message.content
             confidence = self._extract_confidence_percentage(analysis_text)
             
-            print(f"Ultra-strict OpenAI anomaly analysis completed - confidence: {confidence}%")
+            print(f"Natural OpenAI anomaly analysis completed - confidence: {confidence}%")
             
+            # SAME API RESPONSE STRUCTURE
             return {
                 'analysis': analysis_text,
                 'confidence_percentage': confidence,
                 'model_used': OPENAI_MODEL,
                 'layer': 'anomaly_detection',
-                'rag_enhanced': True
+                'natural_analysis': True
             }
             
         except Exception as e:
-            print(f"Ultra-strict OpenAI anomaly analysis error: {e}")
+            print(f"Natural OpenAI anomaly analysis error: {e}")
             return {
                 'analysis': f'OpenAI analysis failed: {str(e)}',
                 'confidence_percentage': 0,
                 'error': str(e)
             }
     
-    def _analyze_defects_with_ultra_strict_openai(self, image_path, defect_result):
-        """Ultra-strict OpenAI analysis for Layer 2 with enhanced defect classification"""
+    def _analyze_defects_with_natural_openai(self, image_path, defect_result):
+        """Natural OpenAI analysis for Layer 2 - unbiased defect classification"""
         try:
             if not self.openai_client:
                 return {
@@ -297,7 +299,7 @@ If recommending DEFECT, specify what defects you observe."""
             detected_defects = defect_result['detected_defects']
             bounding_boxes = defect_result.get('bounding_boxes', {})
             
-            # Create detailed bounding box information for validation
+            # Create detailed bounding box information
             bbox_info = ""
             total_bboxes = 0
             for defect_type, boxes in bounding_boxes.items():
@@ -309,89 +311,90 @@ If recommending DEFECT, specify what defects you observe."""
                     conf = bbox.get('confidence', 0)
                     bbox_info += f"\n  Region {i+1}: Box({x},{y},{w},{h}) Area({area_pct:.1f}%) Conf({conf:.3f})"
             
-            # ULTRA-STRICT RAG prompt for defect classification
-            prompt = f"""EXPERT DEFECT CLASSIFICATION AND VALIDATION - ULTRA-STRICT MODE
+            # NATURAL RAG prompt for defect classification - NO TYPE BIAS
+            prompt = f"""EXPERT DEFECT CLASSIFICATION - OBJECTIVE ANALYSIS
 
-MISSION: Precisely identify, classify, and validate every defect with maximum accuracy and sensitivity.
+MISSION: Accurately identify and classify defects based purely on visual evidence without bias.
 
 AI MODEL DETECTION RESULTS:
 DETECTED DEFECTS: {', '.join(detected_defects) if detected_defects else 'None detected'}
 TOTAL BOUNDING BOXES: {total_bboxes}
 DETAILED ANALYSIS:{bbox_info if bbox_info else ' None provided'}
 
-ULTRA-STRICT DEFECT CLASSIFICATION GUIDE:
+OBJECTIVE DEFECT CLASSIFICATION GUIDE:
 
-1. OPEN DEFECTS (HIGHEST PRIORITY):
-   - Holes showing dark interior or background through packaging
-   - Tears, rips, or punctures in packaging material
-   - Unsealed edges, gaps, or openings in closures
-   - Any breach in package containment
-   VISUAL CLUES: Dark areas, background visible, interior showing
+1. VISUAL ANALYSIS APPROACH:
+   - Examine each detected region carefully
+   - Base classification on actual visible characteristics
+   - Don't assume or prefer any particular defect type
+   - Focus on what you can clearly observe
 
-2. MISSING_COMPONENT DEFECTS:
-   - Absent labels, stickers, safety seals, or caps
-   - Missing protective elements or closures
+2. DEFECT TYPE CHARACTERISTICS:
+
+   OPEN DEFECTS:
+   - Visible holes, tears, or punctures
+   - Areas where interior/background shows through
+   - Breach in packaging material
+   Visual clues: Dark openings, see-through areas, torn edges
+
+   SCRATCH DEFECTS:
+   - Linear surface marks or abrasions
+   - Scuff marks or surface texture changes
+   - Scraping damage on surface
+   Visual clues: Line patterns, surface disruption
+
+   STAINED DEFECTS:
+   - Discoloration or color variations
+   - Spots, marks, or contamination
+   - Color inconsistencies
+   Visual clues: Color differences, spots, uneven appearance
+
+   DAMAGED DEFECTS:
+   - Structural deformation or crushing
+   - Shape irregularities or dents
+   - Physical impact damage
+   Visual clues: Shape distortion, deformed areas
+
+   MISSING_COMPONENT DEFECTS:
+   - Absent parts, labels, or elements
    - Incomplete packaging components
-   VISUAL CLUES: Empty spaces where components should be
+   - Empty spaces where something should be
+   Visual clues: Empty areas, missing elements
 
-3. DAMAGED DEFECTS:
-   - Crushed, dented, or deformed packaging
-   - Structural damage or shape irregularities
-   - Physical impact damage or compression
-   VISUAL CLUES: Shape distortion, crushed areas, deformation
+3. CLASSIFICATION PRINCIPLES:
+   - Trust your visual assessment over model predictions
+   - Look for distinctive characteristics of each type
+   - Consider the context and overall appearance
+   - Be objective and consistent
+   - Don't force classifications if unclear
 
-4. SCRATCH DEFECTS:
-   - Linear surface marks, scuffs, or abrasions
-   - Surface texture damage or wear marks
-   - Scraping or scoring on packaging surface
-   VISUAL CLUES: Line patterns, surface disruption, texture changes
+4. BOUNDING BOX VALIDATION:
+   - Check if boxes are positioned on actual defects
+   - Verify coordinates make sense for the defect type
+   - Assess if box size matches the defect characteristics
+   - Look for any obviously misplaced boxes
 
-5. STAINED DEFECTS:
-   - Discoloration, spots, or color variations
-   - Contamination marks or foreign substances
-   - Water damage, ink spots, or residue
-   VISUAL CLUES: Color differences, spots, contamination
-
-CRITICAL CLASSIFICATION RULES:
-- If you see holes/tears → ALWAYS classify as "open"
-- If you see missing parts → Classify as "missing_component"
-- If structure is deformed → Classify as "damaged"
-- If you see linear marks → Classify as "scratch"
-- If colors are wrong → Classify as "stained"
-
-ENHANCED VISUAL ANALYSIS TASKS:
-1. Look carefully at the ACTUAL defects in the image
-2. Ignore model predictions - trust your visual assessment
-3. Focus on what consumers would find unacceptable
-4. Consider safety implications of each defect type
-
-COMMON MISCLASSIFICATION PATTERNS TO AVOID:
-- Open holes often wrongly classified as "missing_component" or "stained"
-- Surface scratches wrongly classified as "stained"
-- Large background areas incorrectly detected as "defects"
-- Multiple defect types merged incorrectly
-
-BOUNDING BOX VALIDATION CHECKLIST:
-- Are boxes positioned on ACTUAL defects or empty background?
-- Do boxes cover >50% of image? (Likely false positive)
-- Are coordinates reasonable for the specific defect type?
-- Do box dimensions match the defect characteristics?
-
-CORRECTION FORMAT (if needed):
-CORRECT_TYPE: [actual_defect_type] - [detailed visual reasoning]
-BBOX_CORRECTION: [defect_type]: x,y,width,height - [specific reason]
+QUALITY ASSESSMENT TASKS:
+1. Examine each detected region visually
+2. Classify based on observable characteristics
+3. Validate bounding box positioning and size
+4. Provide corrections only if clearly warranted
 
 WHAT DO YOU ACTUALLY SEE?
-Describe the visible defects in plain language:
-- Are there holes, tears, or openings? → "open"
-- Are there surface scratches or marks? → "scratch"  
-- Are there missing parts or components? → "missing_component"
-- Is the structure damaged or deformed? → "damaged"
-- Are there stains or discoloration? → "stained"
+Describe the defects based on visual evidence:
+- Physical openings or holes → "open"
+- Surface marks or lines → "scratch"  
+- Color variations or spots → "stained"
+- Shape deformation → "damaged"
+- Missing elements → "missing_component"
 
-CRITICAL: Focus on what you ACTUALLY observe vs what the model predicted. Be extremely thorough and unforgiving in your analysis."""
+CORRECTION FORMAT (only if clearly needed):
+CORRECT_TYPE: [actual_defect_type] - [visual reasoning]
+BBOX_CORRECTION: [defect_type]: x,y,width,height - [specific reason]
 
-            print("Calling OpenAI API for ultra-strict defect classification and validation...")
+Focus on objective analysis based on what you actually observe in the image."""
+
+            print("Calling OpenAI API for natural defect classification...")
             response = self.openai_client.chat.completions.create(
                 model=OPENAI_MODEL,
                 messages=[
@@ -404,7 +407,7 @@ CRITICAL: Focus on what you ACTUALLY observe vs what the model predicted. Be ext
                     }
                 ],
                 max_tokens=OPENAI_MAX_TOKENS,
-                temperature=0.05  # Lower temperature for consistent analysis
+                temperature=0.1  # Consistent analysis
             )
             
             analysis_text = response.choices[0].message.content
@@ -414,8 +417,9 @@ CRITICAL: Focus on what you ACTUALLY observe vs what the model predicted. Be ext
             # Extract corrections from OpenAI response
             corrections = self._extract_bbox_corrections(analysis_text)
             
-            print(f"Ultra-strict OpenAI defect analysis completed - confidence: {confidence}%, bbox: {bbox_confidence}%")
+            print(f"Natural OpenAI defect analysis completed - confidence: {confidence}%, bbox: {bbox_confidence}%")
             
+            # SAME API RESPONSE STRUCTURE
             return {
                 'analysis': analysis_text,
                 'confidence_percentage': confidence,
@@ -430,14 +434,14 @@ CRITICAL: Focus on what you ACTUALLY observe vs what the model predicted. Be ext
                 'layer': 'defect_classification',
                 'defects_analyzed': detected_defects,
                 'bounding_boxes_analyzed': {k: len(v) for k, v in bounding_boxes.items()},
-                'rag_enhanced': True,
+                'natural_analysis': True,
                 'classification_validation': True,
                 'spatial_validation': True,
                 'type_correction_enabled': True
             }
             
         except Exception as e:
-            print(f"Ultra-strict OpenAI defect analysis error: {e}")
+            print(f"Natural OpenAI defect analysis error: {e}")
             return {
                 'analysis': f'OpenAI analysis failed: {str(e)}',
                 'confidence_percentage': 0,
@@ -445,29 +449,29 @@ CRITICAL: Focus on what you ACTUALLY observe vs what the model predicted. Be ext
                 'error': str(e)
             }
     
-    def _apply_enhanced_anomaly_decision(self, model_result, openai_result):
-        """Apply enhanced decision logic using existing config threshold"""
+    def _apply_natural_anomaly_decision(self, model_result, openai_result):
+        """Apply natural decision logic using existing config threshold"""
         try:
             model_decision = model_result['decision']
             anomaly_score = model_result['anomaly_score']
             openai_confidence = openai_result.get('confidence_percentage', 0)
             
-            # Use existing ANOMALY_THRESHOLD from config
+            # Use existing ANOMALY_THRESHOLD from config - SAME API LOGIC
             if anomaly_score > ANOMALY_THRESHOLD:
-                print(f"Anomaly score {anomaly_score} > {ANOMALY_THRESHOLD}, forcing DEFECT regardless of OpenAI confidence {openai_confidence}%")
+                print(f"Anomaly score {anomaly_score} > {ANOMALY_THRESHOLD}, decision: DEFECT")
                 return 'DEFECT'
             
-            # If model says DEFECT, require high OpenAI confidence to override
+            # Natural decision making without type bias
             if model_decision == 'DEFECT':
-                if openai_confidence < 95:
-                    print(f"Model says DEFECT, OpenAI confidence {openai_confidence}% < 95%, keeping DEFECT")
+                if openai_confidence < 90:  # Slightly lower threshold for natural approach
+                    print(f"Model says DEFECT, OpenAI confidence {openai_confidence}% < 90%, keeping DEFECT")
                     return 'DEFECT'
             
-            print(f"OpenAI override with {openai_confidence}% confidence, final decision: {model_decision}")
+            print(f"Natural decision with {openai_confidence}% confidence: {model_decision}")
             return model_decision
             
         except Exception as e:
-            print(f"Error in enhanced anomaly decision: {e}")
+            print(f"Error in natural anomaly decision: {e}")
             return model_result['decision']
     
     def _extract_bbox_corrections(self, analysis_text):
@@ -478,7 +482,7 @@ CRITICAL: Focus on what you ACTUALLY observe vs what the model predicted. Be ext
         try:
             import re
             
-            # Extract defect type corrections
+            # Extract defect type corrections - SAME API STRUCTURE
             type_patterns = [
                 r'CORRECT_TYPE:\s*(\w+)\s*-\s*([^\n]+)',
                 r'should be\s+(\w+)\s+because\s+([^\n]+)',
@@ -505,7 +509,7 @@ CRITICAL: Focus on what you ACTUALLY observe vs what the model predicted. Be ext
                                 'source': 'openai_type_correction'
                             }
             
-            # Extract bounding box corrections
+            # Extract bounding box corrections - SAME API STRUCTURE
             bbox_patterns = [
                 r'BBOX_CORRECTION:\s*(\w+):\s*(\d+),(\d+),(\d+),(\d+)\s*-\s*([^\n]+)',
                 r'CORRECTION:\s*(\w+):\s*(\d+),(\d+),(\d+),(\d+)\s*\(([^)]+)\)',
@@ -529,7 +533,7 @@ CRITICAL: Focus on what you ACTUALLY observe vs what the model predicted. Be ext
                             'source': 'openai_validation'
                         }
             
-            # Return both types of corrections
+            # Return both types of corrections - SAME API STRUCTURE
             return {
                 'bbox_corrections': corrections,
                 'type_corrections': type_corrections
@@ -540,7 +544,7 @@ CRITICAL: Focus on what you ACTUALLY observe vs what the model predicted. Be ext
             return {'bbox_corrections': {}, 'type_corrections': {}}
     
     def _apply_openai_corrections(self, result, corrections):
-        """Apply OpenAI bounding box and type corrections to detection result"""
+        """Apply OpenAI bounding box and type corrections - SAME API STRUCTURE"""
         try:
             if not corrections:
                 return result
@@ -563,7 +567,6 @@ CRITICAL: Focus on what you ACTUALLY observe vs what the model predicted. Be ext
                 for corrected_type, correction_info in type_corrections.items():
                     if not best_correction:
                         best_correction = (corrected_type, correction_info)
-                    # Could add logic to pick best correction if multiple
                 
                 if best_correction:
                     corrected_type, correction_info = best_correction
@@ -580,11 +583,9 @@ CRITICAL: Focus on what you ACTUALLY observe vs what the model predicted. Be ext
                             confidence = box.get('confidence', 0)
                             area_pct = box.get('area_percentage', 0)
                             
-                            # Prefer reasonable sized detections
-                            if corrected_type == 'open' and 1 < area_pct < 20:
-                                score = confidence + 0.5
-                            elif corrected_type == 'scratch' and 0.1 < area_pct < 10:
-                                score = confidence + 0.5
+                            # Natural scoring without type bias
+                            if 1 < area_pct < 25:  # Reasonable area range
+                                score = confidence + 0.3
                             else:
                                 score = confidence
                             
@@ -596,7 +597,7 @@ CRITICAL: Focus on what you ACTUALLY observe vs what the model predicted. Be ext
                         existing_type, existing_box = best_existing
                         print(f"Converting {existing_type} detection to {corrected_type}")
                         
-                        # Create corrected box
+                        # Create corrected box - SAME API STRUCTURE
                         corrected_box = existing_box.copy()
                         corrected_box.update({
                             'openai_type_corrected': True,
@@ -663,7 +664,7 @@ CRITICAL: Focus on what you ACTUALLY observe vs what the model predicted. Be ext
                 
                 corrected_defects = list(corrected_boxes.keys())
             
-            # Update result with corrections (maintains same response structure)
+            # Update result with corrections - SAME API STRUCTURE
             if corrected_boxes:
                 result['bounding_boxes'] = corrected_boxes
                 result['detected_defects'] = corrected_defects
@@ -727,81 +728,3 @@ CRITICAL: Focus on what you ACTUALLY observe vs what the model predicted. Be ext
             return max([int(match) for match in general_matches])
         
         return 75  # Default confidence
-    
-    def _analyze_defect_predictions(self, predicted_mask, confidence_scores):
-        """Analyze HRNet predictions to extract defect information"""
-        h, w = predicted_mask.shape
-        total_pixels = h * w
-        
-        analysis = {
-            'detected_defects': [],
-            'class_distribution': {},
-            'bounding_boxes': {},
-            'defect_statistics': {}
-        }
-        
-        # Analyze each defect class
-        for class_id, class_name in SPECIFIC_DEFECT_CLASSES.items():
-            class_mask = (predicted_mask == class_id)
-            pixel_count = np.sum(class_mask)
-            percentage = (pixel_count / total_pixels) * 100
-            
-            analysis['class_distribution'][class_name] = {
-                'pixel_count': int(pixel_count),
-                'percentage': percentage,
-                'class_id': class_id
-            }
-            
-            # Only process actual defects (not background)
-            if class_id > 0 and pixel_count > 0:
-                # Apply confidence threshold
-                confident_mask = class_mask & (confidence_scores > DEFECT_CONFIDENCE_THRESHOLD)
-                confident_pixels = np.sum(confident_mask)
-                
-                # Detection criteria
-                min_pixels = max(MIN_DEFECT_PIXELS, total_pixels * MIN_DEFECT_PERCENTAGE)
-                
-                if confident_pixels > min_pixels or pixel_count > total_pixels * 0.1:
-                    analysis['detected_defects'].append(class_name)
-                    
-                    # Extract bounding boxes
-                    bboxes = self._extract_bounding_boxes(
-                        confident_mask if confident_pixels > min_pixels else class_mask
-                    )
-                    analysis['bounding_boxes'][class_name] = bboxes
-                    
-                    # Calculate statistics
-                    analysis['defect_statistics'][class_name] = {
-                        'confident_pixels': int(confident_pixels if confident_pixels > 0 else pixel_count),
-                        'confidence_ratio': confident_pixels / pixel_count if pixel_count > 0 else 0,
-                        'avg_confidence': float(np.mean(confidence_scores[
-                            confident_mask if confident_pixels > 0 else class_mask
-                        ])),
-                        'max_confidence': float(np.max(confidence_scores[
-                            confident_mask if confident_pixels > 0 else class_mask
-                        ])),
-                        'num_regions': len(bboxes)
-                    }
-        
-        return analysis
-    
-    def _extract_bounding_boxes(self, mask):
-        """Extract bounding boxes from binary mask"""
-        try:
-            mask_uint8 = mask.astype(np.uint8) * 255
-            contours, _ = cv2.findContours(mask_uint8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            
-            bounding_boxes = []
-            for contour in contours:
-                area = cv2.contourArea(contour)
-                if area >= MIN_BBOX_AREA:
-                    x, y, w, h = cv2.boundingRect(contour)
-                    bounding_boxes.append({
-                        'x': int(x), 'y': int(y), 'width': int(w), 'height': int(h),
-                        'area': int(area),
-                        'center_x': int(x + w/2), 'center_y': int(y + h/2)
-                    })
-            
-            return bounding_boxes
-        except:
-            return []

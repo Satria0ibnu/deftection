@@ -1,6 +1,5 @@
 """
 Complete Configuration file for Flask-AI + Security Scanner + OpenAI Integration
-FIXED: Lowered confidence thresholds for better detection
 """
 
 import os
