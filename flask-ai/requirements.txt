@@ -53,7 +53,7 @@ psutil
 
 # YARA Installation:
 # - Ubuntu/Debian: sudo apt-get install libmagic1 libyara-dev
-# - CentOS/RHEL: sudo yum install file-libs yara-devel  
+# - CentOS/RHEL: sudo yum install file-libs yara-devel
 # - macOS: brew install yara libmagic
 # - Windows: Download YARA from https://github.com/VirusTotal/yara/releases
 
@@ -70,6 +70,10 @@ psutil
 
 # Removed for stateless operation:
 # - pandas (used for database exports)
-# - openpyxl (used for Excel exports) 
+# - openpyxl (used for Excel exports)
 # - reportlab (used for PDF generation)
 # - sqlite3 (built-in, but not used in stateless mode)
+
+# Missing Dependencies:
+openai
+dotenv
