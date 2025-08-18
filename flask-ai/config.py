@@ -1,7 +1,3 @@
-"""
-Complete Configuration file for Flask-AI + Security Scanner + OpenAI Integration
-"""
-
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -9,23 +5,17 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# ===========================
-# BASE PATHS
-# ===========================
 BASE_DIR = Path(__file__).parent
 MODELS_DIR = BASE_DIR / "models"
 
-# ===========================
-# FLASK-AI CONFIGURATION
-# ===========================
 
 # Model paths
 ANOMALIB_MODEL_PATH = MODELS_DIR / "patchcore.pt"
 HRNET_MODEL_PATH = MODELS_DIR / "defect_segmentation_model.pth"
 
-# Detection thresholds - FIXED: Lowered for better detection
+# Detection thresholds
 ANOMALY_THRESHOLD = 0.25
-DEFECT_CONFIDENCE_THRESHOLD = 0.15  # FIXED: Lowered from 0.50 to 0.15
+DEFECT_CONFIDENCE_THRESHOLD = 0.15
 
 # Device configuration
 DEVICE = 'cuda'
@@ -54,22 +44,16 @@ IMAGE_SIZE = (512, 512)
 NORMALIZE_MEAN = [0.485, 0.456, 0.406]
 NORMALIZE_STD = [0.229, 0.224, 0.225]
 
-# Minimum detection thresholds - FIXED: Lowered for better detection
+# Minimum detection thresholds
 MIN_DEFECT_PIXELS = 50
-MIN_DEFECT_PERCENTAGE = 0.001  # FIXED: Lowered from 0.005 to 0.001 (0.1%)
-MIN_BBOX_AREA = 50  # FIXED: Lowered from 100 to 50
+MIN_DEFECT_PERCENTAGE = 0.001
+MIN_BBOX_AREA = 50
 
-# ===========================
-# OPENAI CONFIGURATION
-# ===========================
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 OPENAI_MODEL = "gpt-4-turbo"
 OPENAI_MAX_TOKENS = 1000
 OPENAI_TEMPERATURE = 0.1
 
-# ===========================
-# SECURITY SCANNER CONFIGURATION
-# ===========================
 
 # Security directories
 SECURITY_DIR = BASE_DIR / "security_data"
@@ -141,9 +125,6 @@ DETAILED_ERRORS = True
 # Stateless mode
 STATELESS_MODE = True
 
-# ===========================
-# DIRECTORY CREATION
-# ===========================
 
 # Create required directories
 os.makedirs(MODELS_DIR, exist_ok=True)
@@ -160,4 +141,4 @@ if not MALWARE_HASH_FILE.exists():
         pass  # Ignore if we can't create it
 
 print(f"Configuration loaded - Flask-AI + Security Scanner + OpenAI Integration")
-print(f"FIXED: Lowered confidence thresholds for better detection - DEFECT_CONFIDENCE_THRESHOLD: {DEFECT_CONFIDENCE_THRESHOLD}")
+print(f"  confidence thresholds for better detection - DEFECT_CONFIDENCE_THRESHOLD: {DEFECT_CONFIDENCE_THRESHOLD}")

@@ -329,7 +329,6 @@ def apply_natural_tie_breaking(candidates):
         return candidates[0]
     
     # 4. Final fallback: First candidate (deterministic, no random bias)
-    # API RESPONSE FIELDS REMAIN UNCHANGED - only internal selection method modified
     print(f"    Natural selection: {candidates[0]['class_name']} (highest area + quality)")
     return candidates[0]
 
@@ -427,9 +426,7 @@ def extract_natural_bounding_box(mask, defect_type, h, w, total_pixels, confiden
             'detection_method': 'natural_no_priority',
             'coordinates_validated': True,
             'within_image_bounds': True,
-            'threshold_used': DEFECT_CONFIDENCE_THRESHOLD,
-            # API RESPONSE COMPATIBILITY: All standard fields preserved
-            'api_compatible': True
+            'threshold_used': DEFECT_CONFIDENCE_THRESHOLD
         }
         
         print(f"  Created natural bbox for {defect_type}: {width}x{height} at ({min_x},{min_y}) covering {area} pixels ({area_percentage:.2f}%)")

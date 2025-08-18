@@ -1,8 +1,3 @@
-# api_server.py 
-"""
-ENHANCED Combined Stateless API Server for Defect Detection + Security Scanning
-Now with UPGRADED real-time frame processing using same logic as combined endpoint
-"""
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -26,8 +21,8 @@ from controllers.image_security_controller import ImageSecurityController
 
 class EnhancedAPIServer:
     """
-    ENHANCED API Server: Flask-AI (main) + Security Scanner + Real-time Frame Processing
-    Support both JSON and form-data requests with enhanced frame processing
+    API Server: Flask-AI (main) + Security Scanner + Real-time Frame Processing
+    Support both JSON and form-data requests with frame processing
     """
 
     def __init__(self, host='0.0.0.0', port=5000):
@@ -40,10 +35,10 @@ class EnhancedAPIServer:
         # Setup logging
         self._setup_logging()
 
-        # Initialize services (flask-ai main base with enhanced detection)
+        # Initialize services (flask-ai main base with detection)
         self.detection_service = DetectionService()
 
-        # Initialize controllers (flask-ai main base with enhanced frame processing)
+        # Initialize controllers (flask-ai main base with frame processing)
         self.detection_controller = DetectionController(self.detection_service)
 
         # Initialize security scanner (from pythonsec2)
@@ -52,7 +47,7 @@ class EnhancedAPIServer:
         # Setup routes
         self._setup_routes()
 
-        print("ENHANCED API Server initialized (Flask-AI + Security Scanner + Real-time Frame Processing)")
+        print("API Server initialized (Flask-AI + Security Scanner + Real-time Frame Processing)")
 
     def _setup_logging(self):
         """Setup logging"""
@@ -67,11 +62,8 @@ class EnhancedAPIServer:
         self.logger = logging.getLogger(__name__)
 
     def _setup_routes(self):
-        """Setup all API endpoints - ENHANCED with real-time frame processing"""
+        """Setup all API endpoints - with real-time frame processing"""
 
-        # ===========================
-        # FLASK-AI ROUTES (MAIN BASE) - ENHANCED
-        # ===========================
 
         # Health and system endpoints (flask-ai)
         @self.app.route('/api/health', methods=['GET'])
@@ -86,7 +78,7 @@ class EnhancedAPIServer:
         def system_status():
             return self.detection_controller.get_system_status()
 
-        # Detection endpoints (flask-ai) - ENHANCED
+        # Detection endpoints (flask-ai) -
         @self.app.route('/api/detection/image', methods=['POST'])
         def detect_image():
             return self.detection_controller.process_image(request)
@@ -94,8 +86,7 @@ class EnhancedAPIServer:
         @self.app.route('/api/detection/frame', methods=['POST'])
         def detect_frame():
             """
-            ENHANCED: Real-time frame processing with same logic as combined endpoint
-            Now supports enhanced detection, smart processing, and adaptive thresholds
+             Real-time frame processing with same logic as combined endpoint
             """
             return self.detection_controller.process_frame(request)
 
@@ -116,17 +107,11 @@ class EnhancedAPIServer:
         def reset_thresholds():
             return self.detection_controller.reset_detection_thresholds(request)
 
-
-
-        # ===========================
-        # COMBINED ENDPOINT - ENHANCED
-        # ===========================
-
         @self.app.route('/api/detection/combined', methods=['POST'])
         def detect_combined():
             """
-            ENHANCED: Combined defect detection + security scan
-            ENHANCED: Proper image data transfer to security scan
+             Combined defect detection + security scan
+             Proper image data transfer to security scan
             """
             try:
                 self.logger.info(f"Combined detection request - Content-Type: {request.content_type}")
@@ -148,7 +133,7 @@ class EnhancedAPIServer:
                     defect_data = defect_result
                     defect_status_code = 200
 
-                # Check if security scan requested - ENHANCED for both content types
+                # Check if security scan requested -  for both content types
                 is_scan_threat = True  # DEFAULT TRUE as requested
 
                 if request.is_json or 'application/json' in str(request.content_type):
@@ -161,7 +146,7 @@ class EnhancedAPIServer:
                 self.logger.info(f"Security scan requested: {is_scan_threat}")
 
                 if is_scan_threat:
-                    # ENHANCED: Create proper security scan request with image data
+                    #  Create proper security scan request with image data
                     try:
                         # Create a new request object for security scan with proper image data
                         security_result = self._perform_security_scan_with_proper_data(request)
@@ -235,13 +220,13 @@ class EnhancedAPIServer:
                 }), 500
 
         # ===========================
-        # SECURITY SCANNER ENDPOINTS - ENHANCED
+        # SECURITY SCANNER ENDPOINTS -
         # ===========================
 
         @self.app.route('/api/security/scan', methods=['POST'])
         def security_scan():
             """
-            ENHANCED: Security scan endpoint (normal format)
+             Security scan endpoint (normal format)
             Supports both JSON (base64) and form-data (file upload)
             Parameter: is_full_scan (boolean) - from request
             """
@@ -250,7 +235,7 @@ class EnhancedAPIServer:
         @self.app.route('/api/security/scan/laravel', methods=['POST'])
         def security_scan_laravel():
             """
-            ENHANCED: Security scan endpoint (Laravel format)
+             Security scan endpoint (Laravel format)
             Supports both JSON (base64) and form-data (file upload)
             Parameter: is_full_scan (boolean) - from request
             """
@@ -386,14 +371,14 @@ class EnhancedAPIServer:
                 }, 400
 
             self.logger.info(f"Security scan - Successfully extracted: {len(image_data)} bytes, filename: {filename}")
-            
+
             # FIXED: Direct call to security controller with proper data
             self.logger.info("Security scan - Calling security controller directly with extracted data")
-            
+
             # Create proper file-like object for security controller
             from io import BytesIO
             from werkzeug.datastructures import FileStorage
-            
+
             # Create file storage object that mimics uploaded file
             file_stream = BytesIO(image_data)
             file_storage = FileStorage(
@@ -401,7 +386,7 @@ class EnhancedAPIServer:
                 filename=filename,
                 content_type='image/jpeg'
             )
-            
+
             # Create request-like object for security controller
             class DirectSecurityRequest:
                 def __init__(self, file_storage, filename):
@@ -413,14 +398,14 @@ class EnhancedAPIServer:
 
                 def get_json(self):
                     return None
-            
+
             direct_request = DirectSecurityRequest(file_storage, filename)
-            
+
             self.logger.info("Security scan - Created direct request, calling security controller")
-            
+
             # Perform security scan using direct request
             result = self.security_controller.scan_image_laravel(direct_request)
-            
+
             self.logger.info(f"Security scan - Controller returned: {type(result)}")
 
             return result
@@ -440,30 +425,30 @@ class EnhancedAPIServer:
             }, 500
 
     def run(self, debug=False):
-        """Start the ENHANCED API server"""
-        print("Starting ENHANCED API Server (Flask-AI + Security Scanner + Real-time Frame Processing)")
+        """Start the API server"""
+        print("Starting API Server (Flask-AI + Security Scanner + Real-time Frame Processing)")
         print("=" * 85)
         print(f"Server URL: http://{self.host}:{self.port}")
         print()
-        print("FLASK-AI ENDPOINTS (Main Base) - ENHANCED:")
+        print("FLASK-AI ENDPOINTS (Main Base) - ")
         print(f"  Health Check: GET /api/health")
         print(f"  System Info:  GET /api/system/info")
         print(f"  Detect Image: POST /api/detection/image")
         print(f"                Support: JSON (image_base64) + Form-data (image/file)")
-        print(f"  Detect Frame: POST /api/detection/frame [ENHANCED]")
+        print(f"  Detect Frame: POST /api/detection/frame []")
         print(f"                Support: JSON (frame_base64/image_base64) + Form-data (frame/image/file)")
-        print(f"                ENHANCED: Same logic as combined endpoint, optimized for real-time")
+        print(f"                 Same logic as combined endpoint, optimized for real-time")
         print(f"  Batch Detect: POST /api/detection/batch")
         print(f"                Support: JSON (images array) + Form-data (multiple files)")
         print()
-        print("COMBINED ENDPOINT - ENHANCED:")
+        print("COMBINED ENDPOINT - ")
         print(f"  Combined:     POST /api/detection/combined")
         print(f"                Support: JSON + Form-data")
         print(f"                Param: is_scan_threat=true for security scan (DEFAULT: TRUE)")
-        print(f"                ENHANCED: Security scan data transfer")
-        print(f"                ENHANCED: Proper defect type detection")
+        print(f"                 Security scan data transfer")
+        print(f"                 Proper defect type detection")
         print()
-        print("SECURITY SCANNER ENDPOINTS - ENHANCED:")
+        print("SECURITY SCANNER ENDPOINTS - ")
         print(f"  Security Scan: POST /api/security/scan")
         print(f"                 Support: JSON (image_base64/image/file_base64/data) + Form-data")
         print(f"                 Param: is_full_scan=true/false")
@@ -473,8 +458,8 @@ class EnhancedAPIServer:
         print(f"  Security Health: GET /api/security/health")
         print(f"  Security Stats:  GET /api/security/stats")
         print("=" * 85)
-        print("ENHANCED REAL-TIME FRAME PROCESSING FEATURES:")
-        print("  - Same enhanced detection logic as combined endpoint")
+        print("REAL-TIME FRAME PROCESSING FEATURES:")
+        print("  - Same detection logic as combined endpoint")
         print("  - Smart processing with adaptive thresholds")
         print("  - Guaranteed defect detection")
         print("  - Frame-specific optimizations and caching")
@@ -485,19 +470,19 @@ class EnhancedAPIServer:
         print("ALL ENDPOINTS NOW SUPPORT BOTH JSON AND FORM-DATA!")
         print("JSON: Use 'image_base64', 'frame_base64' fields")
         print("Form-data: Use 'image', 'file', 'frame' fields")
-        print("ENHANCED: Real-time frame processing with same quality as combined endpoint")
-        print("ENHANCED: Frame-specific optimizations for real-time performance")
+        print(" Real-time frame processing with same quality as combined endpoint")
+        print(" Frame-specific optimizations for real-time performance")
         print("=" * 85)
 
         self.app.run(host=self.host, port=self.port, debug=debug, threaded=True, use_reloader=False)
 
 
 def create_enhanced_api_server(host='0.0.0.0', port=5001):
-    """Factory function to create ENHANCED API server"""
+    """Factory function to create API server"""
     return EnhancedAPIServer(host=host, port=port)
 
 
 if __name__ == "__main__":
-    # Create and start the ENHANCED API server
+    # Create and start the API server
     api_server = create_enhanced_api_server()
     api_server.run(debug=True)

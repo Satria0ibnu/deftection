@@ -827,7 +827,7 @@ class DetectionController:
                     # Determine severity level
                     severity_level = combined_bbox.get('severity', self._determine_severity_level(area_percentage, defect_type))
 
-                    # Create defect info from REAL data only
+                    # Create defect info
                     defect_info = {
                         'label': defect_type,
                         'confidence_score': confidence_score,

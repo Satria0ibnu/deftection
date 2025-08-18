@@ -1,9 +1,3 @@
-"""
-Detection Service FIXED - Background class skip and accurate bounding boxes
-Background class (0) completely skipped from defect processing
-Accurate single bounding box per defect type
-OpenAI validation integration for bounding box accuracy
-"""
 
 import os
 import cv2
@@ -16,7 +10,6 @@ from main import create_detector
 
 
 class DetectionService:
-    """FIXED Detection Service - Proper background handling and accurate detection"""
 
     def __init__(self):
         self.detector = None
@@ -45,14 +38,14 @@ class DetectionService:
                 'lightweight_openai_analysis': True,
                 'adaptive_quality': True
             },
-            'max_defects_per_type': 1,  # FIXED: Single defect per type
+            'max_defects_per_type': 1,
             'min_defect_area_threshold': 0.1,
             'confidence_boost_factor': 1.2,
             'nms_iou_threshold': 0.3,
             'enable_intelligent_filtering': True,
-            'enable_nms': False,  # FIXED: Disabled since single bbox per type
+            'enable_nms': False,
             'enable_confidence_boosting': True,
-            'background_class_skip': True  # FIXED: Skip background class
+            'background_class_skip': True
         }
 
         # In-memory configuration
@@ -70,7 +63,7 @@ class DetectionService:
     def _initialize_components(self):
         """Initialize detection components - requires real detector"""
         try:
-            self.logger.info("Initializing FIXED detection service...")
+            self.logger.info("Initializing  detection service...")
 
             self.detector = create_detector()
 
@@ -81,11 +74,11 @@ class DetectionService:
             self._warmup_models()
 
             self.is_initialized = True
-            self.logger.info("FIXED detection service ready - background class skip enabled")
+            self.logger.info(" detection service ready - background class skip enabled")
 
         except Exception as e:
             self.initialization_error = str(e)
-            self.logger.error(f"FIXED detection service initialization failed: {e}")
+            self.logger.error(f" detection service initialization failed: {e}")
             self.is_initialized = False
             raise RuntimeError(f"Detection service initialization failed: {e}")
 
@@ -127,7 +120,7 @@ class DetectionService:
     def process_frame(self, image_data, filename, temp_file_path, fast_mode=True, include_annotation=True,
                      use_smart_processing=True, sensitivity_level=None):
         """
-        FIXED: Process frame with proper background class handling
+         Process frame with proper background class handling
         """
         if not self.is_initialized:
             raise RuntimeError("Detection service not initialized")
@@ -135,7 +128,7 @@ class DetectionService:
         start_time = time.time()
 
         try:
-            self.logger.info(f"Processing FIXED frame (smart: {use_smart_processing}, fast: {fast_mode}): {filename}")
+            self.logger.info(f"Processing  frame (smart: {use_smart_processing}, fast: {fast_mode}): {filename}")
 
             # Update sensitivity if provided
             if sensitivity_level and sensitivity_level in ['low', 'medium', 'high']:
@@ -145,7 +138,7 @@ class DetectionService:
             if fast_mode and self._should_skip_processing():
                 return self._create_skip_result(filename, start_time)
 
-            # Process with FIXED detection
+            # Process with  detection
             if use_smart_processing and self.smart_config['smart_enabled']:
                 result = self._process_frame_with_fixed_detection(
                     image_data, filename, temp_file_path, fast_mode
@@ -178,16 +171,16 @@ class DetectionService:
                 'processing_time': time.time() - start_time,
                 'smart_processing_applied': use_smart_processing,
                 'frame_optimizations': self.smart_config['frame_optimizations'],
-                'background_class_skipped': True  # FIXED: Confirm background skipped
+                'background_class_skipped': True  #  Confirm background skipped
             })
 
-            self.logger.info(f"FIXED frame processed - Decision: {result.get('final_decision')} "
+            self.logger.info(f" frame processed - Decision: {result.get('final_decision')} "
                            f"in {time.time() - start_time:.3f}s")
 
             return result
 
         except Exception as e:
-            self.logger.error(f"Error processing FIXED frame: {e}")
+            self.logger.error(f"Error processing  frame: {e}")
             raise RuntimeError(f"Frame processing failed: {e}")
 
     def _update_sensitivity_for_frame(self, sensitivity_level):
@@ -224,14 +217,13 @@ class DetectionService:
         }
 
     def _process_frame_with_fixed_detection(self, image_data, filename, temp_file_path, fast_mode):
-        """Process frame using FIXED detection with background class skip"""
+        """Process frame"""
         try:
-            # Use FIXED process_single_image
             result = self.process_single_image(image_data, filename, temp_file_path,
                                              include_annotation=False, use_smart_processing=True)
 
             if not result:
-                raise RuntimeError("Fixed detection returned no result")
+                raise RuntimeError("detection returned no result")
 
             # Apply frame-specific processing with background class validation
             result = self._apply_fixed_frame_analysis(result, temp_file_path, fast_mode)
@@ -246,11 +238,11 @@ class DetectionService:
             return result
 
         except Exception as e:
-            self.logger.error(f"Error in FIXED frame processing: {e}")
-            raise RuntimeError(f"Fixed frame processing failed: {e}")
+            self.logger.error(f"Error in  frame processing: {e}")
+            raise RuntimeError(f" frame processing failed: {e}")
 
     def _apply_fixed_frame_analysis(self, result, temp_file_path, fast_mode):
-        """Apply fixed frame analysis ensuring background class is properly handled"""
+        """Apply frame analysis ensuring background class is properly handled"""
         try:
             # Get defect classification results
             defect_classification = result.get('defect_classification', {})
@@ -259,7 +251,6 @@ class DetectionService:
                 # Verify that background class was properly skipped
                 detected_defects = defect_classification.get('defect_analysis', {}).get('detected_defects', [])
 
-                # FIXED: Ensure no background class in detected defects
                 if 'background' in detected_defects:
                     self.logger.warning("Background class detected in results - removing")
                     detected_defects.remove('background')
@@ -291,7 +282,7 @@ class DetectionService:
             return result
 
         except Exception as e:
-            self.logger.error(f"Error in fixed frame analysis: {e}")
+            self.logger.error(f"Error in  frame analysis: {e}")
             return result
 
     def _apply_smart_processing_for_frames(self, result):
@@ -310,7 +301,6 @@ class DetectionService:
             if not bounding_boxes:
                 return result
 
-            # FIXED: Ensure single bounding box per defect type
             filtered_boxes = {}
             filtered_stats = {}
 
@@ -318,7 +308,6 @@ class DetectionService:
                 if not boxes or defect_type == 'background':  # Skip background
                     continue
 
-                # FIXED: Take only the first (and should be only) bounding box
                 single_box = boxes[0] if boxes else None
 
                 if single_box:
@@ -420,7 +409,6 @@ class DetectionService:
 
             detected_defects = result.get('detected_defect_types', [])
 
-            # FIXED: Ensure no background in detected defects
             if 'background' in detected_defects:
                 detected_defects.remove('background')
                 result['detected_defect_types'] = detected_defects
@@ -553,7 +541,7 @@ class DetectionService:
             raise RuntimeError(f"Standard frame processing failed: {e}")
 
     def process_single_image(self, image_data, filename, temp_file_path=None, include_annotation=True, use_smart_processing=False):
-        """Process single image - FIXED processing with background class skip"""
+        """Process single image -   processing with background class skip"""
         if not self.is_initialized:
             raise RuntimeError("Detection service not initialized")
 
@@ -573,7 +561,7 @@ class DetectionService:
             if not result:
                 raise RuntimeError("Image processing returned no result")
 
-            # FIXED: Ensure background class is properly handled
+            #  : Ensure background class is properly handled
             result = self._ensure_background_class_excluded(result)
 
             if use_smart_processing and self.smart_config['smart_enabled']:
@@ -603,7 +591,7 @@ class DetectionService:
             raise RuntimeError(f"Image processing failed: {e}")
 
     def _ensure_background_class_excluded(self, result):
-        """FIXED: Ensure background class is completely excluded from results"""
+        """ Ensure background class is completely excluded from results"""
         try:
             # Check defect classification
             defect_classification = result.get('defect_classification', {})
@@ -708,7 +696,7 @@ class DetectionService:
                 bounding_boxes = defect_classification.get('bounding_boxes', {})
 
             for defect_type, boxes in bounding_boxes.items():
-                # FIXED: Skip background class
+                #  Skip background class
                 if defect_type == 'background':
                     continue
 
@@ -766,11 +754,11 @@ class DetectionService:
             original_count = sum(len(boxes) for boxes in bounding_boxes.values())
 
             for defect_type, boxes in bounding_boxes.items():
-                # FIXED: Skip background class completely
+                #  Skip background class completely
                 if not boxes or defect_type == 'background':
                     continue
 
-                # FIXED: Take only single bounding box per type
+                #  Take only single bounding box per type
                 single_box = boxes[0] if boxes else None
 
                 if single_box and self._validate_single_bbox(single_box, defect_type):
@@ -815,7 +803,7 @@ class DetectionService:
             adaptive_threshold = self.smart_config['current_anomaly_threshold']
             detected_defects = result.get('detected_defect_types', [])
 
-            # FIXED: Ensure no background in detected defects
+            #  Ensure no background in detected defects
             if 'background' in detected_defects:
                 detected_defects.remove('background')
                 result['detected_defect_types'] = detected_defects
@@ -905,14 +893,14 @@ class DetectionService:
                 'model_warmup_done': self.frame_cache['model_warmup_done'],
                 'adaptive_thresholds': True,
                 'enhanced_detection': True,
-                'background_class_skip': True  # FIXED
+                'background_class_skip': True
             },
             'smart_processing': {
                 'enabled': self.smart_config['smart_enabled'],
                 'integrated': True,
                 'sensitivity_level': self.smart_config['anomaly_sensitivity'],
                 'intelligent_filtering': self.smart_config['enable_intelligent_filtering'],
-                'single_bbox_per_type': True  # FIXED
+                'single_bbox_per_type': True
             },
             'overall_status': 'healthy' if self.is_initialized else 'degraded',
             'initialization_error': self.initialization_error,
@@ -939,8 +927,8 @@ class DetectionService:
                     'enhanced_detection': True,
                     'adaptive_thresholds': True,
                     'model_warmup': self.frame_cache['model_warmup_done'],
-                    'background_class_skip': True,  # FIXED
-                    'single_bbox_per_type': True,  # FIXED
+                    'background_class_skip': True,
+                    'single_bbox_per_type': True,
                     'features': ['fixed_detection', 'background_skip', 'single_bbox', 'smart_filtering', 'adaptive_sensitivity', 'frame_caching']
                 },
                 'smart_processing': {
@@ -982,8 +970,8 @@ class DetectionService:
                 'enhanced_detection': True,
                 'openai_analysis': bool(OPENAI_API_KEY),
                 'frame_caching': self.smart_config['frame_optimizations']['enable_model_caching'],
-                'background_class_skip': True,  # FIXED
-                'single_bbox_per_type': True,  # FIXED
+                'background_class_skip': True,
+                'single_bbox_per_type': True,
                 'bbox_validation': bool(OPENAI_API_KEY)
             },
             'frame_cache_info': {
@@ -1033,11 +1021,11 @@ class DetectionService:
                 'min_area_threshold': self.smart_config['min_defect_area_threshold'],
                 'nms_enabled': self.smart_config['enable_nms'],
                 'intelligent_filtering': self.smart_config['enable_intelligent_filtering'],
-                'background_class_skip': self.smart_config['background_class_skip']  # FIXED
+                'background_class_skip': self.smart_config['background_class_skip']
             },
             'frame_optimizations': self.smart_config['frame_optimizations'],
-            'background_class_properly_handled': True,  # FIXED
-            'single_bbox_per_type_enforced': True  # FIXED
+            'background_class_properly_handled': True,
+            'single_bbox_per_type_enforced': True
         }
 
     def update_thresholds(self, new_thresholds):
@@ -1064,8 +1052,8 @@ class DetectionService:
             'configurable': True,
             'storage': 'in-memory',
             'last_updated': datetime.now().isoformat(),
-            'background_class_skip_enabled': True,  # FIXED
-            'single_bbox_per_type_enabled': True  # FIXED
+            'background_class_skip_enabled': True,
+            'single_bbox_per_type_enabled': True
         }
 
     def _get_current_load(self):

@@ -1,7 +1,3 @@
-# models/hrnet_model.py
-"""
-Enhanced HRNet model implementation 
-"""
 
 import torch
 import torch.nn as nn
@@ -68,17 +64,17 @@ class Bottleneck(nn.Module):
 class HRNetDefectClassifier(nn.Module):
     def __init__(self, num_classes=6):
         super(HRNetDefectClassifier, self).__init__()
-        
+
         # Stem network
         self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=2, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.conv2 = nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
-        
+
         # Stage 1
         self.layer1 = self._make_layer(Bottleneck, 64, 64, 4)
-        
+
         # Transition layers
         self.transition1 = nn.ModuleList([
             nn.Sequential(
@@ -92,13 +88,13 @@ class HRNetDefectClassifier(nn.Module):
                 nn.ReLU(inplace=True)
             )
         ])
-        
+
         # Stage 2
         self.stage2 = nn.ModuleList([
             self._make_layer(BasicBlock, 48, 48, 4),
             self._make_layer(BasicBlock, 96, 96, 4)
         ])
-        
+
         # Fusion modules
         self.fuse_layers = nn.ModuleList([
             nn.ModuleList([
@@ -117,7 +113,7 @@ class HRNetDefectClassifier(nn.Module):
                 nn.Identity()
             ])
         ])
-        
+
         # Classification head
         self.classifier = nn.Sequential(
             nn.Conv2d(48, 64, kernel_size=3, padding=1, bias=False),
@@ -129,7 +125,7 @@ class HRNetDefectClassifier(nn.Module):
             nn.ReLU(inplace=True),
             nn.Conv2d(32, num_classes, kernel_size=1)
         )
-        
+
     def _make_layer(self, block, inplanes, planes, blocks, stride=1):
         downsample = None
         if stride != 1 or inplanes != planes * block.expansion:
@@ -145,7 +141,7 @@ class HRNetDefectClassifier(nn.Module):
             layers.append(block(inplanes, planes))
 
         return nn.Sequential(*layers)
-        
+
     def forward(self, x):
         # Stem
         x = self.conv1(x)
@@ -154,19 +150,19 @@ class HRNetDefectClassifier(nn.Module):
         x = self.conv2(x)
         x = self.bn2(x)
         x = self.relu(x)
-        
+
         # Stage 1
         x = self.layer1(x)
-        
+
         # Transition
         x_list = []
         for i in range(2):
             x_list.append(self.transition1[i](x))
-        
+
         # Stage 2
         for i in range(2):
             x_list[i] = self.stage2[i](x_list[i])
-        
+
         # Fusion
         x_fuse = []
         for i in range(2):
@@ -177,11 +173,11 @@ class HRNetDefectClassifier(nn.Module):
                 else:
                     y = y + self.fuse_layers[i][j](x_list[j])
             x_fuse.append(self.relu(y))
-        
+
         # Classification
         output = self.classifier(x_fuse[0])
         output = F.interpolate(output, scale_factor=4, mode='bilinear', align_corners=True)
-        
+
         return output
 
 
