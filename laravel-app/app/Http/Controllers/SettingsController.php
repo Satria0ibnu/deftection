@@ -184,7 +184,7 @@ class SettingsController extends Controller
     public function getApiHealthStatus()
     {
         // Get the Flask API URL from your .env file for security
-        $apiUrl = env('FLASK_API_URL') . '/api/security/health';
+        $apiUrl = env('FLASK_API_URL') . '/api/health';
 
         try {
             $response = Http::timeout(5)->get($apiUrl);

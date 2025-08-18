@@ -8,6 +8,9 @@ import {
 } from "@headlessui/vue";
 import { Link, router } from "@inertiajs/vue3";
 import { route } from "ziggy-js";
+import { usePage } from "@inertiajs/vue3";
+
+const role = usePage().props.auth.user.role;
 
 // --- Props & Emits ---
 const props = defineProps({
@@ -71,7 +74,11 @@ const pageGroups = ref([
             },
         ],
     },
-    {
+]);
+
+// Conditionally add the "Database" group if the user is an admin
+if (role === "admin") {
+    pageGroups.value.push({
         name: "Database",
         pages: [
             {
@@ -85,8 +92,8 @@ const pageGroups = ref([
                 icon: "fa-solid fa-users",
             },
         ],
-    },
-]);
+    });
+}
 
 // --- Computed Properties ---
 const filteredPageGroups = computed(() => {

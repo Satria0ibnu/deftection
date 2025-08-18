@@ -30,14 +30,13 @@ const isPaused = ref(false);
 const errorMessage = ref("");
 const scanTimer = ref(null);
 
-// --- UPDATED: Now includes sessionActive condition ---
+// --- Now includes sessionActive condition ---
 const isScanning = computed(
     () =>
         props.autoScanEnabled &&
         isCameraActive.value &&
         !isPaused.value &&
         props.sessionActive
-    //                                                                        ↑ ADDED: Session must be active
 );
 
 // --- Drawing Logic ---

@@ -38,7 +38,7 @@ const getToastBase = () => {
     const isDark = document.documentElement.classList.contains("dark");
     return Swal.mixin({
         toast: true,
-        position: "top-end",
+        position: "bottom-end",
         showConfirmButton: false,
         timerProgressBar: true,
         background: isDark ? "#1f2937" : "#ffffff",
@@ -70,6 +70,7 @@ export const errorToast = (title = "Something went wrong!", timer = 4000) => {
         icon: "error",
         title,
         timer,
+        position: "bottom-end",
     });
 };
 

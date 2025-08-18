@@ -65,10 +65,12 @@ const fetchApiHealth = async () => {
         const response = await axios.get(route("settings.api_health"));
         const data = response.data;
 
+        console.log("API Health Data:", data);
+
         // Map API response to our settings object
         if (
-            data.status === "healthy" &&
-            data.service_status === "operational"
+            data.status === "ok" &&
+            data.services.overall_status === "healthy"
         ) {
             settings.advanced.systemInfo["API Status"] = "Connected";
         } else {
@@ -76,19 +78,19 @@ const fetchApiHealth = async () => {
         }
 
         if (
-            data.service_info &&
-            data.service_info.yara_rules_compiled &&
-            data.service_info.malware_hashes_loaded > 0
+            data.services.detector.available &&
+            data.services.detector.ready &&
+            data.services.detector.status === "operational"
         ) {
             settings.advanced.systemInfo["Models Loaded"] = "Yes";
         } else {
             settings.advanced.systemInfo["Models Loaded"] = "No";
         }
 
-        if (data.service_info && data.service_info.version) {
+        if (data.api_version) {
             settings.advanced.systemInfo[
                 "System Version"
-            ] = `v${data.service_info.version}`;
+            ] = `v${data.api_version}`;
         } else {
             settings.advanced.systemInfo["System Version"] = "Unknown";
         }

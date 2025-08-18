@@ -717,37 +717,6 @@
                 <div class="chart-title">Anomaly Score Distribution</div>
                 <img src="{{ $chartImages['anomaly_distribution'] }}" alt="Anomaly Score Distribution Chart">
             </div>
-
-            @if (!empty($chartsData['anomaly_distribution']))
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Score Range</th>
-                            <th>Frame Count</th>
-                            <th>Percentage</th>
-                            <th>Risk Level</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($chartsData['anomaly_distribution'] as $range)
-                            <tr>
-                                <td>{{ $range['range'] ?? 'N/A' }}</td>
-                                <td>{{ number_format($range['count'] ?? 0) }}</td>
-                                <td>{{ number_format($range['percentage'] ?? 0, 1) }}%</td>
-                                <td>
-                                    @if (isset($range['range']) && strpos($range['range'], '0.8-1.0') !== false)
-                                        <span style="color: #dc3545;">High</span>
-                                    @elseif(isset($range['range']) && strpos($range['range'], '0.6-0.8') !== false)
-                                        <span style="color: #ffc107;">Medium</span>
-                                    @else
-                                        <span style="color: #28a745;">Low</span>
-                                    @endif
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            @endif
         </div>
     @endif
 
@@ -888,7 +857,6 @@
         </div>
     @endif
 
-    <div class="page-break"></div>
     <!-- Report Metadata -->
     <div class="section">
         <h2 class="section-title">Report Metadata</h2>
@@ -953,63 +921,6 @@
                 </tr>
             </tbody>
         </table>
-    </div>
-
-    <!-- Summary Statistics -->
-    <div class="section">
-        <h2 class="section-title">Executive Summary Statistics</h2>
-        <div class="two-column">
-            <div class="column">
-                <h4 style="font-size: 12px; margin-bottom: 8px;">Quality Metrics</h4>
-                <table class="data-table">
-                    <tbody>
-                        <tr>
-                            <td><strong>Overall Quality Score</strong></td>
-                            <td>{{ number_format(100 - ($statistics['defect_rate'] ?? 0), 1) }}%</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Average Anomaly Score</strong></td>
-                            <td>{{ number_format($statistics['avg_anomaly_score'] ?? 0, 3) }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Defects per Frame</strong></td>
-                            <td>{{ ($statistics['total_frames'] ?? 0) > 0 ? number_format(($statistics['total_defects_found'] ?? 0) / $statistics['total_frames'], 2) : 0 }}
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><strong>Session Efficiency</strong></td>
-                            <td>{{ ($statistics['avg_processing_time'] ?? 0) < 500 ? 'Excellent' : (($statistics['avg_processing_time'] ?? 0) < 1000 ? 'Good' : 'Needs Improvement') }}
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="column">
-                <h4 style="font-size: 12px; margin-bottom: 8px;">Performance Metrics</h4>
-                <table class="data-table">
-                    <tbody>
-                        <tr>
-                            <td><strong>Processing Efficiency</strong></td>
-                            <td>{{ ($statistics['avg_processing_time'] ?? 0) < 500 ? 'Excellent' : (($statistics['avg_processing_time'] ?? 0) < 1000 ? 'Good' : 'Needs Improvement') }}
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><strong>Peak Throughput</strong></td>
-                            <td>{{ number_format($statistics['throughput_fps'] ?? 0, 1) }} FPM</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Total Processing Time</strong></td>
-                            <td>{{ ($statistics['avg_processing_time'] ?? 0) > 0 && ($statistics['total_frames'] ?? 0) > 0 ? number_format(($statistics['avg_processing_time'] * $statistics['total_frames']) / 1000, 1) : 0 }}s
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><strong>System Reliability</strong></td>
-                            <td>{{ ($statistics['total_frames'] ?? 0) > 0 ? '99.9%' : 'N/A' }}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
     </div>
 
     <!-- Footer -->

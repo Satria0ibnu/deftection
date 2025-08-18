@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Tymon\JWTAuth\Facades\JWTAuth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -19,6 +20,11 @@ class RoleMiddleware
     {
 
         $user = $request->user();
+
+        Log::info('RoleMiddleware', [
+            'user' => $user ? $user->id : null,
+            'roles' => $roles,
+        ]);
 
         if (!$user || ! in_array($user->role, $roles)) {
             return $request->expectsJson()

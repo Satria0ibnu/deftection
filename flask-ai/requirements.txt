@@ -30,7 +30,7 @@ yara-python==4.3.1
 # File type detection
 python-magic==0.4.27
 # Note: On Windows, also install:
-python-magic-bin
+# python-magic-bin
 
 # Enhanced security
 cryptography==41.0.7

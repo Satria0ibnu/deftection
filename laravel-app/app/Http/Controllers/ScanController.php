@@ -425,7 +425,7 @@ class ScanController extends Controller
             ]);
 
             return Inertia::render('ImageAnalysis/Index', [
-                'error' => [
+                'errors' => [
                     'message' => 'Something went wrong during image analysis. Please try again.',
                     'type' => 'processing_error'
                 ]

@@ -7,7 +7,7 @@ import ImageTabs from "./Components/ImageTabs.vue";
 import BatchImageSelector from "./Components/BatchImageSelector.vue";
 import ProcessingModal from "./Components/Modals/ProcessingModal.vue";
 import SuccessModal from "./Components/Modals/SuccessModal.vue";
-import { successToast } from "@/utils/swal.js";
+import { successToast, errorToast } from "@/utils/swal.js";
 
 // --- Props ---
 const props = defineProps({
@@ -63,10 +63,10 @@ function handleRunAnalysis() {
             successToast("Analysis completed successfully!");
         },
         onError: (errors) => {
-            console.error("Analysis failed:", errors); // Kept for debugging errors
-            alert("Analysis failed. Please try again.");
+            console.error("Analysis failed:", errors);
+            errorToast("Analysis failed. Please try again.");
         },
-        // BUG FIX: The loading state should be turned off when the request finishes.
+        // The loading state should be turned off when the request finishes.
         onFinish: () => {
             loading.value = false;
         },

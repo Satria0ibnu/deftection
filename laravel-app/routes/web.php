@@ -33,7 +33,7 @@ Route::middleware(['auth'])->group(function () {
   Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
   // DEFECT TYPES
-  Route::prefix('database/defectTypes')->group(function () {
+  Route::middleware(['auth', RoleMiddleware::class . ':admin'])->prefix('database/defectTypes')->group(function () {
     // Defect Type list
     Route::get('/', [DefectTypeController::class, 'index'])->name('defect_types.index');
     Route::get('/api', [DefectTypeController::class, 'indexApi'])->middleware('throttle:60,1')->name('defect_types.index.api');
@@ -47,7 +47,7 @@ Route::middleware(['auth'])->group(function () {
   });
 
   // USERS
-  Route::prefix('database/users')->group(function () {
+  Route::middleware(['auth', RoleMiddleware::class . ':admin'])->prefix('database/users')->group(function () {
     // User list
     Route::get('/', [UserController::class, 'index'])->name('users.index');
     Route::get('/api', [UserController::class, 'indexApi'])->middleware('throttle:60,1')->name('users.index.api');
