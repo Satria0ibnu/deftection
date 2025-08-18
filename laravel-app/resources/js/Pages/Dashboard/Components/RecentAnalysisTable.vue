@@ -1,9 +1,9 @@
 <script setup>
 import { Link } from "@inertiajs/vue3";
-import { route } from "ziggy-js";
 import { formatDistanceToNow, format } from "date-fns";
 import RowNotFound from "../../../Shared/Table/RowNotFound.vue";
 
+// Defines the data this component receives from its parent (Dashboard/Index.vue).
 const props = defineProps({
     analyses: {
         type: Array,
@@ -11,7 +11,8 @@ const props = defineProps({
     },
 });
 
-// Helper Functions
+// A collection of utility functions to format raw data for clean display in the table.
+
 const formatDateSimple = (dateString) => {
     if (!dateString) return "N/A";
     try {
@@ -38,13 +39,14 @@ const formatDecimal = (value, defaultValue = 0, precision = 3) => {
 };
 
 const getStatusClass = (status) => {
-    if (status === "good") {
-        return "bg-green-100 text-green-800 dark:bg-green-500/10 dark:text-green-400";
+    switch (status) {
+        case "good":
+            return "bg-green-100 text-green-800 dark:bg-green-500/10 dark:text-green-400";
+        case "defect":
+            return "bg-red-100 text-red-800 dark:bg-red-500/10 dark:text-red-400";
+        default:
+            return "bg-gray-100 text-gray-800 dark:bg-gray-500/10 dark:text-gray-400";
     }
-    if (status === "defect") {
-        return "bg-red-100 text-red-800 dark:bg-red-500/10 dark:text-red-400";
-    }
-    return "bg-gray-100 text-gray-800 dark:bg-gray-500/10 dark:text-gray-400";
 };
 </script>
 

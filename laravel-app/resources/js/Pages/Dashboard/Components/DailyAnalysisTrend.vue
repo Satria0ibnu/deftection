@@ -1,6 +1,6 @@
 <script setup>
 import VueApexCharts from "vue3-apexcharts";
-import { ref, computed } from "vue";
+import { computed } from "vue";
 
 const props = defineProps({
     dailyData: {

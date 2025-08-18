@@ -11,7 +11,6 @@ const props = defineProps({
 });
 
 const isPositiveChange = computed(() => {
-    // Assuming changeRate is a string like "+10%" or "-5%"
     return props.changeRate.startsWith("+");
 });
 </script>

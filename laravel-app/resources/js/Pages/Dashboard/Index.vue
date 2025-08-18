@@ -37,7 +37,7 @@ const props = defineProps({
 
 <template>
     <!-- Status Grid -->
-    <div class="gap-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
+    <div class="gap-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 pb-6">
         <!-- Total Defects -->
         <StatsCard
             title="Total Defects"
@@ -117,6 +117,7 @@ const props = defineProps({
         </div>
     </div>
 
+    <!-- Performance Trend -->
     <div class="grid grid-cols-1 py-6">
         <div
             class="flex flex-col justify-start p-6 border border-gray-200 dark:border-dark-700 rounded-lg"
