@@ -15,7 +15,7 @@ defineProps({
         <div class="relative input-wrapper">
             <input
                 v-model="searchTerm"
-                class="peer rtl:pr-9 ltr:pl-9 border-gray-300 hover:border-gray-400 focus:border-primary-600 dark:hover:border-dark-400 dark:focus:border-primary-500 dark:border-dark-450 ring-primary-500/50 focus:ring-3 h-8 text-xs form-input-base form-input"
+                class="min-w-64 peer rtl:pr-9 ltr:pl-9 border-gray-300 hover:border-gray-400 focus:border-primary-600 dark:hover:border-dark-400 dark:focus:border-primary-500 dark:border-dark-450 ring-primary-500/50 focus:ring-3 h-8 text-xs form-input-base form-input"
                 :placeholder="placeholder"
                 type="text"
             />

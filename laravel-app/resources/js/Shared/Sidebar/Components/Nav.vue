@@ -3,6 +3,14 @@ import NavLink from "./NavLink.vue";
 import NavCollapse from "./NavCollapse.vue";
 import NavCollapseLink from "./NavCollapseLink.vue";
 import { route } from "ziggy-js";
+import { usePage } from "@inertiajs/vue3";
+// import { onMounted } from "vue";
+
+const role = usePage().props.auth.user.role;
+
+// onMounted(() => {
+//     console.log(role);
+// });
 </script>
 <template>
     <nav class="pt-3">
@@ -74,7 +82,7 @@ import { route } from "ziggy-js";
                             New Scan
                         </NavCollapseLink>
                         <NavCollapseLink
-                            :href="route('scans.myscans')"
+                            :href="route('scans.index')"
                             :active="$page.component === 'ScanHistory/Index'"
                         >
                             Scan History
@@ -103,7 +111,7 @@ import { route } from "ziggy-js";
                             />
                         </svg>
 
-                        <span class="truncate"> Live Monitor </span>
+                        <span class="truncate">Real-Time Session</span>
                     </template>
 
                     <template #content>
@@ -116,8 +124,8 @@ import { route } from "ziggy-js";
                             New Session
                         </NavCollapseLink>
                         <NavCollapseLink
-                            href="/history"
-                            :active="$page.component === 'History/Index'"
+                            :href="route('sessions.index')"
+                            :active="$page.component === 'SessionHistory/Index'"
                         >
                             Session History
                         </NavCollapseLink>
@@ -125,9 +133,10 @@ import { route } from "ziggy-js";
                 </NavCollapse>
                 <NavCollapse
                     :active="
-                        $page.component === 'Database/Product/Index' ||
-                        $page.component === 'Database/User/Index'
+                        $page.component === 'Database/User/Index' ||
+                        $page.component === 'Database/DefectType/Index'
                     "
+                    v-if="role === 'admin'"
                 >
                     <template #title>
                         <svg
@@ -150,12 +159,12 @@ import { route } from "ziggy-js";
 
                     <template #content>
                         <NavCollapseLink
-                            :href="route('products.index')"
+                            :href="route('defect_types.index')"
                             :active="
-                                $page.component === 'Database/Product/Index'
+                                $page.component === 'Database/DefectType/Index'
                             "
                         >
-                            Products
+                            Defect Types
                         </NavCollapseLink>
                         <NavCollapseLink
                             :href="route('users.index')"
@@ -166,7 +175,7 @@ import { route } from "ziggy-js";
                     </template>
                 </NavCollapse>
                 <NavLink
-                    href="/settings"
+                    :href="route('settings.index')"
                     :active="$page.component === 'Settings/Index'"
                 >
                     <svg

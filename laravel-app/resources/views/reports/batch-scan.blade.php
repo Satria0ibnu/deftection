@@ -420,6 +420,14 @@
             background: #fff3cd;
             color: #856404;
         }
+
+        .icon {
+            width: 14px;
+            height: 14px;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 5px;
+        }
     </style>
 </head>
 
@@ -434,12 +442,26 @@
     <div class="filter-info">
         <h4>Report Scope & Filters</h4>
         <div class="filter-item"><strong>Date Range:</strong> {{ $summary['date_range']['from'] }} to
-            {{ $summary['date_range']['to'] }} ({{ $summary['date_range']['days'] }} days)</div>
+            {{ $summary['date_range']['to'] }} ({{ $summary['date_range']['days'] }} days)
+        </div>
         <div class="filter-item"><strong>Status Filter:</strong> {{ ucfirst($filters['status']) }}</div>
         @if (!empty($filters['defectTypes']))
             <div class="filter-item"><strong>Defect Types:</strong> {{ implode(', ', $filters['defectTypes']) }}</div>
         @endif
+        @if (!empty($filters['users']))
+            <div class="filter-item"><strong>Filtered Users:</strong> {{ count($filters['users']) }} users selected
+            </div>
+        @endif
+        @if (!empty($filters['roles']))
+            <div class="filter-item"><strong>Role Filter:</strong>
+                {{ implode(', ', array_map('ucfirst', $filters['roles'])) }}</div>
+        @endif
         <div class="filter-item"><strong>Scope:</strong> {{ $summary['report_scope'] }}</div>
+        @php
+            $uniqueUsers = $scans->unique('user_id')->count();
+        @endphp
+        <div class="filter-item"><strong>Active Users:</strong> {{ $uniqueUsers }} users contributed
+            {{ number_format($scans->count()) }} scans</div>
     </div>
 
     <!-- Executive Summary -->
@@ -505,6 +527,119 @@
         </div>
     </div>
 
+    <!-- Comprehensive User Breakdown -->
+    <div class="section">
+        <h2 class="section-title">Complete User Breakdown</h2>
+        @php
+            $allUsers = $scans
+                ->groupBy('user_id')
+                ->map(function ($userScans, $userId) {
+                    $user = $userScans->first()->user;
+                    return [
+                        'user_id' => $userId,
+                        'name' => $user ? $user->name : 'Unknown User',
+                        'email' => $user ? $user->email : 'N/A',
+                        'role' => $user ? ucfirst($user->role) : 'N/A',
+                        'total_scans' => $userScans->count(),
+                        'defective_scans' => $userScans->where('is_defect', true)->count(),
+                        'good_scans' => $userScans->where('is_defect', false)->count(),
+                        'defect_rate' =>
+                            $userScans->count() > 0
+                                ? round(($userScans->where('is_defect', true)->count() / $userScans->count()) * 100, 1)
+                                : 0,
+                        'total_defects' => $userScans->sum(function ($scan) {
+                            return $scan->scanDefects->count();
+                        }),
+                        'avg_anomaly_score' => round($userScans->avg('anomaly_score'), 3),
+                        'first_scan' => $userScans->min('created_at'),
+                        'last_scan' => $userScans->max('created_at'),
+                        'avg_processing_time' => round(
+                            $userScans
+                                ->map(function ($scan) {
+                                    return ($scan->preprocessing_time_ms ?? 0) +
+                                        ($scan->anomaly_inference_time_ms ?? 0) +
+                                        ($scan->classification_inference_time_ms ?? 0) +
+                                        ($scan->postprocessing_time_ms ?? 0);
+                                })
+                                ->avg(),
+                            1,
+                        ),
+                    ];
+                })
+                ->sortByDesc('total_scans')
+                ->values();
+        @endphp
+
+        <div class="highlight-box">
+            <h4>User Participation Summary</h4>
+            <p><strong>Total Active Users:</strong> {{ $allUsers->count() }}</p>
+            <p><strong>Most Active User:</strong> {{ $allUsers->first()['name'] ?? 'N/A' }}
+                ({{ $allUsers->first()['total_scans'] ?? 0 }} scans)</p>
+            <p><strong>Average Scans per User:</strong>
+                {{ $allUsers->count() > 0 ? round($allUsers->avg('total_scans'), 1) : 0 }}</p>
+            <p><strong>Date Range:</strong>
+                {{ $allUsers->min('first_scan') ? \Carbon\Carbon::parse($allUsers->min('first_scan'))->format('M j, Y') : 'N/A' }}
+                to
+                {{ $allUsers->max('last_scan') ? \Carbon\Carbon::parse($allUsers->max('last_scan'))->format('M j, Y') : 'N/A' }}
+            </p>
+        </div>
+
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Role</th>
+                    <th>Total Scans</th>
+                    <th>Good</th>
+                    <th>Defective</th>
+                    <th>Defect Rate</th>
+                    <th>Total Defects</th>
+                    <th>Avg Anomaly Score</th>
+                    <th>Avg Processing Time</th>
+                    <th>First Scan</th>
+                    <th>Last Scan</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($allUsers as $userData)
+                    <tr>
+                        <td>
+                            <strong>{{ $userData['name'] }}</strong>
+                            @if ($userData['email'] !== 'N/A')
+                                <br><small style="color: #6c757d;">{{ $userData['email'] }}</small>
+                            @endif
+                        </td>
+                        <td>
+                            <span
+                                class="status-badge {{ strtolower($userData['role']) === 'admin' ? 'status-defective' : 'status-good' }}">
+                                {{ $userData['role'] }}
+                            </span>
+                        </td>
+                        <td><strong>{{ number_format($userData['total_scans']) }}</strong></td>
+                        <td>{{ number_format($userData['good_scans']) }}</td>
+                        <td>{{ number_format($userData['defective_scans']) }}</td>
+                        <td>
+                            @if ($userData['defect_rate'] > 20)
+                                <span style="color: #dc3545; font-weight: bold;">{{ $userData['defect_rate'] }}%</span>
+                            @elseif ($userData['defect_rate'] > 10)
+                                <span style="color: #ffc107; font-weight: bold;">{{ $userData['defect_rate'] }}%</span>
+                            @else
+                                <span style="color: #28a745; font-weight: bold;">{{ $userData['defect_rate'] }}%</span>
+                            @endif
+                        </td>
+                        <td>{{ number_format($userData['total_defects']) }}</td>
+                        <td>{{ number_format($userData['avg_anomaly_score'], 3) }}</td>
+                        <td>{{ number_format($userData['avg_processing_time'], 1) }}ms</td>
+                        <td>{{ \Carbon\Carbon::parse($userData['first_scan'])->format('M j, Y') }}</td>
+                        <td>{{ \Carbon\Carbon::parse($userData['last_scan'])->format('M j, Y') }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+
+    <div class="page-break"></div>
+
     <!-- Trend Analysis -->
     <div class="section">
         <h2 class="section-title">Trend Analysis</h2>
@@ -514,103 +649,6 @@
                     <div class="chart-title">Daily Scan Trends</div>
                     @if (isset($chartImages['daily_trends']) && $chartImages['daily_trends'])
                         <img src="{{ $chartImages['daily_trends'] }}" alt="Daily Scan Trends" class="chart-image">
-                    @else
-                        <div class="no-data">Daily trend data not available</div>
-                    @endif
-                </div>
-            </div>
-            <div class="column">
-                <div class="chart-container">
-                    <div class="chart-title">Hourly Activity Patterns</div>
-                    @if (isset($chartImages['hourly_patterns']) && $chartImages['hourly_patterns'])
-                        <img src="{{ $chartImages['hourly_patterns'] }}" alt="Hourly Patterns" class="chart-image">
-                    @else
-                        <div class="no-data">Hourly pattern data not available</div>
-                    @endif
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="page-break"></div>
-
-    <!-- Defect Analysis -->
-    <div class="section">
-        <h2 class="section-title">Defect Analysis</h2>
-        <div class="three-column">
-            <div class="column">
-                <div class="chart-container">
-                    <div class="chart-title">Defect Distribution</div>
-                    @if (isset($chartImages['defect_distribution']) && $chartImages['defect_distribution'])
-                        <img src="{{ $chartImages['defect_distribution'] }}" alt="Defect Distribution"
-                            class="chart-image">
-                    @else
-                        <div class="no-data">No defects found</div>
-                    @endif
-                </div>
-            </div>
-            <div class="column">
-                <div class="chart-container">
-                    <div class="chart-title">Severity Levels</div>
-                    @if (isset($chartImages['severity_distribution']) && $chartImages['severity_distribution'])
-                        <img src="{{ $chartImages['severity_distribution'] }}" alt="Severity Distribution"
-                            class="chart-image">
-                    @else
-                        <div class="no-data">No severity data</div>
-                    @endif
-                </div>
-            </div>
-            <div class="column">
-                <div class="chart-container">
-                    <div class="chart-title">Confidence Levels</div>
-                    @if (isset($chartImages['confidence_levels']) && $chartImages['confidence_levels'])
-                        <img src="{{ $chartImages['confidence_levels'] }}" alt="Confidence Levels" class="chart-image">
-                    @else
-                        <div class="no-data">No confidence data</div>
-                    @endif
-                </div>
-            </div>
-        </div>
-
-        @if (!empty($defectAnalysis))
-            <h3 style="font-size: 14px; margin: 20px 0 10px 0; color: #495057;">Detailed Defect Breakdown</h3>
-            @foreach (array_slice($defectAnalysis, 0, 10) as $defect)
-                <div class="defect-analysis-item">
-                    <h5>{{ $defect['label'] }}</h5>
-                    <div class="defect-metrics">
-                        <div class="defect-metric">
-                            <div class="value">{{ $defect['total_occurrences'] }}</div>
-                            <div class="label">Occurrences</div>
-                        </div>
-                        <div class="defect-metric">
-                            <div class="value">{{ number_format($defect['avg_confidence'], 3) }}</div>
-                            <div class="label">Avg Confidence</div>
-                        </div>
-                        <div class="defect-metric">
-                            <div class="value">{{ $defect['avg_area_affected'] }}%</div>
-                            <div class="label">Avg Area</div>
-                        </div>
-                        <div class="defect-metric">
-                            <div class="value">{{ $defect['scans_affected'] }}</div>
-                            <div class="label">Scans Affected</div>
-                        </div>
-                    </div>
-                    <p style="font-size: 10px; color: #6c757d; margin-top: 6px;">{{ $defect['explanation'] }}</p>
-                </div>
-            @endforeach
-        @endif
-    </div>
-
-    <!-- Performance Analysis -->
-    <div class="section">
-        <h2 class="section-title">Performance Analysis</h2>
-        <div class="two-column">
-            <div class="column">
-                <div class="chart-container">
-                    <div class="chart-title">Processing Performance</div>
-                    @if (isset($chartImages['processing_performance']) && $chartImages['processing_performance'])
-                        <img src="{{ $chartImages['processing_performance'] }}" alt="Processing Performance"
-                            class="chart-image">
                     @else
                         <div class="no-data">Performance data not available</div>
                     @endif
@@ -740,7 +778,7 @@
     @endif
 
     <!-- Sample Scans -->
-    <div class="section">
+    {{-- <div class="section">
         <h2 class="section-title">Sample Scans (Latest {{ $scans->count() }})</h2>
         <div class="scan-list">
             @foreach ($scans as $scan)
@@ -761,7 +799,7 @@
                 </div>
             @endforeach
         </div>
-    </div>
+    </div> --}}
 
     <div class="page-break"></div>
 
@@ -868,7 +906,8 @@
                             <td>{{ $day['total'] }}</td>
                             <td>{{ $day['defective'] }}</td>
                             <td>{{ $day['good'] }}</td>
-                            <td>{{ $day['total'] > 0 ? round(($day['defective'] / $day['total']) * 100, 1) : 0 }}%</td>
+                            <td>{{ $day['total'] > 0 ? round(($day['defective'] / $day['total']) * 100, 1) : 0 }}%
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -911,67 +950,67 @@
     @endif
 
     <!-- Key Insights -->
-    <div class="section">
+    {{-- <div class="section">
         <h2 class="section-title">Key Insights & Recommendations</h2>
         <div class="highlight-box">
             <h4>Performance Insights</h4>
             @if ($statistics['defect_rate'] > 20)
-                <p>⚠️ High defect rate detected ({{ $statistics['defect_rate'] }}%). Consider reviewing scanning
+                <p>High defect rate detected ({{ $statistics['defect_rate'] }}%). Consider reviewing scanning
                     thresholds or improving input quality.</p>
             @elseif ($statistics['defect_rate'] < 5)
-                <p>✅ Excellent quality performance with low defect rate ({{ $statistics['defect_rate'] }}%).</p>
+                <p>Excellent quality performance with low defect rate ({{ $statistics['defect_rate'] }}%).</p>
             @else
-                <p>📊 Normal defect rate observed ({{ $statistics['defect_rate'] }}%). Continue monitoring trends.</p>
+                <p>Normal defect rate observed ({{ $statistics['defect_rate'] }}%). Continue monitoring trends.</p>
             @endif
 
             @if ($statistics['avg_processing_time'] > 3000)
-                <p>⏱️ Processing times are elevated ({{ number_format($statistics['avg_processing_time'], 1) }}ms avg).
+                <p>Processing times are elevated ({{ number_format($statistics['avg_processing_time'], 1) }}ms avg).
                     Consider optimizing scan parameters.</p>
             @else
-                <p>⚡ Good processing performance ({{ number_format($statistics['avg_processing_time'], 1) }}ms avg).
-                </p>
+                <p>Good processing performance ({{ number_format($statistics['avg_processing_time'], 1) }}ms avg).</p>
             @endif
 
             @if ($statistics['processing_performance']['scans_per_minute'] < 10)
-                <p>📈 Current throughput:
+                <p>Current throughput:
                     {{ number_format($statistics['processing_performance']['scans_per_minute'], 1) }} scans/minute.
                     Consider optimizing for higher volume.</p>
             @else
-                <p>🚀 Strong throughput performance:
-                    {{ number_format($statistics['processing_performance']['scans_per_minute'], 1) }} scans/minute.</p>
+                <p>Strong throughput performance:
+                    {{ number_format($statistics['processing_performance']['scans_per_minute'], 1) }} scans/minute.
+                </p>
             @endif
         </div>
 
         <div class="highlight-box">
             <h4>Quality Trends</h4>
             @if ($statistics['total_defects_found'] > 0)
-                <p>📈 Total of {{ number_format($statistics['total_defects_found']) }} defects identified across
+                <p>Total of {{ number_format($statistics['total_defects_found']) }} defects identified across
                     {{ number_format($statistics['defective_scans']) }} scans.</p>
                 @if (!empty($defectAnalysis))
-                    <p>🔍 Most common defect type: {{ $defectAnalysis[0]['label'] ?? 'N/A' }}
+                    <p>Most common defect type: {{ $defectAnalysis[0]['label'] ?? 'N/A' }}
                         ({{ $defectAnalysis[0]['total_occurrences'] ?? 0 }} occurrences)</p>
                     @if (count($defectAnalysis) > 1)
-                        <p>📊 {{ count($defectAnalysis) }} different defect types detected, indicating diverse quality
+                        <p>{{ count($defectAnalysis) }} different defect types detected, indicating diverse quality
                             issues.</p>
                     @endif
                 @endif
             @else
-                <p>✨ No defects detected during this period - excellent quality control!</p>
+                <p>No defects detected during this period - excellent quality control!</p>
             @endif
 
             @if ($statistics['unique_users'] > 1)
-                <p>👥 {{ $statistics['unique_users'] }} users contributed to scanning activities.</p>
+                <p>{{ $statistics['unique_users'] }} users contributed to scanning activities.</p>
                 @if ($userAnalysis && count($userAnalysis) > 0)
                     @php
                         $topUser = $userAnalysis[0] ?? null;
                         $lowPerformer = collect($userAnalysis)->where('statistics.defect_rate', '>', 15)->first();
                     @endphp
                     @if ($topUser)
-                        <p>🏆 Most active user: {{ $topUser['user']['name'] }}
+                        <p>Most active user: {{ $topUser['user']['name'] }}
                             ({{ $topUser['statistics']['total_scans'] }} scans)</p>
                     @endif
                     @if ($lowPerformer)
-                        <p>⚠️ User {{ $lowPerformer['user']['name'] }} has elevated defect rate
+                        <p>User {{ $lowPerformer['user']['name'] }} has elevated defect rate
                             ({{ $lowPerformer['statistics']['defect_rate'] }}%) - may need additional training.</p>
                     @endif
                 @endif
@@ -986,11 +1025,11 @@
                     $overallDefectRate = $statistics['defect_rate'];
                 @endphp
                 @if ($avgRecentDefectRate > $overallDefectRate * 1.2)
-                    <p>📈 Recent trend shows increasing defect rate ({{ number_format($avgRecentDefectRate, 1) }}% vs
+                    <p>Recent trend shows increasing defect rate ({{ number_format($avgRecentDefectRate, 1) }}% vs
                         {{ $overallDefectRate }}% overall). Monitor closely.</p>
                 @elseif ($avgRecentDefectRate < $overallDefectRate * 0.8)
-                    <p>📉 Positive trend: Recent defect rate improving ({{ number_format($avgRecentDefectRate, 1) }}%
-                        vs {{ $overallDefectRate }}% overall).</p>
+                    <p>Positive trend: Recent defect rate improving ({{ number_format($avgRecentDefectRate, 1) }}% vs
+                        {{ $overallDefectRate }}% overall).</p>
                 @endif
             @endif
         </div>
@@ -999,19 +1038,19 @@
             <div class="highlight-box">
                 <h4>Security Insights</h4>
                 @if ($statistics['threat_analysis']['clean_percentage'] >= 95)
-                    <p>🛡️ Excellent security posture: {{ $statistics['threat_analysis']['clean_percentage'] }}% of
-                        scans were clean.</p>
+                    <p>Excellent security posture: {{ $statistics['threat_analysis']['clean_percentage'] }}% of scans
+                        were clean.</p>
                 @elseif ($statistics['threat_analysis']['malicious_count'] > 0)
-                    <p>⚠️ {{ $statistics['threat_analysis']['malicious_count'] }} malicious threats detected. Review
+                    <p>{{ $statistics['threat_analysis']['malicious_count'] }} malicious threats detected. Review
                         security protocols immediately.</p>
-                    <p>🔒 Implement additional security measures for file uploads and scanning processes.</p>
+                    <p>Implement additional security measures for file uploads and scanning processes.</p>
                 @else
-                    <p>🔍 {{ $statistics['threat_analysis']['suspicious_count'] }} suspicious items require further
+                    <p>{{ $statistics['threat_analysis']['suspicious_count'] }} suspicious items require further
                         investigation.</p>
                 @endif
 
                 @if ($statistics['threat_analysis']['total_threats_scanned'] < $statistics['total_scans'] * 0.5)
-                    <p>📊 Only
+                    <p>Only
                         {{ round(($statistics['threat_analysis']['total_threats_scanned'] / $statistics['total_scans']) * 100, 1) }}%
                         of scans included threat analysis. Consider enabling for all scans.</p>
                 @endif
@@ -1041,7 +1080,7 @@
                 <p>• Provide user-specific training based on individual defect rates</p>
             @endif
         </div>
-    </div>
+    </div> --}}
 
     <!-- Report Metadata -->
     <div class="section">
@@ -1091,11 +1130,28 @@
                     </td>
                     <td>Statistical significance of dataset</td>
                 </tr>
-                @if ($filters['userId'])
+                @if (!empty($filters['users']) && count($filters['users']) === 1)
+                    @php
+                        $targetUser = $scans->where('user_id', $filters['users'][0])->first()?->user;
+                    @endphp
                     <tr>
                         <td>Target User</td>
-                        <td>{{ $scans->first()->user ? $scans->first()->user->name : 'Unknown' }}</td>
+                        <td>{{ $targetUser ? $targetUser->name : 'Unknown User' }}</td>
                         <td>Specific user analysis target</td>
+                    </tr>
+                @endif
+                @if (!empty($filters['users']) && count($filters['users']) > 1)
+                    <tr>
+                        <td>Filtered Users</td>
+                        <td>{{ count($filters['users']) }} users selected</td>
+                        <td>Multiple users filtered for analysis</td>
+                    </tr>
+                @endif
+                @if (!empty($filters['roles']))
+                    <tr>
+                        <td>Role Filter</td>
+                        <td>{{ implode(', ', array_map('ucfirst', $filters['roles'])) }}</td>
+                        <td>User roles included in analysis</td>
                     </tr>
                 @endif
                 @if (!empty($filters['defectTypes']))

@@ -3,9 +3,8 @@
 namespace App\Providers;
 
 use App\Models\Scan;
-use App\Models\ScanDefect;
-use App\Models\ScanThreat;
-use App\Observers\ScanObserver;
+use App\Policies\ScanPolicy;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -24,5 +23,6 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         //
+        Gate::policy(Scan::class, ScanPolicy::class);
     }
 }

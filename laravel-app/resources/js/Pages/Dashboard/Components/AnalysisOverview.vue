@@ -1,11 +1,12 @@
 <script setup>
+import { Link } from "@inertiajs/vue3";
 import { route } from "ziggy-js";
 
 const props = defineProps({
-    averageTime: Number,
-    successRate: Number,
-    defectRate: Number,
-    AIConfidence: Number,
+    analyses: {
+        type: Object,
+        required: true,
+    },
 });
 </script>
 
@@ -29,7 +30,7 @@ const props = defineProps({
                 </svg>
                 <span>Avg Processing Time</span>
             </div>
-            {{ props.averageTime }}s
+            {{ analyses.avgProcessingTime }}ms
         </div>
         <div
             class="flex justify-between bg-this-darker/[0.07] dark:bg-this-lighter/10 py-2 border border-this-darker/20 dark:border-this-lighter/20 text-this-darker dark:text-this-lighter badge-base badge this:success"
@@ -47,9 +48,9 @@ const props = defineProps({
                         clip-rule="evenodd"
                     />
                 </svg>
-                <span>Success Rate</span>
+                <span>Good Rate</span>
             </div>
-            {{ props.successRate }}%
+            {{ analyses.goodRate }}%
         </div>
         <div
             class="flex justify-between bg-this-darker/[0.07] dark:bg-this-lighter/10 py-2 border border-this-darker/20 dark:border-this-lighter/20 text-this-darker dark:text-this-lighter badge-base badge this:error"
@@ -69,7 +70,7 @@ const props = defineProps({
                 </svg>
                 <span>Defect Rate</span>
             </div>
-            {{ props.defectRate }}%
+            {{ analyses.defectRate }}%
         </div>
         <div
             class="flex justify-between bg-this-darker/[0.07] dark:bg-this-lighter/10 py-2 border border-this-darker/20 dark:border-this-lighter/20 text-this-darker dark:text-this-lighter badge-base badge this:secondary"
@@ -89,7 +90,7 @@ const props = defineProps({
                 </svg>
                 <span>AI Confidence</span>
             </div>
-            {{ props.AIConfidence }}%
+            {{ analyses.aiConfidence }}%
         </div>
     </div>
     <div class="flex flex-col gap-4 mt-3">
@@ -114,7 +115,15 @@ const props = defineProps({
                         clip-rule="evenodd"
                     />
                 </svg>
-                <span>Image Analysis</span>
+                <span>New Scan (Image)</span>
+            </button>
+        </Link>
+        <Link :href="route('scans.index')">
+            <button
+                class="gap-2 hover:bg-this-darker/[.05] focus:bg-this-darker/[.05] active:bg-this-darker/10 dark:hover:bg-this-lighter/[.05] dark:focus:bg-this-lighter/[.05] dark:active:bg-this-lighter/10 py-2 border border-this-darker dark:border-this-lighter w-full text-this-darker dark:text-this-lighter btn-base btn this:primary"
+            >
+                <font-awesome-icon icon="fa-solid fa-clock-rotate-left" />
+                <span>Scan History (Image)</span>
             </button>
         </Link>
         <Link :href="route('sessions.create')">
@@ -133,25 +142,22 @@ const props = defineProps({
                         clip-rule="evenodd"
                     />
                 </svg>
-
-                <span>Real-Time Analysis</span>
+                <span>New Session (Real-Time)</span>
             </button>
         </Link>
-        <Link :href="route('scans.myscans')">
+        <Link :href="route('sessions.index')">
+            <button
+                class="gap-2 hover:bg-this-darker/[.05] focus:bg-this-darker/[.05] active:bg-this-darker/10 dark:hover:bg-this-lighter/[.05] dark:focus:bg-this-lighter/[.05] dark:active:bg-this-lighter/10 py-2 border border-this-darker dark:border-this-lighter w-full text-this-darker dark:text-this-lighter btn-base btn this:success"
+            >
+                <font-awesome-icon icon="fa-solid fa-clock-rotate-left" />
+                <span>Session History (Real-Time)</span>
+            </button>
+        </Link>
+        <Link :href="route('settings.index')">
             <button
                 class="gap-2 hover:bg-this-darker/[.05] focus:bg-this-darker/[.05] active:bg-this-darker/10 dark:hover:bg-this-lighter/[.05] dark:focus:bg-this-lighter/[.05] dark:active:bg-this-lighter/10 py-2 border border-this-darker dark:border-this-lighter w-full text-this-darker dark:text-this-lighter btn-base btn this:error"
             >
-                <font-awesome-icon icon="fa-solid fa-clock-rotate-left" />
-
-                <span>History Analysis</span>
-            </button>
-        </Link>
-        <Link :href="route('settings')">
-            <button
-                class="gap-2 hover:bg-this-darker/[.05] focus:bg-this-darker/[.05] active:bg-this-darker/10 dark:hover:bg-this-lighter/[.05] dark:focus:bg-this-lighter/[.05] dark:active:bg-this-lighter/10 py-2 border border-this-darker dark:border-this-lighter w-full text-this-darker dark:text-this-lighter btn-base btn this:secondary"
-            >
                 <font-awesome-icon icon="fa-solid fa-cogs" />
-
                 <span>Settings</span>
             </button>
         </Link>

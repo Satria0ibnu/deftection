@@ -37,25 +37,13 @@ class RealtimeSession extends Model
     ];
 
     public static array $sortable = [
+        'id',
+        'session_status',
         'session_start',
         'session_end',
         'duration_seconds',
-        'camera_location',
         'total_frames_processed',
-        'throughput_fps',
-        'defect_count',
         'defect_rate',
-        'good_count',
-        'good_rate',
-        'avg_processing_time',
-        'max_processing_time',
-        'min_processing_time',
-        'avg_anomaly_score',
-        'max_anomaly_score',
-        'min_anomaly_score',
-        'avg_classification_confidence',
-        'max_classification_confidence',
-        'min_classification_confidence',
         'created_at',
         'updated_at'
     ];
@@ -63,6 +51,10 @@ class RealtimeSession extends Model
     protected $casts = [
         'defect_type_distribution' => 'array',
         'severity_level_distribution' => 'array',
+        'session_start' => 'datetime',
+        'session_end' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     public function user()

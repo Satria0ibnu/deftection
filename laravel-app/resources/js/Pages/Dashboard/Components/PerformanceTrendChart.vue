@@ -1,15 +1,22 @@
 <script setup>
 import VueApexCharts from "vue3-apexcharts";
-import { ref } from "vue";
+import { computed } from "vue";
 
-const series = ref([
+const props = defineProps({
+    performanceData: {
+        type: Object,
+        required: true,
+    },
+});
+
+const series = computed(() => [
     {
         name: "Defects Detected",
-        data: [10, 20, 15, 30, 25, 40, 35],
+        data: props.performanceData.data || [],
     },
 ]);
 
-const chartOptions = ref({
+const chartOptions = computed(() => ({
     colors: ["#a855f7"],
     chart: {
         dropShadow: {
@@ -29,19 +36,20 @@ const chartOptions = ref({
         curve: "smooth",
     },
     xaxis: {
-        type: "datetime",
-        categories: [
-            "2000-11-01",
-            "2000-11-02",
-            "2000-11-03",
-            "2000-11-04",
-            "2000-11-05",
-            "2000-11-06",
-            "2000-11-07",
-        ],
+        type: "category",
+        categories: props.performanceData.labels || [],
         tickAmount: 10,
         labels: {
-            format: "dd MMM",
+            style: {
+                colors: "#cbd5e1",
+            },
+        },
+    },
+    yaxis: {
+        labels: {
+            style: {
+                colors: "#cbd5e1",
+            },
         },
     },
     fill: {
@@ -56,11 +64,12 @@ const chartOptions = ref({
             stops: [0, 100, 0, 100],
         },
     },
-    yaxis: {
-        min: -10,
-        max: 40,
+    tooltip: {
+        y: {
+            formatter: (val) => `${val} defects`,
+        },
     },
-});
+}));
 </script>
 
 <template>

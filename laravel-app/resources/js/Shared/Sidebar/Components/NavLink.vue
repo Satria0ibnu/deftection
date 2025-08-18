@@ -15,9 +15,11 @@ defineProps({
         <Link
             class="group flex-1 px-3 py-2 rounded-md outline-hidden min-w-0 font-medium transition-colors ease-in-out"
             :class="{
-                'text-primary-600 dark:text-primary-400': active,
+                'text-primary-600 dark:text-primary-400': active && !as,
                 'text-gray-800 hover:bg-gray-100 hover:text-gray-950 focus:bg-gray-100 focus:text-gray-950 dark:text-dark-200 dark:hover:bg-dark-300/10 dark:hover:text-dark-50 dark:focus:bg-dark-300/10':
-                    !active,
+                    !active && !as,
+                'text-error dark:text-error-darker hover:bg-error-100 dark:hover:bg-error-darker/10 cursor-pointer':
+                    as === 'button',
             }"
             :href="href"
             :as="as"

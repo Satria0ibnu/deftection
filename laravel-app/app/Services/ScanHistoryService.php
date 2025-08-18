@@ -3,62 +3,125 @@
 namespace App\Services;
 
 use App\Models\Scan;
+use App\Models\User;
 use App\Models\ScanDefect;
+use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class ScanHistoryService
 {
+
     public function getScans(array $filters): LengthAwarePaginator
     {
-        return Scan::query()
-            ->where('user_id', auth()->id()) // Filter by authenticated user
-            ->with(['scanDefects:scan_id,label,confidence_score,severity_level'])
-            ->selectRaw('
-                *,
-                DATE_FORMAT(created_at, "%d-%m-%Y") AS analysis_date,
-                DATE_FORMAT(created_at, "%H:%i") AS analysis_time,
-                COALESCE(anomaly_inference_time_ms, 0) + COALESCE(classification_inference_time_ms, 0) +
-                COALESCE(preprocessing_time_ms, 0) + COALESCE(postprocessing_time_ms, 0) AS total_processing_time,
-                COALESCE((
-                    SELECT COUNT(*) FROM scan_defects WHERE scan_id = scans.id
-                ), 0) AS total_defect,
-                COALESCE((
-                    SELECT GROUP_CONCAT(DISTINCT label ORDER BY label SEPARATOR ", ") 
-                    FROM scan_defects 
-                    WHERE scan_id = scans.id
-                ), "No defects") AS defect_scanned,
-                CASE WHEN is_defect = 1 THEN "defect" ELSE "good" END AS status
-            ')
+        $canViewAll = auth()->user()->can('viewAny', Scan::class);
+
+        $query = Scan::query()
+            // Authorization-based user filtering - Use role as primary, policy as secondary
+            ->when(!$canViewAll, function ($query) {
+                // Regular users: Only see their own scans
+                $query->where('scans.user_id', auth()->id());
+                Log::info('Applied user restriction for user: ' . auth()->id());
+            })
+            // Admin user filter (when specific users are selected)
+            ->when(!empty($filters['users']) && $canViewAll, function ($query) use ($filters) {
+                $query->whereIn('scans.user_id', $filters['users']);
+                Log::info('Applied admin user filter: ' . implode(',', $filters['users']));
+            })
+            // Admin role filter (when specific roles are selected)
+            ->when(!empty($filters['roles']) && $canViewAll, function ($query) use ($filters) {
+                $query->whereHas('user', function ($subQuery) use ($filters) {
+                    $subQuery->whereIn('role', $filters['roles']);
+                });
+                Log::info('Applied admin role filter: ' . implode(',', $filters['roles']));
+            })
+            // Join users table only once and select specific columns
+            ->join('users', 'scans.user_id', '=', 'users.id')
+            // Use subquery for defect counts to avoid N+1 queries
+            ->leftJoin(
+                DB::raw('(SELECT scan_id, COUNT(*) as defect_count, GROUP_CONCAT(DISTINCT label ORDER BY label SEPARATOR ", ") as defect_labels FROM scan_defects GROUP BY scan_id) as defect_summary'),
+                'scans.id',
+                '=',
+                'defect_summary.scan_id'
+            )
+            ->select([
+                'scans.id',
+                'scans.filename',
+                'scans.original_path',
+                'scans.annotated_path',
+                'scans.is_defect',
+                'scans.anomaly_score',
+                'scans.anomaly_confidence_level',
+                'scans.anomaly_inference_time_ms',
+                'scans.classification_inference_time_ms',
+                'scans.preprocessing_time_ms',
+                'scans.postprocessing_time_ms',
+                'scans.created_at',
+                'scans.updated_at',
+                'users.name as username',
+                'users.role as user_role',
+                // Pre-calculate formatted dates
+                DB::raw('DATE_FORMAT(scans.created_at, "%d-%m-%Y") AS analysis_date'),
+                DB::raw('DATE_FORMAT(scans.created_at, "%H:%i") AS analysis_time'),
+                // Pre-calculate total processing time
+                DB::raw('COALESCE(scans.anomaly_inference_time_ms, 0) + COALESCE(scans.classification_inference_time_ms, 0) + COALESCE(scans.preprocessing_time_ms, 0) + COALESCE(scans.postprocessing_time_ms, 0) AS total_processing_time'),
+                // Get defect data from subquery
+                DB::raw('COALESCE(defect_summary.defect_count, 0) AS total_defect'),
+                DB::raw('COALESCE(defect_summary.defect_labels, "No defects") AS defect_scanned'),
+                // Pre-calculate status
+                DB::raw('CASE WHEN scans.is_defect = 1 THEN "defect" ELSE "good" END AS status')
+            ])
+            // Apply filters efficiently
             ->when(!empty($filters['status']), function ($query) use ($filters) {
                 $statusValues = collect($filters['status'])->map(fn($s) => $s === 'defect' ? 1 : 0)->toArray();
-                $query->whereIn('is_defect', $statusValues);
+                $query->whereIn('scans.is_defect', $statusValues);
             })
             ->when(!empty($filters['defectTypes']), function ($query) use ($filters) {
-                $query->whereHas('scanDefects', function ($q) use ($filters) {
-                    $q->whereIn('label', $filters['defectTypes']);
+                $query->whereExists(function ($subquery) use ($filters) {
+                    $subquery->select(DB::raw(1))
+                        ->from('scan_defects')
+                        ->whereColumn('scan_defects.scan_id', 'scans.id')
+                        ->whereIn('scan_defects.label', $filters['defectTypes']);
                 });
             })
             ->when(!empty($filters['search']), function ($query) use ($filters) {
                 $searchTerm = trim($filters['search']);
                 $query->where(function ($subQuery) use ($searchTerm) {
-                    $subQuery->where('filename', 'like', '%' . $searchTerm . '%')
-                        ->orWhere('anomaly_confidence_level', 'like', '%' . $searchTerm . '%')
-                        ->orWhere('anomaly_score', 'like', '%' . $searchTerm . '%')
-                        ->orWhereHas('scanDefects', function ($q) use ($searchTerm) {
-                            $q->where('label', 'like', '%' . $searchTerm . '%');
+                    $subQuery->where('scans.filename', 'like', '%' . $searchTerm . '%')
+                        ->orWhere('scans.anomaly_confidence_level', 'like', '%' . $searchTerm . '%')
+                        ->orWhere('scans.anomaly_score', 'like', '%' . $searchTerm . '%')
+                        ->orWhere('users.name', 'like', '%' . $searchTerm . '%')
+                        ->orWhereExists(function ($subquery) use ($searchTerm) {
+                            $subquery->select(DB::raw(1))
+                                ->from('scan_defects')
+                                ->whereColumn('scan_defects.scan_id', 'scans.id')
+                                ->where('scan_defects.label', 'like', '%' . $searchTerm . '%');
                         });
                 });
             })
             ->when(!empty($filters['dateFrom']), function ($query) use ($filters) {
-                $query->whereDate('created_at', '>=', $filters['dateFrom']);
+                $query->whereDate('scans.created_at', '>=', $filters['dateFrom']);
             })
             ->when(!empty($filters['dateTo']), function ($query) use ($filters) {
-                $query->whereDate('created_at', '<=', $filters['dateTo']);
-            })
-            ->orderBy($filters['sortBy'], $filters['sortDir'])
-            ->paginate($filters['perPage'], ['*'], 'page', $filters['page'])
+                $query->whereDate('scans.created_at', '<=', $filters['dateTo']);
+            });
+
+        // Handle sorting with proper table prefixes
+        $sortColumn = $filters['sortBy'];
+        if (!str_contains($sortColumn, '.')) {
+            // Special handling for user sorting
+            if ($sortColumn === 'user') {
+                $sortColumn = 'users.name';
+            } else {
+                $sortColumn = 'scans.' . $sortColumn;
+            }
+        }
+        $query->orderBy($sortColumn, $filters['sortDir']);
+
+        $result = $query->paginate($filters['perPage'], ['*'], 'page', $filters['page'])
             ->withQueryString()
             ->through(fn($scan) => [
                 'id' => $scan->id,
@@ -73,88 +136,93 @@ class ScanHistoryService
                 'total_processing_time' => number_format($scan->total_processing_time, 3),
                 'defect_scanned' => $scan->defect_scanned,
                 'total_defect' => $scan->total_defect,
+                'username' => $scan->username,
+                'user_role' => $scan->user_role,
+                'annotated_image_url' => $scan->annotated_image_url,
                 'created_at' => $scan->created_at->toISOString(),
                 'updated_at' => $scan->updated_at->toISOString(),
             ]);
+
+        Log::info('Pagination result', [
+            'total' => $result->total(),
+            'items_count' => count($result->items())
+        ]);
+
+        return $result;
     }
 
-
     /**
-     * Alternative: Even more stable checksum that only includes data that actually affects the UI
+     * Get stable data checksum - SIMPLIFIED (defects never change independently)
      */
     public function getStableDataChecksum($userId): string
     {
-        // Get aggregated data that affects what user sees
-        $scanData = Scan::where('user_id', $userId)
+        $canViewAll = auth()->user()->can('viewAny', Scan::class);
+
+        // Only check scan data since defects are immutable and cascade with scans
+        $scanStats = Scan::query()
+            ->when(!$canViewAll, function ($query) use ($userId) {
+                $query->where('user_id', $userId);
+            })
             ->selectRaw('
                 COUNT(*) as total_scans,
-                MAX(updated_at) as latest_update,
-                SUM(CASE WHEN is_defect = 1 THEN 1 ELSE 0 END) as defect_count,
-                SUM(CASE WHEN is_defect = 0 THEN 1 ELSE 0 END) as good_count
+                MAX(updated_at) as latest_update
             ')
             ->first();
 
-        $defectData = ScanDefect::whereHas('scan', function ($query) use ($userId) {
-            $query->where('user_id', $userId);
-        })
-            ->selectRaw('
-            COUNT(*) as total_defects,
-            MAX(updated_at) as latest_defect_update,
-            GROUP_CONCAT(DISTINCT label ORDER BY label) as defect_types
-        ')
-            ->first();
-
-        // Only include data that affects the UI display
         $checksumData = [
-            'total_scans' => $scanData->total_scans ?? 0,
-            'defect_count' => $scanData->defect_count ?? 0,
-            'good_count' => $scanData->good_count ?? 0,
-            'total_defects' => $defectData->total_defects ?? 0,
-            'defect_types' => $defectData->defect_types ?? '',
-
-            'latest_scan_update' => $scanData->latest_update
-                ? Carbon::parse($scanData->latest_update)->timestamp
-                : 0,
-            'latest_defect_update' => $defectData->latest_defect_update
-                ? Carbon::parse($defectData->latest_defect_update)->timestamp
+            'user_role' => auth()->user()->role,
+            'total_scans' => $scanStats->total_scans ?? 0,
+            'latest_update' => $scanStats->latest_update
+                ? Carbon::parse($scanStats->latest_update)->timestamp
                 : 0,
         ];
 
         return md5(json_encode($checksumData));
     }
+
     /**
-     * Get all defect types with counts for the current authenticated user
+     * Get all defect types with counts (scoped by user access level) - OPTIMIZED
      */
     public function getDefectTypesWithCounts(): array
     {
-        return ScanDefect::select('label')
-            ->selectRaw('COUNT(DISTINCT scan_defects.scan_id) as user_scan_count')
+        $canViewAll =  auth()->user()->can('viewAny', Scan::class);
+
+        $query = DB::table('scan_defects')
             ->join('scans', 'scan_defects.scan_id', '=', 'scans.id')
-            ->where('scans.user_id', auth()->id())
-            ->groupBy('label')
-            ->orderBy('user_scan_count', 'desc')
-            ->orderBy('label', 'asc')
-            ->get()
-            ->map(function ($defect) {
-                return [
-                    'label' => ucwords(str_replace(['_', '-'], ' ', $defect->label)),
-                    'value' => $defect->label,
-                    'count' => $defect->user_scan_count,
-                ];
+            ->when(!$canViewAll, function ($query) {
+                $query->where('scans.user_id', auth()->id());
             })
-            ->toArray();
+            ->select('scan_defects.label')
+            ->selectRaw('COUNT(DISTINCT scan_defects.scan_id) as user_scan_count')
+            ->groupBy('scan_defects.label')
+            ->orderBy('user_scan_count', 'desc')
+            ->orderBy('scan_defects.label', 'asc')
+            ->get();
+
+        return $query->map(function ($defect) {
+            return [
+                'label' => ucwords(str_replace(['_', '-'], ' ', $defect->label)),
+                'value' => $defect->label,
+                'count' => $defect->user_scan_count,
+            ];
+        })->toArray();
     }
 
     /**
-     * Get status counts for the current authenticated user
+     * Get status counts (scoped by user access level) - OPTIMIZED
      */
     public function getStatusCounts(): array
     {
-        $counts = Scan::where('user_id', auth()->id())
+        $isAdmin = auth()->user()->role === 'admin';
+        $canViewAll = $isAdmin || auth()->user()->can('viewAny', Scan::class);
+
+        $counts = Scan::query()
+            ->when(!$canViewAll, function ($query) {
+                $query->where('user_id', auth()->id());
+            })
             ->selectRaw('
                 SUM(CASE WHEN is_defect = 1 THEN 1 ELSE 0 END) as defect_count,
-                SUM(CASE WHEN is_defect = 0 THEN 1 ELSE 0 END) as good_count,
-                COUNT(*) as total_count
+                SUM(CASE WHEN is_defect = 0 THEN 1 ELSE 0 END) as good_count
             ')
             ->first();
 
@@ -173,6 +241,69 @@ class ScanHistoryService
     }
 
     /**
+     * Get users with scan counts (admin only) - OPTIMIZED
+     */
+    public function getUsersWithCounts(): array
+    {
+        $canViewAll = auth()->user()->can('viewAny', Scan::class);
+
+        // Only admins can access this
+        if (!$canViewAll) {
+            return [];
+        }
+
+        return DB::table('users')
+            ->join('scans', 'users.id', '=', 'scans.user_id')
+            ->select('users.id', 'users.name', 'users.email')
+            ->selectRaw('COUNT(scans.id) as scans_count')
+            ->groupBy('users.id', 'users.name', 'users.email')
+            ->having('scans_count', '>', 0)
+            ->orderBy('users.name')
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'label' => $user->name, // Fixed: Just use name, not email
+                    'value' => (string) $user->id,
+                    'count' => (string) $user->scans_count,
+                ];
+            })
+            ->toArray();
+    }
+
+    /**
+     * Get roles with scan counts (admin only)
+     */
+    public function getRolesWithCounts(): array
+    {
+        $canViewAll = auth()->user()->can('viewAny', Scan::class);
+
+        // Only admins can access this
+        if (!$canViewAll) {
+            return [];
+        }
+
+        return DB::table('users')
+            ->join('scans', 'users.id', '=', 'scans.user_id')
+            ->select('users.role')
+            ->selectRaw('COUNT(scans.id) as scans_count')
+            ->selectRaw('COUNT(DISTINCT users.id) as users_count')
+            ->whereNotNull('users.role') // Exclude null roles
+            ->where('users.role', '!=', '') // Exclude empty roles
+            ->groupBy('users.role')
+            ->having('scans_count', '>', 0) // Only roles with actual scans
+            ->orderBy('users.role')
+            ->get()
+            ->map(function ($role) {
+                return [
+                    'label' => ucfirst($role->role) . ' (' . $role->users_count . ' users)',
+                    'value' => $role->role,
+                    'count' => $role->scans_count,
+                ];
+            })
+            ->toArray();
+    }
+
+    /**
      * Get and validate filters from request
      */
     public function filters(Request $request): array
@@ -180,7 +311,7 @@ class ScanHistoryService
         // Validate request parameters
         $validated = $request->validate([
             'search' => 'nullable|string|max:255',
-            'sort_by' => 'nullable|string|in:' . implode(',', Scan::$sortable),
+            'sort_by' => 'nullable|string|in:' . implode(',', array_merge(Scan::$sortable, ['user'])), // Add 'user' for sorting
             'sort_dir' => 'nullable|string|in:asc,desc',
             'per_page' => 'nullable|integer|min:1|max:100',
             'page' => 'nullable|integer|min:1',
@@ -188,9 +319,23 @@ class ScanHistoryService
             'status.*' => 'string|in:good,defect',
             'defect_types' => 'nullable|array',
             'defect_types.*' => 'string',
+            'users' => 'nullable|array',
+            'users.*' => 'integer|exists:users,id',
+            'roles' => 'nullable|array', // Fixed: was 'role', should be 'roles'
+            'roles.*' => 'string|in:admin,user', // Fixed: should match 'roles'
             'date_from' => 'nullable|date',
             'date_to' => 'nullable|date|after_or_equal:date_from',
         ]);
+
+        $canFilterByUser = auth()->user()->can('filterByUser', Scan::class);
+
+        // Only allow user and role filtering for admins
+        $users = [];
+        $roles = [];
+        if ($canFilterByUser) {
+            $users = $validated['users'] ?? [];
+            $roles = $validated['roles'] ?? []; // Fixed: was using wrong key
+        }
 
         return [
             'search' => $validated['search'] ?? '',
@@ -200,6 +345,8 @@ class ScanHistoryService
             'page' => $validated['page'] ?? 1,
             'status' => $validated['status'] ?? [],
             'defectTypes' => $validated['defect_types'] ?? [],
+            'users' => $users,
+            'roles' => $roles, // Fixed: was using 'role', should be 'roles'
             'dateFrom' => $validated['date_from'] ?? null,
             'dateTo' => $validated['date_to'] ?? null,
         ];

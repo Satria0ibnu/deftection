@@ -1,49 +1,143 @@
 <script setup>
-import { ref, computed, reactive } from "vue";
+import { ref, computed, reactive, onMounted, watch } from "vue";
+import { useForm } from "@inertiajs/vue3";
+import { router } from "@inertiajs/vue3";
 
-// Import the placeholder components for each tab's content.
+// --- Import Components & Utils ---
 import AccountSettings from "./Components/AccountSettings.vue";
-import DetectionSettings from "./Components/DetectionSettings.vue";
+import GeneralSettings from "./Components/GeneralSettings.vue";
 import AdvancedSettings from "./Components/AdvancedSettings.vue";
+import ConfirmationModal from "./Components/Modals/ConfirmationModal.vue";
+import { successToast } from "@/utils/swal";
+import axios from "axios";
+
+// --- Props ---
+// NEW: Define the props that will be passed from the Laravel backend.
+const props = defineProps({
+    savedSettings: {
+        type: Object,
+        required: true,
+    },
+});
 
 // --- State ---
 const activeTab = ref("account");
+const pristineSettings = ref("");
+const isDangerZoneResetModalVisible = ref(false);
+const isClearAllDataModalVisible = ref(false);
+const isClearMyDataModalVisible = ref(false);
 
-// --- Mock Data ---
-// A single reactive object to hold ALL settings data for the entire page.
-// When the user clicks "Save Settings", you can send this whole object to your backend.
-const settings = reactive({
-    account: {
-        // This data would come from page.props.auth.user in a real app
-        name: "navin",
-        username: "navin",
-    },
+// --- Default Settings Data (for resetting) ---
+const defaultSettings = {
     detection: {
-        anomalyThreshold: 0.7,
+        anomalyThreshold: 0.75,
         defectThreshold: 0.85,
-        autoSave: true,
-        generateVisualizations: true,
         exportFormat: "pdf",
     },
+};
+
+// --- Live Settings Data ---
+// MODIFIED: Initialize the settings with the data passed from the server.
+const settings = reactive({
+    detection: JSON.parse(JSON.stringify(props.savedSettings.detection)),
     advanced: {
         systemInfo: {
-            "System Version": "v2.0.0",
-            "API Status": "Connected",
-            "Models Loaded": "Yes",
+            "System Version": "Checking...",
+            "API Status": "Checking...",
+            "Models Loaded": "Checking...",
             Database: "Connected",
-        },
-        performance: {
-            maxConcurrentAnalyses: 2,
-            cacheDuration: 24,
-        },
-        dataManagement: {
-            autoCleanup: true,
-            backupToCloud: false,
         },
     },
 });
 
-// An array to define the tabs, making the template cleaner.
+const fetchDatabaseStatus = async () => {
+    try {
+        const response = await axios.get(route("settings.database_status"));
+        settings.advanced.systemInfo["Database"] = response.data.status;
+    } catch (error) {
+        console.error("Failed to fetch database status:", error);
+        settings.advanced.systemInfo["Database"] = "Disconnected";
+    }
+};
+
+const fetchApiHealth = async () => {
+    try {
+        const response = await axios.get(route("settings.api_health"));
+        const data = response.data;
+
+        // Map API response to our settings object
+        if (
+            data.status === "healthy" &&
+            data.service_status === "operational"
+        ) {
+            settings.advanced.systemInfo["API Status"] = "Connected";
+        } else {
+            settings.advanced.systemInfo["API Status"] = "Error";
+        }
+
+        if (
+            data.service_info &&
+            data.service_info.yara_rules_compiled &&
+            data.service_info.malware_hashes_loaded > 0
+        ) {
+            settings.advanced.systemInfo["Models Loaded"] = "Yes";
+        } else {
+            settings.advanced.systemInfo["Models Loaded"] = "No";
+        }
+
+        if (data.service_info && data.service_info.version) {
+            settings.advanced.systemInfo[
+                "System Version"
+            ] = `v${data.service_info.version}`;
+        } else {
+            settings.advanced.systemInfo["System Version"] = "Unknown";
+        }
+    } catch (error) {
+        console.error("Failed to fetch API health:", error);
+        settings.advanced.systemInfo["API Status"] = "Disconnected";
+        settings.advanced.systemInfo["Models Loaded"] = "Unknown";
+        settings.advanced.systemInfo["System Version"] = "Unknown";
+    }
+};
+
+// --- Form Management ---
+const settingsForm = useForm({
+    detection: settings.detection,
+});
+
+// --- Computed Properties ---
+const hasUnsavedChanges = computed(() => {
+    if (!pristineSettings.value) return false;
+    const pristine = JSON.parse(pristineSettings.value);
+    return (
+        JSON.stringify(settings.detection) !==
+        JSON.stringify(pristine.detection)
+    );
+});
+
+const updatePristineState = () => {
+    pristineSettings.value = JSON.stringify({
+        detection: settings.detection,
+    });
+};
+
+// --- Watchers ---
+watch(
+    settings,
+    (newSettings) => {
+        settingsForm.detection = newSettings.detection;
+    },
+    { deep: true }
+);
+
+// --- Lifecycle Hooks ---
+// MODIFIED: This now simply takes a snapshot of the initial server-provided state.
+onMounted(() => {
+    updatePristineState();
+    fetchApiHealth();
+});
+
+// --- Tab Configuration ---
 const tabs = [
     {
         id: "account",
@@ -53,9 +147,9 @@ const tabs = [
     },
     {
         id: "detection",
-        name: "Detection Settings",
-        component: DetectionSettings,
-        icon: "fa-solid fa-magnifying-glass",
+        name: "General ",
+        component: GeneralSettings,
+        icon: "fa-solid fa-wrench",
     },
     {
         id: "advanced",
@@ -65,47 +159,104 @@ const tabs = [
     },
 ];
 
-// A computed property to get the component for the currently active tab.
 const activeTabComponent = computed(() => {
     return tabs.find((tab) => tab.id === activeTab.value)?.component;
 });
 
-// --- NEW: A computed property to get the correct props for the active component ---
 const activeTabProps = computed(() => {
     switch (activeTab.value) {
         case "account":
-            return { user: settings.account };
+            return {};
         case "detection":
-            return { settings: settings.detection };
+            return {
+                settings: settings.detection,
+            };
         case "advanced":
-            return { settings: settings.advanced };
+            return {
+                settings: settings.advanced,
+            };
         default:
             return {};
     }
 });
 
 // --- Event Handlers ---
-const saveSettings = () => {
-    // In a real app, you would send the 'settings' object to your backend.
-    // For example: router.put(route('settings.update'), settings);
-    console.log("Saving settings:", JSON.parse(JSON.stringify(settings)));
-    // Show a success toast/modal
+const saveSettings = (showToast = true) => {
+    settingsForm.patch(route("settings.detection_settings.update"), {
+        onSuccess: () => {
+            if (showToast) {
+                successToast("Settings saved successfully!");
+            }
+            updatePristineState();
+        },
+        onError: (errors) => {
+            console.error("Failed to save settings:", errors);
+        },
+    });
 };
 
-const resetToDefaults = () => {
-    // This would likely show a confirmation modal first.
-    console.log("Resetting settings to defaults...");
+const resetUnsavedChanges = () => {
+    const lastSavedState = JSON.parse(pristineSettings.value);
+    settings.detection = lastSavedState.detection;
 };
 
-// Handlers for the "Danger Zone" events from the AdvancedSettings component
-const handleClearData = () => {
-    // Show a confirmation modal before proceeding
-    console.log("EVENT: Clear all analysis data");
+// --- "Danger Zone" Event Handlers ---
+const handleClearMyData = () => {
+    isClearMyDataModalVisible.value = true;
+};
+
+const handleConfirmClearMyData = () => {
+    router.delete(route("settings.clear_my_data"), {
+        onSuccess: () => {
+            isClearMyDataModalVisible.value = false;
+            successToast("Your analysis data has been cleared.");
+        },
+    });
+};
+
+const handleClearAllData = () => {
+    isClearAllDataModalVisible.value = true;
+};
+
+const handleConfirmClearAllData = () => {
+    router.delete(route("settings.clear_all_data"), {
+        onSuccess: () => {
+            // The success message will come from the backend redirect
+            isClearAllDataModalVisible.value = false;
+            successToast("All analysis data has been cleared.");
+        },
+        onError: (errors) => {
+            console.error("Failed to clear data:", errors);
+            // Optionally show an error toast here
+        },
+    });
 };
 
 const handleResetSettings = () => {
-    // Show a confirmation modal before proceeding
-    console.log("EVENT: Reset all settings");
+    isDangerZoneResetModalVisible.value = true;
+};
+
+const handleConfirmDangerZoneReset = () => {
+    // Use Inertia's router to call the new reset endpoint
+    router.post(
+        route("settings.reset"),
+        {},
+        {
+            onSuccess: () => {
+                successToast(
+                    "Settings have been reset to their default values."
+                );
+                isDangerZoneResetModalVisible.value = false;
+
+                location.reload();
+            },
+            onError: (errors) => {
+                // This code runs if the server returns an error
+                console.error("Failed to reset settings:", errors);
+                // You could show an error toast here
+            },
+        }
+    );
 };
 </script>
 
@@ -114,17 +265,17 @@ const handleResetSettings = () => {
         <!-- Tab Navigation -->
         <div class="mb-6">
             <div
-                class="flex flex-col gap-4 md:flex-row md:justify-between md:items-end md:border-b md:border-gray-200 md:dark:border-dark-700"
+                class="flex md:flex-row flex-col md:justify-between md:items-end gap-4 md:border-gray-200 md:dark:border-dark-700 md:border-b"
             >
                 <!-- Mobile version -- Dropdown -->
                 <div class="md:hidden">
                     <label for="tabs" class="sr-only">Select a tab</label>
                     <div class="input-root undefined">
-                        <div class="input-wrapper relative">
+                        <div class="relative input-wrapper">
                             <select
                                 id="tabs"
                                 v-model="activeTab"
-                                class="drop-down-tab form-select-base form-select block w-full mt-1 text-sm ltr:pr-9 rtl:pl-9 peer border-gray-300 hover:border-gray-400 focus:border-primary-600 dark:border-dark-450 dark:hover:border-dark-400 dark:focus:border-primary-500"
+                                class="peer block mt-1 ltr:pr-9 rtl:pl-9 border-gray-300 hover:border-gray-400 focus:border-primary-600 dark:hover:border-dark-400 dark:focus:border-primary-500 dark:border-dark-450 w-full text-sm form-select-base drop-down-tab form-select"
                             >
                                 <option
                                     v-for="tab in tabs"
@@ -135,7 +286,7 @@ const handleResetSettings = () => {
                                 </option>
                             </select>
                             <div
-                                class="suffix ltr:right-0 rtl:left-0 pointer-events-none absolute top-0 flex h-full w-9 items-center justify-center transition-colors text-gray-400 peer-focus:text-primary-600 dark:text-dark-300 dark:peer-focus:text-primary-500"
+                                class="top-0 ltr:right-0 rtl:left-0 absolute flex justify-center items-center w-9 h-full text-gray-400 dark:text-dark-300 dark:peer-focus:text-primary-500 peer-focus:text-primary-600 transition-colors pointer-events-none suffix"
                             >
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
@@ -158,12 +309,12 @@ const handleResetSettings = () => {
 
                 <!-- Desktop version -- Tabs -->
                 <div class="hidden md:block">
-                    <nav class="flex -mb-px space-x-6" aria-label="Tabs">
+                    <nav class="flex space-x-6 -mb-px" aria-label="Tabs">
                         <button
                             v-for="tab in tabs"
                             :key="tab.id"
                             @click="activeTab = tab.id"
-                            class="btn-base shrink-0 gap-2"
+                            class="gap-2 btn-base shrink-0"
                             :class="[
                                 activeTab === tab.id
                                     ? 'whitespace-nowrap border-b-2 px-3 py-2 font-medium  border-primary-600 text-primary-600 dark:border-primary-500 dark:text-primary-400'
@@ -177,62 +328,123 @@ const handleResetSettings = () => {
                     </nav>
                 </div>
 
+                <!-- Action buttons for unsaved changes -->
                 <div
-                    class="max-md:hidden flex items-center self-end gap-3 md:self-auto md:pb-2"
+                    v-if="hasUnsavedChanges"
+                    class="max-md:hidden flex items-center self-end md:self-auto gap-3 md:pb-2"
                 >
                     <button
-                        @click="resetToDefaults"
-                        class="btn-base btn gap-2 bg-gray-150 text-gray-900 hover:bg-gray-200 focus:bg-gray-200 active:bg-gray-200/80 dark:bg-surface-2 dark:text-dark-50 dark:hover:bg-surface-1 dark:focus:bg-surface-1 dark:active:bg-surface-1/90"
+                        @click="resetUnsavedChanges"
+                        class="gap-2 bg-gray-150 hover:bg-gray-200 focus:bg-gray-200 active:bg-gray-200/80 dark:active:bg-surface-1/90 dark:bg-surface-2 dark:hover:bg-surface-1 dark:focus:bg-surface-1 text-gray-900 dark:text-dark-50 btn-base btn"
                     >
                         <font-awesome-icon
-                            icon="fa-solid fa-clock-rotate-left"
+                            icon="fa-solid fa-arrow-rotate-left"
                         />
-                        Reset to Defaults
+                        Reset Changes
                     </button>
                     <button
                         @click="saveSettings"
-                        class="btn-base btn gap-2 this:primary bg-this text-white hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 disabled:bg-this-light dark:disabled:bg-this-darker"
+                        :disabled="isSaving"
+                        class="gap-2 bg-this hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 disabled:bg-this-light dark:disabled:bg-this-darker max-w-lg text-white btn-base btn this:primary"
                     >
-                        <font-awesome-icon icon="fa-solid fa-floppy-disk" />
-                        Save Settings
+                        <span
+                            v-if="isSaving"
+                            class="flex justify-center items-center gap-2"
+                        >
+                            <div
+                                class="border-2 border-white border-t-transparent rounded-full w-4 h-4 animate-spin"
+                            ></div>
+                            Saving...
+                        </span>
+                        <span v-else class="flex items-center gap-2 truncate">
+                            <font-awesome-icon icon="fa-solid fa-floppy-disk" />
+                            Save Settings
+                        </span>
                     </button>
                 </div>
             </div>
         </div>
 
         <!-- Dynamic Tab Content -->
-        <!-- Here we use a v-if chain to render the correct component -->
-        <!-- and pass the relevant part of the settings object as a prop. -->
         <div>
             <keep-alive>
                 <component
                     :is="activeTabComponent"
                     v-bind="activeTabProps"
-                    @clear-data="handleClearData"
+                    @clear-all-data="handleClearAllData"
+                    @clear-my-data="handleClearMyData"
                     @reset-settings="handleResetSettings"
                 />
             </keep-alive>
         </div>
 
-        <!-- Small Screen Button -->
+        <!-- Small Screen Buttons for unsaved changes -->
         <div
-            class="md:hidden mt-6 pt-6 flex justify-end items-center gap-3 border-t border-gray-200 dark:border-dark-700"
+            v-if="hasUnsavedChanges"
+            class="md:hidden flex justify-end items-center gap-3 mt-6 pt-6 border-gray-200 dark:border-dark-700 border-t"
         >
             <button
-                @click="resetToDefaults"
-                class="btn-base btn gap-2 bg-gray-150 text-gray-900 hover:bg-gray-200 focus:bg-gray-200 active:bg-gray-200/80 dark:bg-surface-2 dark:text-dark-50 dark:hover:bg-surface-1 dark:focus:bg-surface-1 dark:active:bg-surface-1/90"
+                @click="resetUnsavedChanges"
+                class="gap-2 bg-gray-150 hover:bg-gray-200 focus:bg-gray-200 active:bg-gray-200/80 dark:active:bg-surface-1/90 dark:bg-surface-2 dark:hover:bg-surface-1 dark:focus:bg-surface-1 text-gray-900 dark:text-dark-50 btn-base btn"
             >
-                <font-awesome-icon icon="fa-solid fa-clock-rotate-left" />
-                Reset to Defaults
+                <font-awesome-icon icon="fa-solid fa-arrow-rotate-left" />
+                Reset Changes
             </button>
             <button
                 @click="saveSettings"
-                class="btn-base btn gap-2 this:primary bg-this text-white hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 disabled:bg-this-light dark:disabled:bg-this-darker"
+                :disabled="isSaving"
+                class="gap-2 bg-this hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 disabled:bg-this-light dark:disabled:bg-this-darker w-36 text-white btn-base btn this:primary"
             >
-                <font-awesome-icon icon="fa-solid fa-floppy-disk" />
-                Save Settings
+                <span
+                    v-if="isSaving"
+                    class="flex justify-center items-center gap-2"
+                >
+                    <div
+                        class="border-2 border-white border-t-transparent rounded-full w-4 h-4 animate-spin"
+                    ></div>
+                    Saving...
+                </span>
+                <span v-else class="flex items-center gap-2">
+                    <font-awesome-icon icon="fa-solid fa-floppy-disk" />
+                    Save Settings
+                </span>
             </button>
         </div>
+
+        <!-- Modal for the DANGER ZONE "Reset All Settings" -->
+        <ConfirmationModal
+            :show="isDangerZoneResetModalVisible"
+            title="Reset All Settings to Default?"
+            message="Are you sure you want to reset all settings to their factory defaults? This action cannot be undone."
+            confirm-text="Yes, Reset All Settings"
+            variant="error"
+            icon="fa-solid fa-triangle-exclamation"
+            @close="isDangerZoneResetModalVisible = false"
+            @confirm="handleConfirmDangerZoneReset"
+        />
+
+        <!-- Modal for "Clear My Data" (User) -->
+        <ConfirmationModal
+            :show="isClearMyDataModalVisible"
+            title="Delete My Analysis Data?"
+            message="Are you sure you want to permanently delete all of your scan and session history? This action cannot be undone."
+            confirm-text="Yes, Delete My Data"
+            variant="error"
+            icon="fa-solid fa-user-slash"
+            @close="isClearMyDataModalVisible = false"
+            @confirm="handleConfirmClearMyData"
+        />
+
+        <ConfirmationModal
+            :show="isClearAllDataModalVisible"
+            title="Clear All Analysis Data?"
+            message="Are you sure you want to permanently delete all scan and session history? This action cannot be undone."
+            confirm-text="Yes, Clear All Data"
+            variant="error"
+            icon="fa-solid fa-trash"
+            @close="isClearAllDataModalVisible = false"
+            @confirm="handleConfirmClearAllData"
+        />
     </div>
 </template>
 

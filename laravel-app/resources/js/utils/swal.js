@@ -178,4 +178,37 @@ export const createConfirmDialog = (itemName = "this item") => {
     });
 };
 
+const ConfirmExportSwal = Swal.mixin({
+    buttonsStyling: false,
+    background: "transparent",
+    backdrop: "rgba(0, 0, 0, 0.4)",
+    showClass: { popup: "" },
+    hideClass: { popup: "" },
+    customClass: {
+        popup: "!bg-white dark:!bg-dark-800 rounded-md shadow-lg border !border-gray-200 dark:!border-gray-800 p-6 max-w-sm",
+        title: "text-base font-medium !text-gray-900 dark:!text-white mb-2",
+        htmlContainer: "text-sm !text-gray-600 dark:!text-gray-400 mb-4",
+        actions: "flex gap-2 w-full",
+        confirmButton:
+            "font-medium bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-1.5 rounded transition-colors",
+        cancelButton:
+            "!bg-gray-200 hover:!bg-gray-300 dark:!bg-gray-700 dark:hover:!bg-gray-600 !text-gray-700 dark:!text-white text-sm px-3 py-1.5 rounded transition-colors",
+    },
+});
+
+export const exportConfirmDialog = ({
+    title = "Export item?",
+    text = "Are you sure you want to proceed?",
+}) => {
+    return ConfirmExportSwal.fire({
+        title: title,
+        text: text,
+        showCancelButton: true,
+        confirmButtonText: "Export",
+        cancelButtonText: "Cancel",
+        allowOutsideClick: true,
+        focusCancel: true,
+        reverseButtons: true,
+    });
+};
 export default Swal;

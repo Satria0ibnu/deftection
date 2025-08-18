@@ -1,70 +1,53 @@
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
-import { Link, useForm } from "@inertiajs/vue3";
+import { ref, watch, onMounted } from "vue";
+import { useForm, Link } from "@inertiajs/vue3";
 import { useThemeStore } from "@/stores/useThemeStore.js";
 import { storeToRefs } from "pinia";
-
-// Import Logo
 import lightLogo from "@/../images/light-logo.png";
 
-// Form data
+// Initializes and manages the application's dark/light mode.
+const themeStore = useThemeStore();
+const { isDark } = storeToRefs(themeStore);
+const toggleTheme = () => themeStore.toggleTheme();
+
+// Tracks the loading state during the login process to disable the submit button.
+const isLoading = ref(false);
+
+// Inertia form helper for handling login credentials and server-side validation.
 const form = useForm({
     email: "",
     password: "",
     remember: false,
 });
 
-const themeStore = useThemeStore();
-const { isDark } = storeToRefs(themeStore);
-const isLoading = ref(false);
-
-const toggleTheme = () => themeStore.toggleTheme();
-
+// Clears validation errors on a field as soon as the user starts typing in it.
+// This provides a better user experience than waiting for the next submission.
 watch(
-    () => form.email,
+    () => [form.email, form.password],
     () => {
-        if (form.errors.email) {
-            form.clearErrors("email");
-        }
+        if (form.errors.email) form.clearErrors("email");
+        if (form.errors.password) form.clearErrors("password");
     }
 );
 
-watch(
-    () => form.password,
-    () => {
-        if (form.errors.password) {
-            form.clearErrors("password");
-        }
-    }
-);
-
-// Handle login submission
-const handleLogin = async () => {
+// Submits the login form to the backend using Inertia's post method.
+const handleLogin = () => {
     isLoading.value = true;
-
-    form.transform((data) => ({
-        ...data,
-        remember: data.remember ?? !data.remember,
-    })).post(
-        route("login.store"),
-        {
-            onFinish: () => {
-                isLoading.value = false;
-            },
-            onError: () => {
-                console.log("Login failed");
-            },
+    form.post(route("login.store"), {
+        // onFinish is called regardless of whether the request was successful or not.
+        onFinish: () => {
+            isLoading.value = false;
         },
-        {
-            replace: true,
-        }
-    );
+    });
 };
 
+// When the component is first mounted, set the initial theme based on
+// the user's saved preference or system settings.
 onMounted(() => {
     themeStore.initializeTheme();
 });
 
+// Specifies that this page should not use the default app layout (e.g., for a login screen).
 defineOptions({
     layout: false,
 });
@@ -77,7 +60,6 @@ defineOptions({
         <div class="p-4 sm:px-5 w-full max-w-[26rem]">
             <!-- Header Section -->
             <div class="flex items-center justify-center mr-10">
-                <!-- Logo (you can replace with your own) -->
                 <img :src="lightLogo" alt="Logo" class="size-32" />
                 <div
                     class="flex justify-center font-semibold text-3xl text-center tracking-wide"

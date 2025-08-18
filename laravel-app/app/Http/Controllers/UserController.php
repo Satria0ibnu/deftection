@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use App\Services\UserQueryService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
+use Illuminate\Support\Facades\Auth;
 
 class UserController extends Controller
 {
@@ -338,5 +340,44 @@ class UserController extends Controller
                 'error' => 'Error fetching user data. Please try again later.',
             ], 500);
         }
+    }
+
+    public function updateAccountName(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|min:2|max:255',
+        ]);
+
+        auth()->user()->update([
+            'name' => $request->name,
+        ]);
+
+        return back()->with('success', 'Account name updated successfully!');
+    }
+
+    public function updateAccountPassword(Request $request)
+    {
+        $request->validate([
+            'current_password' => ['required', 'current_password'],
+            'new_password' => ['required', Password::defaults(), 'confirmed'],
+        ]);
+
+        if (!Hash::check($request->current_password, auth()->user()->password)) {
+            return back()->withErrors(['current_password' => 'Current password is incorrect.']);
+        }
+
+        if ($request->new_password === $request->current_password) {
+            return back()->withErrors(['new_password' => 'New password must be different from current password.']);
+        }
+
+        auth()->user()->update([
+            'password' => Hash::make($request->new_password),
+        ]);
+
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('login')->with('status', 'Your password has been changed. Please log in again.');
     }
 }

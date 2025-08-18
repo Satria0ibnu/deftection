@@ -11,14 +11,13 @@ const props = defineProps({
 });
 
 const isPositiveChange = computed(() => {
-    // Assuming changeRate is a string like "+10%" or "-5%"
     return props.changeRate.startsWith("+");
 });
 </script>
 
 <template>
     <div
-        class="relative break-words print:border card rounded-lg border border-gray-200 dark:border-dark-600 print:border-0 p-6"
+        class="relative break-words card rounded-lg border border-gray-200 dark:border-dark-600 print:border-0 p-6"
     >
         <div class="flex min-w-0 items-center justify-between">
             <div class="">

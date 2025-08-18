@@ -5,7 +5,12 @@ import { useDebounceFn } from "@vueuse/core";
 import { usePolling } from "@/composables/usePolling";
 import { route } from "ziggy-js";
 import { useForm } from "@inertiajs/vue3";
-import { successToast, errorToast, deleteConfirmDialog } from "@/utils/swal";
+import {
+    successToast,
+    errorToast,
+    deleteConfirmDialog,
+    exportConfirmDialog,
+} from "@/utils/swal";
 import { Popover } from "@headlessui/vue";
 
 // Import child components
@@ -22,7 +27,6 @@ import FilterPopoverPanel from "../../Shared/Popover/FilterPopoverPanel.vue";
 import FilterResetButton from "../../Shared/TableToolbar/FilterResetButton.vue";
 import FilterDateRange from "../../Shared/TableToolbar/FilterDateRange.vue";
 import FilterPopoverCheckbox from "../../Shared/Popover/FilterPopoverCheckbox.vue";
-
 import ToolbarExportButton from "../../Shared/TableToolbar/ToolbarExportButton.vue";
 import TableCell from "../../Shared/Table/TableCell.vue";
 import RowNotFound from "../../Shared/Table/RowNotFound.vue";
@@ -33,10 +37,17 @@ import ExportItem from "../../Shared/Dropdown/ExportItem.vue";
 import DeleteItem from "../../Shared/Dropdown/DeleteItem.vue";
 
 const props = defineProps({
-    scans: { type: Array, required: true },
+    scans: { type: Object, required: true },
     filters: { type: Object, required: true },
     meta: { type: Object, default: () => ({}) },
     initialChecksum: { type: String, default: "" },
+    userCan: {
+        type: Object,
+        default: () => ({
+            viewAllScans: false,
+            filterByUser: false,
+        }),
+    },
 });
 
 // Use props directly for navigation, reactive refs for polling updates
@@ -53,6 +64,9 @@ const pollingMeta = ref({});
 
 // Delete state
 const isDeletingScan = ref(false);
+
+// Export state
+const isExportingReport = ref(false);
 
 // Loading states for UI control
 const isTableLoading = ref(false);
@@ -77,7 +91,10 @@ const displayFilterOptions = computed(() => {
 // Check if any operations are in progress
 const isAnyOperationInProgress = computed(() => {
     return (
-        isTableLoading.value || isPollingLoading.value || isDeletingScan.value
+        isTableLoading.value ||
+        isPollingLoading.value ||
+        isDeletingScan.value ||
+        isExportingReport.value
     );
 });
 
@@ -96,9 +113,9 @@ const {
     getStatus,
 } = usePolling({
     // Custom endpoints for this component
-    checkUrl: route("scans.myscans.check"),
-    dataUrl: route("scans.myscans.api"),
-    forceRefreshUrl: route("scans.myscans.refresh"),
+    checkUrl: route("scans.index.check"),
+    dataUrl: route("scans.index.api"),
+    forceRefreshUrl: route("scans.index.refresh"),
 
     // Polling configuration
     interval: 20000,
@@ -142,6 +159,8 @@ const formatDecimal = (value, defaultValue = 0, precision = 3) => {
 // Filter options
 const defectTypeOptions = ref([]);
 const statusOptions = ref([]);
+const userOptions = ref([]);
+const roleOptions = ref([]);
 
 // Initialize filter options
 const initializeFilters = () => {
@@ -157,6 +176,11 @@ const initializeFilters = () => {
 
     defectTypeOptions.value = mapOptions(options.defectTypes, "defectTypes");
     statusOptions.value = mapOptions(options.status, "status");
+
+    if (props.userCan.filterByUser) {
+        userOptions.value = mapOptions(options.users, "users");
+        roleOptions.value = mapOptions(options.roles, "roles");
+    }
 };
 
 // Add date filter handler
@@ -196,6 +220,12 @@ watch(
 onMounted(() => {
     initializeFilters();
     initializeChecksum(props.initialChecksum);
+
+    if (props.scans && props.scans.data && props.scans.data.length > 0) {
+        console.log("First scan object from props:", props.scans.data[0]);
+    } else {
+        console.log("The 'scans' prop is empty or not in the expected format.");
+    }
 });
 
 // Computed properties
@@ -205,10 +235,18 @@ const selectedDefectTypesCount = computed(
 const selectedStatusCount = computed(
     () => statusOptions.value.filter((option) => option.selected).length
 );
+const selectedUsersCount = computed(
+    () => userOptions.value.filter((option) => option.selected).length
+);
+const selectedRolesCount = computed(
+    () => roleOptions.value.filter((option) => option.selected).length
+);
 const hasActiveFilters = computed(
     () =>
         selectedDefectTypesCount.value > 0 ||
         selectedStatusCount.value > 0 ||
+        selectedUsersCount.value > 0 ||
+        selectedRolesCount.value > 0 ||
         searchTerm.value.length > 0 ||
         dateFrom.value.length > 0 ||
         dateTo.value.length > 0
@@ -223,6 +261,70 @@ const selectedStatus = computed(() =>
         .filter((option) => option.selected)
         .map((option) => option.value)
 );
+const selectedUsers = computed(() =>
+    userOptions.value
+        .filter((option) => option.selected)
+        .map((option) => parseInt(option.value))
+);
+const selectedRoles = computed(() =>
+    roleOptions.value
+        .filter((option) => option.selected)
+        .map((option) => option.value)
+);
+
+// Computed properties for export
+const currentFilterSummary = computed(() => {
+    const filters = {};
+
+    if (selectedStatus.value.length > 0) {
+        filters.status = selectedStatus.value.map((status) => {
+            const option = statusOptions.value.find(
+                (opt) => opt.value === status
+            );
+            return option ? option.label : status;
+        });
+    }
+
+    if (selectedDefectTypes.value.length > 0) {
+        filters.defectTypes = selectedDefectTypes.value.map((defectType) => {
+            const option = defectTypeOptions.value.find(
+                (opt) => opt.value === defectType
+            );
+            return option ? option.label : defectType;
+        });
+    }
+
+    if (selectedUsers.value.length > 0) {
+        filters.users = selectedUsers.value.map((userId) => {
+            const option = userOptions.value.find(
+                (opt) => opt.value === userId
+            );
+            return option ? option.label : `User ${userId}`;
+        });
+    }
+
+    if (selectedRoles.value.length > 0) {
+        filters.roles = selectedRoles.value.map((roleValue) => {
+            const option = roleOptions.value.find(
+                (opt) => opt.value === roleValue
+            );
+            return option ? option.label : `Role ${roleValue}`;
+        });
+    }
+
+    return filters;
+});
+
+const currentDateRange = computed(() => {
+    if (dateFrom.value && dateTo.value) {
+        return {
+            from: new Date(dateFrom.value).toLocaleDateString(),
+            to: new Date(dateTo.value).toLocaleDateString(),
+        };
+    }
+
+    return null;
+});
 
 // Delete functionality
 const handleDeleteScan = async (scan) => {
@@ -240,11 +342,12 @@ const performDelete = async (scan) => {
 
     const form = useForm({});
 
-    form.delete(route("scans.destroy-myscan", scan.id), {
+    form.delete(route("scans.destroy", scan.id), {
         preserveState: true,
         preserveScroll: true,
         onSuccess: () => {
             handleDeleteSuccess(scan.filename);
+            forceRefresh();
         },
         onError: (errors) => {
             handleDeleteError(errors);
@@ -286,10 +389,96 @@ const handleSingleExport = (scan) => {
     // Add your export logic here
 };
 
-const handleBatchExport = () => {
-    // Handle bulk export
-    console.log("Exporting all scans with current filters");
-    // Add your bulk export logic here
+const handleBatchExport = async () => {
+    try {
+        // Show export confirmation dialog
+        const result = await exportConfirmDialog({
+            title: "Batch export?",
+            text: "The export will generate a report based on the current filters excluding pagination and search. Are you sure you want to proceed?",
+        });
+
+        if (result.isConfirmed) {
+            await performBatchExport();
+        }
+    } catch (error) {
+        console.error("Export confirmation failed:", error);
+        errorToast("Failed to show export confirmation dialog");
+    }
+};
+
+const performBatchExport = async () => {
+    try {
+        isExportingReport.value = true;
+
+        // Build export parameters based on current filters
+        const exportParams = buildFilterParams({
+            // Exclude pagination and search for export
+            page: undefined,
+            per_page: undefined,
+            search: undefined, // Exclude search for batch export
+        });
+
+        console.log("Batch export initiated with params:", exportParams);
+
+        // Create a form for the export request
+        const form = document.createElement("form");
+        form.method = "GET";
+        form.action = route("reports.batch.generate");
+        form.target = "_blank"; // Open in new tab
+
+        // Add parameters as hidden inputs
+        Object.keys(exportParams).forEach((key) => {
+            const value = exportParams[key];
+            if (value !== undefined && value !== null) {
+                if (Array.isArray(value)) {
+                    // Handle arrays (like defect_types, status, users, roles)
+                    value.forEach((item) => {
+                        const input = document.createElement("input");
+                        input.type = "hidden";
+                        input.name = `${key}[]`;
+                        input.value = item;
+                        form.appendChild(input);
+                    });
+                } else {
+                    // Handle single values
+                    const input = document.createElement("input");
+                    input.type = "hidden";
+                    input.name = key;
+                    input.value = value;
+                    form.appendChild(input);
+                }
+            }
+        });
+
+        // Add CSRF token if available
+        const csrfToken = document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute("content");
+        if (csrfToken) {
+            const csrfInput = document.createElement("input");
+            csrfInput.type = "hidden";
+            csrfInput.name = "_token";
+            csrfInput.value = csrfToken;
+            form.appendChild(csrfInput);
+        }
+
+        // Append form to body, submit, then remove
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+
+        // Show success message
+        successToast(
+            "Report generation started! The download will begin shortly.",
+            10000
+        );
+        console.log("Batch export form submitted successfully");
+    } catch (error) {
+        console.error("Batch export request failed:", error);
+        errorToast("Failed to initiate batch report generation.");
+    } finally {
+        isExportingReport.value = false;
+    }
 };
 
 // Build filter parameters helper
@@ -302,6 +491,8 @@ const buildFilterParams = (customParams = {}) => {
                 : undefined,
         status:
             selectedStatus.value.length > 0 ? selectedStatus.value : undefined,
+        users: selectedUsers.value.length > 0 ? selectedUsers.value : undefined,
+        roles: selectedRoles.value.length > 0 ? selectedRoles.value : undefined, // Fixed: added roles parameter
         date_from: dateFrom.value || undefined,
         date_to: dateTo.value || undefined,
         sort_by: currentFilters.value.sortBy || undefined,
@@ -329,23 +520,29 @@ const navigateWithFilters = (customParams = {}) => {
     pollingFilters.value = {};
     pollingMeta.value = {};
 
-    router.get(route("scans.myscans"), buildFilterParams(customParams), {
+    const params = buildFilterParams(customParams);
+
+    // console.log("Navigating with params:", params);
+
+    router.get(route("scans.index"), params, {
         preserveState: true,
         preserveScroll: true,
         replace: true,
         only: ["scans", "filters", "meta", "initialChecksum"],
         onSuccess: (page) => {
+            // console.log("Navigation success, new props:", page.props);
+
             // Update checksum for polling
             if (page.props.initialChecksum) {
                 initializeChecksum(page.props.initialChecksum);
             }
 
-            // Reinitialize filters with new data
+            // Reinitialize filters with new data after props are updated
             setTimeout(() => {
                 initializeFilters();
             }, 50);
 
-            console.log("Navigation successful, data updated");
+            // console.log("Navigation successful, data updated");
         },
         onError: (errors) => {
             console.error("Navigation failed:", errors);
@@ -367,10 +564,14 @@ const clearFilter = (optionsRef) => {
 
 const clearDefectTypeFilters = () => clearFilter(defectTypeOptions);
 const clearStatusFilters = () => clearFilter(statusOptions);
+const clearUserFilters = () => clearFilter(userOptions);
+const clearRoleFilters = () => clearFilter(roleOptions);
 
 const resetAllFilters = () => {
     clearFilter(defectTypeOptions);
     clearFilter(statusOptions);
+    clearFilter(userOptions);
+    clearFilter(roleOptions);
     searchTerm.value = "";
     dateFrom.value = "";
     dateTo.value = "";
@@ -414,6 +615,62 @@ const sortBy = (column) => {
         navigateWithFilters({ sort_by: column, sort_dir: sortDir, page: 1 });
     }
 };
+
+// --- Scroll Logic ---
+const tableRef = ref(null);
+
+const handleDropdownOpen = () => {
+    // console.log("Dropdown opened, scrolling to bottom if needed");
+    setTimeout(() => {
+        const wrapper = tableRef.value?.tableWrapperRef;
+        // console.log("Table wrapper:", wrapper);
+        if (wrapper) {
+            // If the content is taller than the visible area, scroll to the bottom.
+            if (wrapper.scrollHeight > wrapper.clientHeight) {
+                wrapper.scrollTop = wrapper.scrollHeight;
+            }
+        }
+    }, 60);
+};
+
+const headerConfig = [
+    {
+        label: "image",
+        field: "filename",
+        sortable: true,
+    },
+    {
+        label: "analysis date",
+        field: "created_at",
+        sortable: true,
+    },
+    { label: "defects", sortable: false },
+    {
+        label: "status",
+        field: "is_defect",
+        sortable: true,
+    },
+    {
+        label: "confidence",
+        field: "anomaly_confidence_level",
+        sortable: true,
+    },
+    {
+        label: "score",
+        field: "anomaly_score",
+        sortable: true,
+    },
+    { label: "actions", sortable: false },
+];
+
+// Add user column for admins who can view all scans
+if (props.userCan.viewAllScans) {
+    headerConfig.splice(1, 0, {
+        label: "user",
+        field: "user",
+        sortable: true,
+    });
+}
 </script>
 
 <template>
@@ -438,8 +695,8 @@ const sortBy = (column) => {
         </div>
 
         <TableToolbar
-            title="Analysis History"
-            description="History of your analysis"
+            title="Scan History"
+            description="History of your scans with detailed results."
         >
             <template #left>
                 <ToolbarSearch
@@ -463,7 +720,13 @@ const sortBy = (column) => {
                         label="Defect Type"
                         :selected-options="selectedDefectTypesCount"
                         :disabled="isAnyOperationInProgress"
-                    />
+                    >
+                        <template #icon>
+                            <font-awesome-icon
+                                icon="fa-solid fa-triangle-exclamation"
+                            />
+                        </template>
+                    </FilterPopoverButton>
                     <FilterPopoverPanel
                         :show-clear-button="selectedDefectTypesCount > 0"
                         :selected-options="selectedDefectTypesCount"
@@ -482,7 +745,7 @@ const sortBy = (column) => {
                         />
                         <div
                             v-if="defectTypeOptions.length === 0"
-                            class="px-3 py-2 text-gray-500 text-xs"
+                            class="px-3 py-2 text-xs"
                         >
                             No defect types found
                         </div>
@@ -495,7 +758,22 @@ const sortBy = (column) => {
                         label="Status"
                         :selected-options="selectedStatusCount"
                         :disabled="isAnyOperationInProgress"
-                    />
+                    >
+                        <template #icon>
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                fill="currentColor"
+                                class="size-4"
+                            >
+                                <path
+                                    fill-rule="evenodd"
+                                    d="M3.792 2.938A49.069 49.069 0 0 1 12 2.25c2.797 0 5.54.236 8.209.688a1.857 1.857 0 0 1 1.541 1.836v1.044a3 3 0 0 1-.879 2.121l-6.182 6.182a1.5 1.5 0 0 0-.439 1.061v2.927a3 3 0 0 1-1.658 2.684l-1.757.878A.75.75 0 0 1 9.75 21v-5.818a1.5 1.5 0 0 0-.44-1.06L3.13 7.938a3 3 0 0 1-.879-2.121V4.774c0-.897.64-1.683 1.542-1.836Z"
+                                    clip-rule="evenodd"
+                                />
+                            </svg>
+                        </template>
+                    </FilterPopoverButton>
                     <FilterPopoverPanel
                         :show-clear-button="selectedStatusCount > 0"
                         :selected-options="selectedStatusCount"
@@ -516,6 +794,78 @@ const sortBy = (column) => {
                     </FilterPopoverPanel>
                 </Popover>
 
+                <!-- User Filter (Admin Only) -->
+                <Popover v-if="userCan.filterByUser" class="relative">
+                    <FilterPopoverButton
+                        label="User"
+                        :selected-options="selectedUsersCount"
+                        :disabled="isAnyOperationInProgress"
+                    >
+                        <template #icon>
+                            <font-awesome-icon icon="fa-solid fa-user" />
+                        </template>
+                    </FilterPopoverButton>
+                    <FilterPopoverPanel
+                        :show-clear-button="selectedUsersCount > 0"
+                        :selected-options="selectedUsersCount"
+                        @click-clear="clearUserFilters"
+                    >
+                        <FilterPopoverCheckbox
+                            v-for="user in userOptions"
+                            :key="user.value"
+                            v-model:checked="user.selected"
+                            :id="`user-${user.value}`"
+                            :value="user.value"
+                            :label="user.label"
+                            :count="user.count"
+                            :disabled="isAnyOperationInProgress"
+                            @change="handleFilterChange"
+                        />
+                        <div
+                            v-if="userOptions.length === 0"
+                            class="px-3 py-2 text-xs"
+                        >
+                            No users found
+                        </div>
+                    </FilterPopoverPanel>
+                </Popover>
+
+                <!-- Role Filter (Admin Only) -->
+                <Popover v-if="userCan.filterByUser" class="relative">
+                    <FilterPopoverButton
+                        label="Role"
+                        :selected-options="selectedRolesCount"
+                        :disabled="isAnyOperationInProgress"
+                    >
+                        <template #icon>
+                            <font-awesome-icon icon="fa-solid fa-key" />
+                        </template>
+                    </FilterPopoverButton>
+                    <FilterPopoverPanel
+                        :show-clear-button="selectedRolesCount > 0"
+                        :selected-options="selectedRolesCount"
+                        @click-clear="clearRoleFilters"
+                    >
+                        <FilterPopoverCheckbox
+                            v-for="role in roleOptions"
+                            :key="role.value"
+                            v-model:checked="role.selected"
+                            :id="`role-${role.value}`"
+                            :value="role.value"
+                            :label="role.label"
+                            :count="role.count"
+                            :disabled="isAnyOperationInProgress"
+                            @change="handleFilterChange"
+                        />
+                        <div
+                            v-if="roleOptions.length === 0"
+                            class="px-3 py-2 text-xs"
+                        >
+                            No roles found
+                        </div>
+                    </FilterPopoverPanel>
+                </Popover>
+
                 <FilterResetButton
                     v-if="hasActiveFilters"
                     label="Reset Filters"
@@ -530,7 +880,7 @@ const sortBy = (column) => {
                     :disabled="
                         isAnyOperationInProgress || displayScans.length === 0
                     "
-                    @export="handleBulkExport"
+                    @export="handleBatchExport"
                 />
             </template>
         </TableToolbar>
@@ -572,35 +922,7 @@ const sortBy = (column) => {
                 <template #head>
                     <tr class="group/tr table-tr">
                         <TableHeaderCell
-                            v-for="header in [
-                                {
-                                    label: 'image',
-                                    field: 'filename',
-                                    sortable: true,
-                                },
-                                {
-                                    label: 'analysis date',
-                                    field: 'created_at',
-                                    sortable: true,
-                                },
-                                { label: 'defects', sortable: false },
-                                {
-                                    label: 'status',
-                                    field: 'is_defect',
-                                    sortable: true,
-                                },
-                                {
-                                    label: 'confidence',
-                                    field: 'anomaly_confidence_level',
-                                    sortable: true,
-                                },
-                                {
-                                    label: 'score',
-                                    field: 'anomaly_score',
-                                    sortable: true,
-                                },
-                                { label: 'actions', sortable: false },
-                            ]"
+                            v-for="header in headerConfig"
                             :key="header.label"
                             :label="header.label"
                             :is-sortable="
@@ -626,16 +948,29 @@ const sortBy = (column) => {
                             <div class="flex items-center">
                                 <img
                                     class="flex-shrink-0 rounded-md w-20 h-12 object-cover"
-                                    :src="
-                                        scan.annotated_path ||
-                                        scan.original_path
-                                    "
+                                    :src="scan.annotated_image_url"
                                     alt="Analysis Image"
                                 />
                                 <p
                                     class="ml-4 font-medium text-gray-800 dark:text-dark-100"
                                 >
                                     {{ scan?.filename || "N/A" }}
+                                </p>
+                            </div>
+                        </TableCell>
+
+                        <!-- User Column (only for admins) -->
+                        <TableCell v-if="userCan.viewAllScans">
+                            <div>
+                                <p
+                                    class="font-medium text-gray-800 dark:text-dark-100 capitalize"
+                                >
+                                    {{ scan?.username || "Unknown" }}
+                                </p>
+                                <p
+                                    class="mt-1 text-gray-400 dark:text-dark-300 text-xs uppercase"
+                                >
+                                    {{ scan?.user_role || "N/A" }}
                                 </p>
                             </div>
                         </TableCell>
@@ -709,8 +1044,8 @@ const sortBy = (column) => {
                                     formatDecimal(
                                         scan?.total_processing_time,
                                         "0",
-                                        3
-                                    ) + " s"
+                                        2
+                                    ) + " ms"
                                 }}
                             </div>
                         </TableCell>
@@ -719,7 +1054,7 @@ const sortBy = (column) => {
                         <TableCell>
                             <EllipsisDropdown
                                 :disabled="isAnyOperationInProgress"
-                                @dropdown-opened="handleDropdownOpen"
+                                @click="handleDropdownOpen"
                             >
                                 <DetailViewList
                                     :href="route('scans.show', scan.id)"

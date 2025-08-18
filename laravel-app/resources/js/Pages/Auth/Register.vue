@@ -1,20 +1,19 @@
 <script setup>
-import { computed, ref, onMounted, watch } from "vue";
-import { Link, useForm } from "@inertiajs/vue3";
-import { route } from "ziggy-js";
+import { ref, computed, watch, onMounted } from "vue";
+import { useForm, Link } from "@inertiajs/vue3";
 import { useThemeStore } from "@/stores/useThemeStore.js";
 import { storeToRefs } from "pinia";
-
-// Import Logo
 import lightLogo from "@/../images/light-logo.png";
 
-const isLoading = ref(false);
-
+// Initializes and manages the application's dark/light mode.
 const themeStore = useThemeStore();
 const { isDark } = storeToRefs(themeStore);
 const toggleTheme = () => themeStore.toggleTheme();
 
-// Form data
+// Tracks the loading state during the registration process to disable the submit button.
+const isLoading = ref(false);
+
+// Inertia form helper for handling registration data and server-side validation.
 const form = useForm({
     username: "",
     email: "",
@@ -22,26 +21,16 @@ const form = useForm({
     password_confirmation: "",
 });
 
-// Add watchers for form
+// Clears validation errors on a field as soon as the user starts typing.
 watch(
-    () => form.username,
+    () => [form.username, form.email],
     () => {
-        if (form.errors.username) {
-            form.clearErrors("username");
-        }
+        if (form.errors.username) form.clearErrors("username");
+        if (form.errors.email) form.clearErrors("email");
     }
 );
 
-watch(
-    () => form.email,
-    () => {
-        if (form.errors.email) {
-            form.clearErrors("email");
-        }
-    }
-);
-
-// Password mismatch state
+// Provides real-time feedback to the user if the entered passwords do not match.
 const passwordMismatch = computed(() => {
     return (
         form.password &&
@@ -50,36 +39,27 @@ const passwordMismatch = computed(() => {
     );
 });
 
-// Handle login submission
-const handleRegister = async () => {
-    if (passwordMismatch.value || form.hasErrors) {
-        console.log("Form has errors or passwords do not match");
+// Handles the form submission for user registration.
+const handleRegister = () => {
+    // Prevents submission if passwords don't match, providing client-side validation.
+    if (passwordMismatch.value) {
         return;
     }
 
     isLoading.value = true;
-
-    // Tinggal set routenya
-    form.post(
-        route("register.store"),
-        {
-            onFinish: () => {
-                isLoading.value = false;
-            },
-            onError: () => {
-                console.log("Login failed");
-            },
+    form.post(route("register.store"), {
+        onFinish: () => {
+            isLoading.value = false;
         },
-        {
-            replace: true,
-        }
-    );
+    });
 };
 
+// When the component is mounted, set the initial theme based on user or system preference.
 onMounted(() => {
     themeStore.initializeTheme();
 });
 
+// Specifies that this page should not use the default app layout.
 defineOptions({
     layout: false,
 });

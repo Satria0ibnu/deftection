@@ -104,7 +104,7 @@ const emit = defineEmits(["close", "retry"]);
                                 <font-awesome-icon icon="fa-solid fa-recycle" />
                                 Analyze Another Batch
                             </button>
-                            <Link :href="route('scans.myscans')">
+                            <Link :href="route('scans.index')">
                                 <button
                                     class="btn-base btn w-full gap-2 bg-gray-150 text-gray-900 hover:bg-gray-200 focus:bg-gray-200 active:bg-gray-200/80 dark:bg-surface-2 dark:text-dark-50 dark:hover:bg-surface-1 dark:focus:bg-surface-1 dark:active:bg-surface-1/90"
                                 >

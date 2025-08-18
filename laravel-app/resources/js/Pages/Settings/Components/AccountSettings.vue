@@ -1,42 +1,64 @@
 <script setup>
-import { computed } from "vue";
-import { useForm, usePage } from "@inertiajs/vue3";
+import { ref, computed } from "vue";
+import { usePage, useForm } from "@inertiajs/vue3"; // Import useForm
+import { successToast } from "@/utils/swal";
 
-// --- Get Authenticated User ---
-// usePage() gives us access to the shared data from Laravel, including the authenticated user.
+// --- Fetch User Data Directly ---
 const page = usePage();
-// A computed property to safely access the user object.
 const user = computed(() => page.props.auth.user);
 
 // --- Form Management ---
-
-// The form is now initialized with the real user's name from Inertia's props.
+// NEW: Use Inertia's useForm for the profile update
 const profileForm = useForm({
     name: user.value?.name || "",
 });
 
-// A form for changing the user's password.
 const passwordForm = useForm({
     current_password: "",
     new_password: "",
-    confirm_password: "",
+    new_password_confirmation: "",
 });
 
-// --- Event Handlers ---
+// --- State Management ---
+const isEditingProfile = ref(false);
 
-const submitProfile = () => {
-    // In a real application, you would post this to your backend.
-    // profileForm.post(route('profile.update'), { onSuccess: () => ... });
-    console.log("Updating profile with:", profileForm.data());
-    // You would typically show a success notification here.
+// --- Event Handlers ---
+const startEditingProfile = () => {
+    // Sync the form's name with the current user's name when editing starts
+    profileForm.name = user.value?.name || "";
+    isEditingProfile.value = true;
+};
+
+const cancelEditProfile = () => {
+    isEditingProfile.value = false;
+    profileForm.reset("name"); // Reset any validation errors if cancelled
+};
+
+// MODIFIED: This now sends a PATCH request to the backend
+const saveProfile = () => {
+    profileForm.patch(route("settings.account_name.update"), {
+        onSuccess: () => {
+            successToast("Profile updated successfully!");
+            isEditingProfile.value = false;
+        },
+        onError: () => {
+            // Handle errors, e.g., show a notification
+            console.error("Failed to update profile.");
+        },
+    });
 };
 
 const submitPassword = () => {
-    // In a real application, you would post this to your backend.
-    // passwordForm.post(route('password.update'), { onSuccess: () => passwordForm.reset() });
-    console.log("Changing password...");
-    // Clear the form fields after submission for security.
-    passwordForm.reset();
+    passwordForm.patch(route("settings.account_password.update"), {
+        onSuccess: () => {
+            successToast("Password changed successfully! Please log in again.");
+            passwordForm.reset();
+        },
+        onError: (errors) => {
+            // You can loop through errors and display them
+            console.error("Password change failed:", errors);
+        },
+    });
 };
 </script>
 
@@ -55,45 +77,61 @@ const submitPassword = () => {
                 Manage your account settings and preferences.
             </p>
 
-            <form @submit.prevent="submitProfile">
-                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                    <!-- Full Name -->
-                    <div>
-                        <label
-                            for="fullName"
-                            class="mb-2 block text-sm font-medium text-gray-800 dark:text-dark-100"
-                            >Full Name</label
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <!-- Full Name Section -->
+                <div>
+                    <label
+                        for="fullName"
+                        class="mb-2 block text-sm font-medium text-gray-800 dark:text-dark-100"
+                        >Full Name</label
+                    >
+                    <!-- Display Mode -->
+                    <div
+                        v-if="!isEditingProfile"
+                        class="flex items-center gap-4"
+                    >
+                        <p
+                            class="form-input-base form-input bg-gray-50 dark:bg-dark-700 border-transparent"
                         >
+                            {{ user?.name }}
+                        </p>
+                        <button
+                            @click="startEditingProfile"
+                            class="btn-base btn btn-sm this:primary bg-this text-white hover:bg-this-darker"
+                        >
+                            Edit
+                        </button>
+                    </div>
+                    <!-- Editing Mode -->
+                    <div v-else class="flex items-center gap-2">
                         <input
                             v-model="profileForm.name"
                             type="text"
                             id="fullName"
                             class="form-input-base form-input peer border-gray-300 hover:border-gray-400 focus:border-primary-600 dark:border-dark-450 dark:hover:border-dark-400 dark:focus:border-primary-500"
                         />
-                    </div>
-                    <!-- Username (Disabled) -->
-                    <div>
-                        <label
-                            for="username"
-                            class="mb-2 block text-sm font-medium text-gray-800 dark:text-dark-100"
-                            >Username</label
+                        <button
+                            @click="saveProfile"
+                            :disabled="profileForm.processing"
+                            class="btn-base btn btn-sm this:success bg-this text-white hover:bg-this-darker"
                         >
-                        <input
-                            :value="user?.name"
-                            type="text"
-                            id="username"
-                            disabled
-                            class="mb-1 form-input-base form-input cursor-not-allowed border-gray-300 bg-gray-150 opacity-60 dark:border-dark-500 dark:bg-dark-600"
-                        />
-                        <span
-                            class="input-text-error text-xs text-error dark:text-error-lighter"
+                            Save
+                        </button>
+                        <button
+                            @click="cancelEditProfile"
+                            class="btn-base btn btn-sm bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-dark-600 dark:text-dark-200 dark:hover:bg-dark-500"
                         >
-                            Username cannot be changed.
-                        </span>
+                            Cancel
+                        </button>
                     </div>
+                    <p
+                        v-if="profileForm.errors.name"
+                        class="text-xs text-red-500 mt-1"
+                    >
+                        {{ profileForm.errors.name }}
+                    </p>
                 </div>
-                <!-- The main "Save Settings" button is in the parent Index.vue -->
-            </form>
+            </div>
         </div>
 
         <div class="mt-6 mb-8 h-px bg-gray-200 dark:bg-dark-500"></div>
@@ -122,6 +160,12 @@ const submitPassword = () => {
                             placeholder="Enter your current password"
                             class="form-input-base form-input peer border-gray-300 hover:border-gray-400 focus:border-primary-600 dark:border-dark-450 dark:hover:border-dark-400 dark:focus:border-primary-500"
                         />
+                        <p
+                            v-if="passwordForm.errors.current_password"
+                            class="text-xs text-red-500 mt-1"
+                        >
+                            {{ passwordForm.errors.current_password }}
+                        </p>
                     </div>
                     <!-- New Password -->
                     <div>
@@ -146,18 +190,24 @@ const submitPassword = () => {
                             >Confirm Password</label
                         >
                         <input
-                            v-model="passwordForm.confirm_password"
+                            v-model="passwordForm.new_password_confirmation"
                             type="password"
                             id="confirmPassword"
                             placeholder="Confirm your new password"
                             class="form-input-base form-input peer border-gray-300 hover:border-gray-400 focus:border-primary-600 dark:border-dark-450 dark:hover:border-dark-400 dark:focus:border-primary-500"
                         />
+                        <p
+                            v-if="passwordForm.errors.new_password"
+                            class="text-xs text-red-500 mt-1"
+                        >
+                            {{ passwordForm.errors.new_password }}
+                        </p>
                     </div>
                 </div>
-                <div class="mt-6">
+                <div class="mt-6 flex justify-end">
                     <button
                         type="submit"
-                        class="btn-base btn this:error bg-this text-white hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 disabled:bg-this-light dark:disabled:bg-this-darker"
+                        class="btn-base btn this:primary bg-this text-white hover:bg-this-darker focus:bg-this-darker active:bg-this-darker/90 disabled:bg-this-light dark:disabled:bg-this-darker"
                         :disabled="passwordForm.processing"
                     >
                         Change Password

@@ -61,7 +61,7 @@ const userInitials = computed(() => {
     >
         <div class="flex h-screen grow flex-col bg-white dark:bg-dark-900">
             <header
-                class="relative flex h-[61px] shrink-0 items-center justify-between pt-3 ltr:pl-6 ltr:pr-3 rtl:pl-3 rtl:pr-6"
+                class="relative flex h-[61px] shrink-0 items-center justify-between pt-6 ltr:pl-6 ltr:pr-3 rtl:pl-3 rtl:pr-6"
             >
                 <a
                     href="/"
@@ -106,13 +106,13 @@ const userInitials = computed(() => {
             </header>
             <div
                 data-simplebar="init"
-                class="flex flex-col justify-between h-full overflow-x-hidden pb-6 simplebar-scrollable-y"
+                class="flex flex-col justify-between h-full overflow-x-hidden py-6 simplebar-scrollable-y"
             >
                 <!-- Navigation -->
                 <Nav />
 
                 <!-- Account Section -->
-                <Link :href="route('settings')">
+                <Link :href="route('settings.index')">
                     <div
                         class="flex items-center p-4 pb-0 gap-3 cursor-pointer transition-all duration-300 group"
                     >

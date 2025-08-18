@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('scan_threats', function (Blueprint $table) {
             $table->id();
             $table->foreignId('scan_id')->constrained('scans')->cascadeOnDelete();
-            $table->string('hash')->unique();
+            $table->string('hash');
             $table->string('status')->default('clean')->index();
             $table->string('risk_level')->default('none')->index();
             $table->json('flags')->nullable();

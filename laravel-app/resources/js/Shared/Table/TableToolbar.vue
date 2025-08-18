@@ -28,7 +28,7 @@ defineProps({
             class="flex flex-wrap justify-between items-center gap-x-4 gap-y-2 pt-4 pb-1 transition-content"
         >
             <!-- Left Section -->
-            <div class="flex space-x-2 shrink-0">
+            <div class="flex flex-col lg:flex-row space-y-2 space-x-2 shrink-0">
                 <slot name="left"></slot>
             </div>
 

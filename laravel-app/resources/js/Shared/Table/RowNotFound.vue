@@ -4,8 +4,8 @@ defineProps({ label: { type: String, default: "No results found" } });
 </script>
 <template>
     <tr>
-        <td colspan="6" class="px-6 py-12 text-center">
-            <div class="text-gray-400">
+        <td colspan="10" class="px-6 py-12 text-center">
+            <div class="">
                 <svg
                     class="mx-auto w-12 h-12"
                     fill="none"
@@ -20,9 +20,11 @@ defineProps({ label: { type: String, default: "No results found" } });
                     />
                 </svg>
                 <p class="mt-2 font-medium text-sm">{{ label }}</p>
-                <p class="mt-1 text-xs">
-                    Try adjusting your search or filter criteria.
-                </p>
+                <slot name="description">
+                    <p class="mt-1 text-xs">
+                        Try adjusting your search or filter criteria.
+                    </p>
+                </slot>
             </div>
         </td>
     </tr>

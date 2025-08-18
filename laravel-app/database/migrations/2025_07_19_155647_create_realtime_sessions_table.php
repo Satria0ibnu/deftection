@@ -12,19 +12,18 @@ return new class extends Migration
     public function up(): void
     {
 
-        //realtime_sessions	id	int	user_id	int	session_status	string	session_start	timestamp	session_end	timestamp	duration_seconds	int	camera_location	string	total_frames_processed	int	throughput_fps	decimal(6,3)	defect_count	int	defect_rate	decimal(5,2)	good_count	int	good_rate	decimal(5,2)	avg_processing_time	decimal(8,3)	max_processing_time	decimal(8,3)	min_processing_time	decimal(8,3)	avg_anomaly_score	decimal(6,5)	max_anomaly_score	decimal(6,5)	min_anomaly_score	decimal(6,5)	avg_classification_confident	decimal(6,5)	max_classification_confident	decimal(6,5)	min_classification_confident	decimal(6,5)	defect_type_distribution	json	severity_level_distribution	json	report_session_path	string	created_at	timestamp	updated_at	timstamp
         Schema::create('realtime_sessions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->nullOnDelete();
+            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->string('session_status')->default('aborted')->index();
-            $table->timestamp('session_start');
+            $table->timestamp('session_start')->index();
             $table->timestamp('session_end')->nullable();
-            $table->integer('duration_seconds')->nullable();
+            $table->integer('duration_seconds')->nullable()->index();
             $table->string('camera_location')->nullable();
-            $table->integer('total_frames_processed')->default(0);
+            $table->integer('total_frames_processed')->default(0)->index();
             $table->decimal('throughput_fps', 6, 3)->default(0.000);
             $table->integer('defect_count')->default(0);
-            $table->decimal('defect_rate', 5, 2)->default(0.00);
+            $table->decimal('defect_rate', 5, 2)->default(0.00)->index();
             $table->integer('good_count')->default(0);
             $table->decimal('good_rate', 5, 2)->default(0.00);
             $table->decimal('avg_processing_time', 8, 3)->nullable();
@@ -39,6 +38,13 @@ return new class extends Migration
             $table->json('defect_type_distribution')->nullable();
             $table->json('severity_level_distribution')->nullable();
             $table->timestamps();
+
+            // Composite indexes for optimal query performance
+            $table->index(['user_id', 'session_status']);
+            $table->index(['user_id', 'session_start']);
+            $table->index(['session_status', 'session_start']);
+            $table->index(['user_id', 'session_status', 'session_start']);
+            $table->index(['session_start', 'session_status']);
         });
     }
 
