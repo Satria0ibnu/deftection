@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed } from "vue";
 import { useForm } from "@inertiajs/vue3";
 import { route } from "ziggy-js";
 import {
@@ -16,6 +16,7 @@ import Table from "../../Shared/Table/Table.vue";
 import TableCell from "../../Shared/Table/TableCell.vue";
 import TableHeaderCell from "../../Shared/Table/TableHeaderCell.vue";
 import RowNotFound from "../../Shared/Table/RowNotFound.vue";
+import ImageModal from "../../Shared/Modals/ImageModal.vue";
 
 // Import Page-Specific Components
 import Header from "./Components/Header.vue";
@@ -34,7 +35,6 @@ const isExporting = ref(false);
 
 // State for image modal
 const zoomedImageUrl = ref(null);
-const isModalOpen = computed(() => !!zoomedImageUrl.value);
 
 const openImageModal = (imageUrl) => {
     zoomedImageUrl.value = imageUrl;
@@ -42,13 +42,6 @@ const openImageModal = (imageUrl) => {
 
 const closeImageModal = () => {
     zoomedImageUrl.value = null;
-};
-
-const handleKeydown = (event) => {
-    // Close modal on Escape key
-    if (event.key === "Escape" && isModalOpen.value) {
-        closeImageModal();
-    }
 };
 
 // Check if any operation is in progress
@@ -199,16 +192,6 @@ const handleDeleteError = (errors) => {
 
     errorToast(errorMessage);
 };
-
-onMounted(() => {
-    // Add keydown listener for modal close
-    window.addEventListener("keydown", handleKeydown);
-});
-
-onUnmounted(() => {
-    // Clean up keydown listener
-    window.removeEventListener("keydown", handleKeydown);
-});
 </script>
 
 <template>
@@ -299,31 +282,5 @@ onUnmounted(() => {
         </Tablewrapper>
     </div>
 
-    <!-- Image Modal -->
-    <Teleport to="body">
-        <transition
-            enter-active-class="transition-opacity ease-in-out duration-300"
-            enter-from-class="opacity-0"
-            enter-to-class="opacity-100"
-            leave-active-class="transition-opacity ease-in-out duration-300"
-            leave-from-class="opacity-100"
-            leave-to-class="opacity-0"
-        >
-            <div
-                v-if="isModalOpen"
-                @click.self="closeImageModal"
-                class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-                role="dialog"
-                aria-modal="true"
-            >
-                <div class="relative">
-                    <img
-                        :src="zoomedImageUrl"
-                        alt="Zoomed Scan"
-                        class="max-h-[90vh] max-w-[90vw] rounded-lg shadow-xl"
-                    />
-                </div>
-            </div>
-        </transition>
-    </Teleport>
+    <ImageModal :image-url="zoomedImageUrl" @close="closeImageModal" />
 </template>
