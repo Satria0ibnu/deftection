@@ -26,7 +26,7 @@ class RealtimeSessionDetailService
         $duration = $this->calculateSessionDuration($session);
 
         // Process scans data in the exact format your Vue component expects
-        $scans = $session->realtimeScans->map(function ($scan) {
+        $scans = $session->realtimeScans->where('is_defect', true)->map(function ($scan) {
             return [
                 'id' => $scan->id,
                 'filename' => $scan->filename,
