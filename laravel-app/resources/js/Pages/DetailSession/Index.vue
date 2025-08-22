@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useForm } from "@inertiajs/vue3";
 import { route } from "ziggy-js";
 import {
@@ -31,6 +31,25 @@ const props = defineProps({
 // Loading states
 const isDeleting = ref(false);
 const isExporting = ref(false);
+
+// State for image modal
+const zoomedImageUrl = ref(null);
+const isModalOpen = computed(() => !!zoomedImageUrl.value);
+
+const openImageModal = (imageUrl) => {
+    zoomedImageUrl.value = imageUrl;
+};
+
+const closeImageModal = () => {
+    zoomedImageUrl.value = null;
+};
+
+const handleKeydown = (event) => {
+    // Close modal on Escape key
+    if (event.key === "Escape" && isModalOpen.value) {
+        closeImageModal();
+    }
+};
 
 // Check if any operation is in progress
 const isOperationInProgress = computed(() => {
@@ -180,6 +199,16 @@ const handleDeleteError = (errors) => {
 
     errorToast(errorMessage);
 };
+
+onMounted(() => {
+    // Add keydown listener for modal close
+    window.addEventListener("keydown", handleKeydown);
+});
+
+onUnmounted(() => {
+    // Clean up keydown listener
+    window.removeEventListener("keydown", handleKeydown);
+});
 </script>
 
 <template>
@@ -221,9 +250,12 @@ const handleDeleteError = (errors) => {
                             <TableCell>
                                 <div class="flex items-center">
                                     <img
-                                        class="flex-shrink-0 rounded-md w-16 h-10 object-cover"
+                                        class="flex-shrink-0 rounded-md w-16 h-10 object-cover cursor-pointer hover:opacity-80 transition-opacity duration-400 ease-in-out"
                                         :src="scan.annotated_path"
                                         alt="Scan Image"
+                                        @click="
+                                            openImageModal(scan.annotated_path)
+                                        "
                                     />
                                     <p
                                         class="ml-4 font-medium text-gray-800 dark:text-dark-100"
@@ -266,4 +298,32 @@ const handleDeleteError = (errors) => {
             </TableContainer>
         </Tablewrapper>
     </div>
+
+    <!-- Image Modal -->
+    <Teleport to="body">
+        <transition
+            enter-active-class="transition-opacity ease-in-out duration-300"
+            enter-from-class="opacity-0"
+            enter-to-class="opacity-100"
+            leave-active-class="transition-opacity ease-in-out duration-300"
+            leave-from-class="opacity-100"
+            leave-to-class="opacity-0"
+        >
+            <div
+                v-if="isModalOpen"
+                @click.self="closeImageModal"
+                class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+                role="dialog"
+                aria-modal="true"
+            >
+                <div class="relative">
+                    <img
+                        :src="zoomedImageUrl"
+                        alt="Zoomed Scan"
+                        class="max-h-[90vh] max-w-[90vw] rounded-lg shadow-xl"
+                    />
+                </div>
+            </div>
+        </transition>
+    </Teleport>
 </template>
