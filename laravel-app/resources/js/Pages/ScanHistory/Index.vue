@@ -35,6 +35,7 @@ import EllipsisDropdown from "../../Shared/Dropdown/EllipsisDropdown.vue";
 import DetailViewList from "../../Shared/Dropdown/ViewItem.vue";
 import ExportItem from "../../Shared/Dropdown/ExportItem.vue";
 import DeleteItem from "../../Shared/Dropdown/DeleteItem.vue";
+import ImageModal from "../../Shared/Modals/ImageModal.vue";
 
 const props = defineProps({
     scans: { type: Object, required: true },
@@ -70,6 +71,19 @@ const isExportingReport = ref(false);
 
 // Loading states for UI control
 const isTableLoading = ref(false);
+
+// State for image modal
+const zoomedImageUrl = ref(null);
+
+// Open image modal with the provided URL
+const openImageModal = (imageUrl) => {
+    zoomedImageUrl.value = imageUrl;
+};
+
+// Close image modal
+const closeImageModal = () => {
+    zoomedImageUrl.value = null;
+};
 
 // Determine which data to show: polling data if available, otherwise props
 const displayScans = computed(() => {
@@ -947,9 +961,12 @@ if (props.userCan.viewAllScans) {
                         <TableCell>
                             <div class="flex items-center">
                                 <img
-                                    class="flex-shrink-0 rounded-md w-20 h-12 object-cover"
+                                    class="flex-shrink-0 rounded-md w-20 h-12 object-cover cursor-pointer hover:opacity-80 transition-opacity duration-400 ease-in-out"
                                     :src="scan.annotated_image_url"
                                     alt="Analysis Image"
+                                    @click="
+                                        openImageModal(scan.annotated_image_url)
+                                    "
                                 />
                                 <p
                                     class="ml-4 font-medium text-gray-800 dark:text-dark-100"
@@ -1102,4 +1119,6 @@ if (props.userCan.viewAllScans) {
             />
         </TableContainer>
     </Tablewrapper>
+
+    <ImageModal :image-url="zoomedImageUrl" @close="closeImageModal" />
 </template>
