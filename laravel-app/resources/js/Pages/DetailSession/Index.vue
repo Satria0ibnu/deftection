@@ -214,10 +214,10 @@ const handleDeleteError = (errors) => {
 
         <!-- Scans Table -->
         <Tablewrapper>
-            <TableContainer>
+            <TableContainer class="max-h-[50vh] overflow-y-auto">
                 <Table>
                     <template #head>
-                        <tr class="group/tr table-tr">
+                        <tr class="group/tr table-tr sticky top-0 z-10">
                             <TableHeaderCell label="Image" />
                             <TableHeaderCell label="Timestamp" />
                             <TableHeaderCell label="Status" />
