@@ -33,6 +33,8 @@ class RealtimeSessionDetailService
                 'created_at' => Carbon::parse($scan->captured_at)->toISOString(),
 
                 'status' => $scan->is_defect ? 'defect' : 'good',
+                'defect_type' => $this->getDefectTypeName($scan->realtimeScanDefects->pluck('label')->first() ?? ''),
+                'total_defect' => $scan->realtimeScanDefects->count() > 0 ? $scan->realtimeScanDefects->pluck('label')->unique()->count() : 0,
                 'anomaly_score' => $scan->anomaly_score,
                 'annotated_path' => $scan->annotated_path ? Storage::url($scan->annotated_path) : $this->getImagePath($scan->filename, $scan->is_defect),
 
