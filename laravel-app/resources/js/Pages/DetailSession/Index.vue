@@ -221,6 +221,7 @@ const handleDeleteError = (errors) => {
                             <TableHeaderCell label="Image" />
                             <TableHeaderCell label="Timestamp" />
                             <TableHeaderCell label="Status" />
+                            <TableHeaderCell label="Defects" />
                             <TableHeaderCell label="Score" />
                         </tr>
                     </template>
@@ -263,6 +264,18 @@ const handleDeleteError = (errors) => {
                                 >
                                     {{ scan.status.toUpperCase() }}
                                 </span>
+                            </TableCell>
+                            <TableCell>
+                                <p
+                                    class="font-medium text-gray-800 dark:text-dark-100"
+                                >
+                                    {{ scan?.defect_type || "0" }}
+                                </p>
+                                <p
+                                    class="mt-1 text-gray-400 dark:text-dark-300 text-xs"
+                                >
+                                    {{ scan?.total_defect || "0" }} types
+                                </p>
                             </TableCell>
                             <TableCell>
                                 <p
