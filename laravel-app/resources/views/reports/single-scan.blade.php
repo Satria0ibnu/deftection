@@ -724,6 +724,7 @@
     </div>
 
     <!-- Images Section -->
+    <div class="page-break"></div>
     <div class="section">
         <h2 class="section-title">Scan Images</h2>
         <div class="two-column">
@@ -768,9 +769,46 @@
         </div>
     </div>
 
-    <div class="page-break"></div>
+    <!-- Processing Performance -->
+    <div class="section">
+        <h2 class="section-title">Processing Performance</h2>
+        @if (isset($chartImages['processing_time']) && $chartImages['processing_time'])
+            <img src="{{ $chartImages['processing_time'] }}" alt="Processing Time Chart" class="chart-image"
+                style="width: 100%;">
+        @else
+            <div class="image-placeholder" style="width: 100%; height: 200px;">
+                <div>
+                    <div class="icon-clock icon-large" style="width: 24px; height: 24px; margin-bottom: 8px;"></div>
+                    <div style="font-weight: bold;">Processing Time Breakdown Chart</div>
+                    <div style="font-size: 11px;">Total:
+                        {{ number_format($chartsData['total_processing_time'], 1) }}ms
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Processing Stage</th>
+                    <th>Time (ms)</th>
+                    <th>Percentage</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($chartsData['processing_time_breakdown'] as $stage)
+                    <tr>
+                        <td>{{ $stage['stage'] }}</td>
+                        <td>{{ number_format($stage['time_ms'], 1) }}</td>
+                        <td>{{ $stage['percentage'] }}%</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
 
     <!-- Defects Analysis -->
+    <div class="page-break"></div>
     @if ($defects->count() > 0)
         <div class="section">
             <h2 class="section-title">Detected Defects Analysis</h2>
@@ -869,45 +907,11 @@
         </div>
     @endif
 
-    <!-- Processing Performance -->
-    <div class="section">
-        <h2 class="section-title">Processing Performance</h2>
-        @if (isset($chartImages['processing_time']) && $chartImages['processing_time'])
-            <img src="{{ $chartImages['processing_time'] }}" alt="Processing Time Chart" class="chart-image"
-                style="width: 100%;">
-        @else
-            <div class="image-placeholder" style="width: 100%; height: 200px;">
-                <div>
-                    <div class="icon-clock icon-large" style="width: 24px; height: 24px; margin-bottom: 8px;"></div>
-                    <div style="font-weight: bold;">Processing Time Breakdown Chart</div>
-                    <div style="font-size: 11px;">Total:
-                        {{ number_format($chartsData['total_processing_time'], 1) }}ms
-                    </div>
-                </div>
-            </div>
-        @endif
 
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Processing Stage</th>
-                    <th>Time (ms)</th>
-                    <th>Percentage</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach ($chartsData['processing_time_breakdown'] as $stage)
-                    <tr>
-                        <td>{{ $stage['stage'] }}</td>
-                        <td>{{ number_format($stage['time_ms'], 1) }}</td>
-                        <td>{{ $stage['percentage'] }}%</td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
-    </div>
 
     <!-- Threat Analysis -->
+    <div class="page-break"></div>
+
     @if ($scan->scanThreat)
         <div class="section">
             <h2 class="section-title">Security Threat Analysis</h2>
@@ -1006,6 +1010,7 @@
     @endif
 
     <!-- Technical Details -->
+
     <div class="section">
         <h2 class="section-title">Technical Details</h2>
         <table class="data-table">

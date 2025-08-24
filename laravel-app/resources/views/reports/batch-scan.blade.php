@@ -697,7 +697,6 @@
     </div>
 
     @if ($userAnalysis)
-        <div class="page-break"></div>
         <!-- User Activity Analysis -->
         <div class="section">
             <h2 class="section-title">User Activity Analysis</h2>
@@ -739,6 +738,8 @@
     @endif
 
     <!-- Security Analysis -->
+    <div class="page-break"></div>
+
     @if ($statistics['threat_analysis']['total_threats_scanned'] > 0)
         <div class="section">
             <h2 class="section-title">Security Analysis</h2>
@@ -777,31 +778,6 @@
         </div>
     @endif
 
-    <!-- Sample Scans -->
-    {{-- <div class="section">
-        <h2 class="section-title">Sample Scans (Latest {{ $scans->count() }})</h2>
-        <div class="scan-list">
-            @foreach ($scans as $scan)
-                <div class="scan-item">
-                    <div class="scan-filename">
-                        {{ $scan->filename }}
-                        <span class="status-badge {{ $scan->is_defect ? 'status-defective' : 'status-good' }}">
-                            {{ $scan->is_defect ? 'DEFECTIVE' : 'GOOD' }}
-                        </span>
-                    </div>
-                    <div class="scan-meta">
-                        ID: #{{ $scan->id }} |
-                        User: {{ $scan->user ? $scan->user->name : 'Unknown' }} |
-                        Date: {{ $scan->created_at->format('M j, Y H:i') }} |
-                        Anomaly Score: {{ number_format($scan->anomaly_score, 3) }} |
-                        Defects: {{ $scan->scanDefects->count() }}
-                    </div>
-                </div>
-            @endforeach
-        </div>
-    </div> --}}
-
-    <div class="page-break"></div>
 
     <!-- Statistical Tables -->
     @if (!empty($chartsData['defect_type_distribution']))
@@ -832,6 +808,7 @@
     @endif
 
     @if (!empty($chartsData['confidence_level_distribution']))
+
         <div class="section">
             <h4 style="font-size: 12px; margin-bottom: 8px;">Confidence Level Distribution</h4>
             <table class="data-table">
@@ -917,6 +894,8 @@
 
 
     <!-- Report Metadata -->
+    <div class="page-break"></div>
+
     <div class="section">
         <h2 class="section-title">Report Metadata</h2>
         <table class="data-table">
