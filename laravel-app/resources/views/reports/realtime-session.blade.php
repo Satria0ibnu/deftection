@@ -669,7 +669,7 @@
 
             @if (isset($defects) && $defects->isNotEmpty())
                 <h3 style="margin: 20px 0 10px 0; font-size: 14px; color: #2c3e50;">Detected Defects</h3>
-                @foreach ($defects->take(5) as $defect)
+                @foreach ($defects->take(4) as $defect)
                     <div class="defect-item">
                         <div class="defect-header">
                             <span class="defect-type">{{ $defect['label'] ?? 'Unknown Defect' }}</span>
@@ -693,7 +693,7 @@
 
                 @if ($defects->count() > 5)
                     <div class="highlight-box">
-                        <p><strong>Note:</strong> Showing first 5 defects. Total defects found:
+                        <p><strong>Note:</strong> Showing first 4 defects. Total defects found:
                             {{ $defects->count() }}</p>
                     </div>
                 @endif
@@ -720,7 +720,6 @@
         </div>
     @endif
 
-    <div class="page-break"></div>
 
     <!-- Hourly Processing Patterns -->
     @if (!empty($chartImages['hourly_patterns']))
@@ -735,7 +734,7 @@
 
 
 
-    {{-- <div class="page-break"></div> --}}
+    <div class="page-break"></div>
 
     <!-- Technical Details -->
     <div class="section">
@@ -828,7 +827,6 @@
 
     <!-- Hourly Processing Data -->
     @if (!empty($chartsData['hourly_patterns']))
-        <div class="page-break"></div>
         <div class="section">
             <h2 class="section-title">Hourly Processing Data</h2>
             <table class="data-table">

@@ -638,6 +638,22 @@
         </table>
     </div>
 
+    <!-- Security Analysis -->
+    @if ($statistics['threat_analysis']['total_threats_scanned'] > 0)
+        <div class="section">
+            <h2 class="section-title">Security Analysis</h2>
+            <div class="highlight-box">
+                <h4>Threat Scanning Summary</h4>
+                <p><strong>Total Scans Analyzed:</strong> {{ $statistics['threat_analysis']['total_threats_scanned'] }}
+                </p>
+                <p><strong>Clean Status:</strong> {{ $statistics['threat_analysis']['clean_count'] }}
+                    ({{ $statistics['threat_analysis']['clean_percentage'] }}%)</p>
+                <p><strong>Suspicious:</strong> {{ $statistics['threat_analysis']['suspicious_count'] }}</p>
+                <p><strong>Malicious:</strong> {{ $statistics['threat_analysis']['malicious_count'] }}</p>
+            </div>
+        </div>
+    @endif
+
     <div class="page-break"></div>
 
     <!-- Trend Analysis -->
@@ -697,7 +713,6 @@
     </div>
 
     @if ($userAnalysis)
-        <div class="page-break"></div>
         <!-- User Activity Analysis -->
         <div class="section">
             <h2 class="section-title">User Activity Analysis</h2>
@@ -738,75 +753,15 @@
         </div>
     @endif
 
-    <!-- Security Analysis -->
-    @if ($statistics['threat_analysis']['total_threats_scanned'] > 0)
-        <div class="section">
-            <h2 class="section-title">Security Analysis</h2>
-            <div class="highlight-box">
-                <h4>Threat Scanning Summary</h4>
-                <p><strong>Total Scans Analyzed:</strong> {{ $statistics['threat_analysis']['total_threats_scanned'] }}
-                </p>
-                <p><strong>Clean Status:</strong> {{ $statistics['threat_analysis']['clean_count'] }}
-                    ({{ $statistics['threat_analysis']['clean_percentage'] }}%)</p>
-                <p><strong>Suspicious:</strong> {{ $statistics['threat_analysis']['suspicious_count'] }}</p>
-                <p><strong>Malicious:</strong> {{ $statistics['threat_analysis']['malicious_count'] }}</p>
-            </div>
-
-            @if (!empty($statistics['threat_analysis']['risk_distribution']))
-                <h4 style="font-size: 12px; margin: 15px 0 8px 0;">Risk Level Distribution</h4>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Risk Level</th>
-                            <th>Count</th>
-                            <th>Percentage</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($statistics['threat_analysis']['risk_distribution'] as $riskLevel => $count)
-                            <tr>
-                                <td>{{ ucfirst($riskLevel) }}</td>
-                                <td>{{ $count }}</td>
-                                <td>{{ $statistics['threat_analysis']['total_threats_scanned'] > 0 ? round(($count / $statistics['threat_analysis']['total_threats_scanned']) * 100, 1) : 0 }}%
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            @endif
-        </div>
-    @endif
-
-    <!-- Sample Scans -->
-    {{-- <div class="section">
-        <h2 class="section-title">Sample Scans (Latest {{ $scans->count() }})</h2>
-        <div class="scan-list">
-            @foreach ($scans as $scan)
-                <div class="scan-item">
-                    <div class="scan-filename">
-                        {{ $scan->filename }}
-                        <span class="status-badge {{ $scan->is_defect ? 'status-defective' : 'status-good' }}">
-                            {{ $scan->is_defect ? 'DEFECTIVE' : 'GOOD' }}
-                        </span>
-                    </div>
-                    <div class="scan-meta">
-                        ID: #{{ $scan->id }} |
-                        User: {{ $scan->user ? $scan->user->name : 'Unknown' }} |
-                        Date: {{ $scan->created_at->format('M j, Y H:i') }} |
-                        Anomaly Score: {{ number_format($scan->anomaly_score, 3) }} |
-                        Defects: {{ $scan->scanDefects->count() }}
-                    </div>
-                </div>
-            @endforeach
-        </div>
-    </div> --}}
-
     <div class="page-break"></div>
 
+
+
     <!-- Statistical Tables -->
+    <h2 class="section-title">Detailed Statistics</h2>
+
     @if (!empty($chartsData['defect_type_distribution']))
         <div class="section">
-            <h2 class="section-title">Detailed Statistics</h2>
             <h4 style="font-size: 12px; margin-bottom: 8px;">Defect Type Analysis</h4>
             <table class="data-table">
                 <thead>
@@ -832,6 +787,7 @@
     @endif
 
     @if (!empty($chartsData['confidence_level_distribution']))
+
         <div class="section">
             <h4 style="font-size: 12px; margin-bottom: 8px;">Confidence Level Distribution</h4>
             <table class="data-table">
