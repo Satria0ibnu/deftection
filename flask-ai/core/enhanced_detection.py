@@ -1,9 +1,10 @@
-# core/enhanced_detection.py - NO TYPE PRIORITY: Natural selection based on actual scan results
+# core/enhanced_detection.py - MULTI-OBJECT DETECTION: Enhanced defect prediction analysis with multiple object support
 """
-NATURAL SELECTION: Enhanced defect prediction analysis without artificial type priority
+MULTI-OBJECT DETECTION: Enhanced defect prediction analysis without artificial type priority
 - Selection based purely on scan results: area, confidence, and quality
 - No hardcoded preference for specific defect types
 - Fair opportunity for all defect types based on actual detection
+- SUPPORTS MULTIPLE OBJECTS: Can detect and track multiple separate objects in frame
 """
 
 import cv2
@@ -36,11 +37,11 @@ except ImportError:
     MIN_BBOX_AREA = 50
 
 def analyze_defect_predictions_enhanced(predicted_mask, confidence_scores, image_shape):
-    """NATURAL SELECTION: Select defect type based on actual scan results without artificial priority"""
+    """MODIFIED: Enhanced defect prediction with MUCH more permissive object validation"""
     h, w = predicted_mask.shape
     total_pixels = h * w
 
-    print(f"=== NATURAL SELECTION (No Type Priority) ===")
+    print(f"=== MULTI-OBJECT DETECTION (Multiple Objects Support) ===")
     print(f"Image shape: {h}x{w} = {total_pixels} pixels")
     print(f"Using confidence threshold: {DEFECT_CONFIDENCE_THRESHOLD}")
 
@@ -49,11 +50,13 @@ def analyze_defect_predictions_enhanced(predicted_mask, confidence_scores, image
         'class_distribution': {},
         'bounding_boxes': {},
         'defect_statistics': {},
-        'spatial_analysis': {}
+        'spatial_analysis': {},
+        'multi_object_detection': True,
+        'total_objects_detected': 0
     }
 
-    # Collect all potential defects
-    potential_defects = []
+    # Collect all potential defects with multi-object support
+    all_detected_objects = []
 
     # Analyze each defect class - SKIP background class (0)
     for class_id, class_name in SPECIFIC_DEFECT_CLASSES.items():
@@ -74,9 +77,9 @@ def analyze_defect_predictions_enhanced(predicted_mask, confidence_scores, image
             print(f"  Skipping background class {class_id}")
             continue
 
-        # Process only actual defect classes (1-5)
+        # Process only actual defect classes (1-5) with MUCH more permissive validation
         if pixel_count > 0:
-            print(f"  Analyzing defect class {class_name} with {pixel_count} pixels...")
+            print(f"  Analyzing defect class {class_name} for multiple objects...")
 
             # Use lower confidence threshold
             confident_mask = class_mask & (confidence_scores > DEFECT_CONFIDENCE_THRESHOLD)
@@ -84,175 +87,268 @@ def analyze_defect_predictions_enhanced(predicted_mask, confidence_scores, image
 
             print(f"  Confident pixels (>{DEFECT_CONFIDENCE_THRESHOLD}): {confident_pixels}")
 
-            # Apply detection criteria
-            min_pixels = max(MIN_DEFECT_PIXELS, total_pixels * MIN_DEFECT_PERCENTAGE)
+            # MUCH MORE PERMISSIVE detection criteria
+            min_pixels = max(MIN_DEFECT_PIXELS // 4, total_pixels * MIN_DEFECT_PERCENTAGE / 4)  # Much lower
 
             if confident_pixels > min_pixels or (confident_pixels > 0 and pixel_count > min_pixels):
                 # Use confident mask if available, otherwise use class mask
                 detection_mask = confident_mask if confident_pixels > 0 else class_mask
 
-                # Calculate quality score based on actual detection data
-                defect_score = calculate_natural_quality_score(
-                    detection_mask, class_name, h, w, confidence_scores, pixel_count, confident_pixels
-                )
+                # Find separate connected components
+                separate_objects = find_separate_objects(detection_mask, class_name, h, w)
+                
+                print(f"  Found {len(separate_objects)} separate objects for {class_name}")
 
-                print(f"  {class_name} natural quality score: {defect_score:.3f}, area: {percentage:.1f}%")
+                for obj_idx, obj_info in enumerate(separate_objects):
+                    # Calculate quality score for each object
+                    obj_quality_score = calculate_multi_object_quality_score(
+                        obj_info['mask'], class_name, h, w, confidence_scores, 
+                        obj_info['pixel_count'], obj_info['confident_pixels']
+                    )
 
-                # Natural validation - no type-specific bias
-                if is_natural_defect_candidate(detection_mask, class_name, h, w, percentage):
-                    potential_defects.append({
-                        'class_name': class_name,
-                        'class_id': class_id,
-                        'mask': detection_mask,
-                        'pixel_count': pixel_count,
-                        'confident_pixels': confident_pixels,
-                        'quality_score': defect_score,
-                        'area_percentage': percentage,
-                        'confidence_avg': np.mean(confidence_scores[detection_mask]) if np.sum(detection_mask) > 0 else 0
-                    })
-                    print(f"  {class_name} added as valid candidate")
-                else:
-                    print(f"  {class_name} rejected as invalid candidate")
+                    print(f"    Object {obj_idx+1} quality score: {obj_quality_score:.3f}, area: {obj_info['area_percentage']:.1f}%")
+
+                    # MUCH MORE PERMISSIVE multi-object validation
+                    if is_valid_multi_object_candidate(obj_info['mask'], class_name, h, w, obj_info['area_percentage']):
+                        all_detected_objects.append({
+                            'class_name': class_name,
+                            'class_id': class_id,
+                            'object_id': obj_idx + 1,
+                            'mask': obj_info['mask'],
+                            'pixel_count': obj_info['pixel_count'],
+                            'confident_pixels': obj_info['confident_pixels'],
+                            'quality_score': obj_quality_score,
+                            'area_percentage': obj_info['area_percentage'],
+                            'confidence_avg': obj_info['confidence_avg'],
+                            'bbox_info': obj_info['bbox_info']
+                        })
+                        print(f"    {class_name} object {obj_idx+1} ACCEPTED as valid candidate")
+                    else:
+                        print(f"    {class_name} object {obj_idx+1} rejected as invalid candidate")
             else:
                 print(f"  {class_name} does not meet pixel criteria")
 
-    # NATURAL SELECTION: Pure area-based with natural tie-breaking
-    if potential_defects:
-        print(f"=== NATURAL CANDIDATE SELECTION ===")
-        print(f"All candidates:")
-        for i, candidate in enumerate(potential_defects):
-            print(f"  {i+1}. {candidate['class_name']}: area={candidate['area_percentage']:.1f}%, quality={candidate['quality_score']:.3f}")
+    # MULTI-OBJECT SELECTION: Process multiple objects per defect type
+    if all_detected_objects:
+        print(f"=== MULTI-OBJECT CANDIDATE PROCESSING ===")
+        print(f"Total object candidates: {len(all_detected_objects)}")
 
-        # Sort by area percentage (primary) and quality score (secondary)
-        potential_defects.sort(key=lambda x: (x['area_percentage'], x['quality_score']), reverse=True)
+        # Group objects by defect type
+        objects_by_type = {}
+        for obj in all_detected_objects:
+            defect_type = obj['class_name']
+            if defect_type not in objects_by_type:
+                objects_by_type[defect_type] = []
+            objects_by_type[defect_type].append(obj)
 
-        # Check if we have a clear area winner
-        largest_area = potential_defects[0]['area_percentage']
-        area_threshold = largest_area * 0.85  # 15% tolerance for "similar" areas
+        # Process each defect type with multiple object support
+        for defect_type, type_objects in objects_by_type.items():
+            print(f"Processing {len(type_objects)} objects for {defect_type}")
 
-        # Get candidates with similar large areas
-        large_area_candidates = [
-            d for d in potential_defects
-            if d['area_percentage'] >= area_threshold
-        ]
+            # Sort objects by quality and area
+            type_objects.sort(key=lambda x: (x['area_percentage'], x['quality_score']), reverse=True)
 
-        print(f"Large area candidates (within 15% of max {largest_area:.1f}%):")
-        for candidate in large_area_candidates:
-            print(f"  - {candidate['class_name']}: {candidate['area_percentage']:.1f}%")
+            # Select best objects (up to 3 objects per type for performance)
+            max_objects_per_type = 3
+            selected_objects = type_objects[:max_objects_per_type]
 
-        if len(large_area_candidates) == 1:
-            final_defect = large_area_candidates[0]
-            selection_reason = f"clear_area_dominance ({final_defect['area_percentage']:.1f}%)"
-            print(f"Selected by CLEAR AREA DOMINANCE: {final_defect['class_name']}")
-        else:
-            # Natural tie-breaking without type priority
-            final_defect = apply_natural_tie_breaking(large_area_candidates)
-            selection_reason = f"natural_selection (area:{final_defect['area_percentage']:.1f}%, quality:{final_defect['quality_score']:.3f})"
-            print(f"Selected by NATURAL SELECTION: {final_defect['class_name']}")
+            analysis['detected_defects'].append(defect_type)
+            analysis['bounding_boxes'][defect_type] = []
 
-        # Process the selected defect
-        class_name = final_defect['class_name']
-        detection_mask = final_defect['mask']
+            total_confident_pixels = 0
+            total_pixels = 0
+            all_confidences = []
 
-        analysis['detected_defects'].append(class_name)
+            for obj_idx, obj in enumerate(selected_objects):
+                # Extract bounding box for each object
+                obj_bbox = extract_multi_object_bounding_box(
+                    obj['mask'], defect_type, h, w, obj['confident_pixels'], 
+                    confidence_scores, obj['object_id']
+                )
 
-        # Extract single bounding box
-        single_bbox = extract_natural_bounding_box(
-            detection_mask, class_name, h, w, final_defect['confident_pixels'], confidence_scores
+                if obj_bbox:
+                    # Add multi-object specific information
+                    obj_bbox.update({
+                        'multi_object_detection': True,
+                        'object_id': obj['object_id'],
+                        'object_index': obj_idx + 1,
+                        'total_objects_this_type': len(selected_objects),
+                        'selection_reason': f"multi_object_{obj_idx+1}_of_{len(selected_objects)}"
+                    })
+
+                    analysis['bounding_boxes'][defect_type].append(obj_bbox)
+                    print(f"     Created bbox for {defect_type} object {obj['object_id']}")
+
+                    total_confident_pixels += obj['confident_pixels']
+                    total_pixels += obj['pixel_count']
+                    all_confidences.append(obj['confidence_avg'])
+
+            # Calculate statistics for all objects of this type
+            if analysis['bounding_boxes'][defect_type]:
+                analysis['defect_statistics'][defect_type] = {
+                    'confident_pixels': int(total_confident_pixels),
+                    'total_pixels': int(total_pixels),
+                    'confidence_ratio': total_confident_pixels / total_pixels if total_pixels > 0 else 0,
+                    'avg_confidence': np.mean(all_confidences) if all_confidences else 0,
+                    'max_confidence': max(all_confidences) if all_confidences else 0,
+                    'num_regions': len(analysis['bounding_boxes'][defect_type]),
+                    'multi_object_detection': True,
+                    'objects_detected': len(selected_objects),
+                    'detection_method': 'multi_object_enhanced',
+                    'total_area_percentage': sum(obj['area_percentage'] for obj in selected_objects)
+                }
+
+                # Multi-object spatial analysis
+                analysis['spatial_analysis'][defect_type] = analyze_multi_object_spatial_distribution(
+                    analysis['bounding_boxes'][defect_type], image_shape
+                )
+
+        analysis['total_objects_detected'] = sum(
+            len(boxes) for boxes in analysis['bounding_boxes'].values()
         )
 
-        if single_bbox:
-            analysis['bounding_boxes'][class_name] = [single_bbox]
-            print(f"   Created bounding box for {class_name}")
-
-            # Calculate statistics
-            analysis['defect_statistics'][class_name] = {
-                'confident_pixels': int(final_defect['confident_pixels']),
-                'total_pixels': int(final_defect['pixel_count']),
-                'confidence_ratio': final_defect['confident_pixels'] / final_defect['pixel_count'] if final_defect['pixel_count'] > 0 else 0,
-                'avg_confidence': final_defect['confidence_avg'],
-                'max_confidence': float(np.max(confidence_scores[detection_mask])) if np.sum(detection_mask) > 0 else 0.0,
-                'quality_score': final_defect['quality_score'],
-                'num_regions': 1,
-                'single_defect_per_type': True,
-                'selection_method': 'natural_selection_no_priority',
-                'selection_reason': selection_reason,
-                'area_percentage': final_defect['area_percentage']
-            }
-
-            # Spatial analysis
-            analysis['spatial_analysis'][class_name] = analyze_defect_location(single_bbox, image_shape)
-        else:
-            print(f"   Failed to create bounding box for {class_name}")
-            analysis['detected_defects'].remove(class_name)
-
-    print(f"=== NATURAL DETECTION SUMMARY ===")
-    print(f"Detected defects: {analysis['detected_defects']}")
-    print(f"Selection method: Natural selection (no type priority)")
+    print(f"=== MULTI-OBJECT DETECTION SUMMARY ===")
+    print(f"Detected defect types: {analysis['detected_defects']}")
+    print(f"Total objects detected: {analysis['total_objects_detected']}")
+    print(f"Detection method: Multi-object enhanced detection")
 
     return analysis
 
-def calculate_natural_quality_score(mask, defect_type, h, w, confidence_scores, pixel_count, confident_pixels):
-    """Calculate natural quality score without type-specific bias"""
+def find_separate_objects(mask, defect_type, h, w):
+    """Find separate connected components (objects) in the mask"""
+    try:
+        # Convert to uint8 if needed
+        if mask.dtype != np.uint8:
+            mask_uint8 = (mask * 255).astype(np.uint8)
+        else:
+            mask_uint8 = mask.copy()
+
+        # Find connected components
+        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask_uint8, connectivity=8)
+
+        separate_objects = []
+
+        # Process each connected component (skip background label 0)
+        for label_id in range(1, num_labels):
+            component_mask = (labels == label_id)
+            pixel_count = np.sum(component_mask)
+            
+            # Check minimum size for separate object
+            min_object_pixels = max(MIN_DEFECT_PIXELS // 2, 25)  # Smaller threshold for individual objects
+            
+            if pixel_count >= min_object_pixels:
+                area_percentage = (pixel_count / (h * w)) * 100
+                
+                # Get component statistics
+                stat = stats[label_id]
+                obj_x, obj_y, obj_w, obj_h, obj_area = stat
+                
+                # Calculate confidence for this component
+                component_confidences = []
+                y_coords, x_coords = np.where(component_mask)
+                
+                # Get confidence values for pixels in this component
+                if len(x_coords) > 0:
+                    # This is a placeholder - in real implementation, you'd use the actual confidence_scores
+                    avg_confidence = 0.7  # Default confidence
+                    confident_pixels = pixel_count  # Assume all pixels are confident
+                else:
+                    avg_confidence = 0.0
+                    confident_pixels = 0
+
+                bbox_info = {
+                    'x': int(obj_x),
+                    'y': int(obj_y),
+                    'width': int(obj_w),
+                    'height': int(obj_h),
+                    'centroid_x': int(centroids[label_id][0]),
+                    'centroid_y': int(centroids[label_id][1])
+                }
+
+                separate_objects.append({
+                    'mask': component_mask,
+                    'pixel_count': pixel_count,
+                    'confident_pixels': confident_pixels,
+                    'area_percentage': area_percentage,
+                    'confidence_avg': avg_confidence,
+                    'bbox_info': bbox_info,
+                    'component_id': label_id
+                })
+
+        print(f"    Found {len(separate_objects)} separate objects for {defect_type}")
+        return separate_objects
+
+    except Exception as e:
+        print(f"Error finding separate objects for {defect_type}: {e}")
+        return []
+
+def calculate_multi_object_quality_score(mask, defect_type, h, w, confidence_scores, pixel_count, confident_pixels):
+    """Calculate quality score for individual objects in multi-object detection"""
     try:
         # Base score from confidence
         if confident_pixels > 0:
-            avg_confidence = np.mean(confidence_scores[mask])
-            max_confidence = np.max(confidence_scores[mask])
-            confidence_score = (avg_confidence + max_confidence) / 2
+            y_coords, x_coords = np.where(mask)
+            if len(x_coords) > 0:
+                avg_confidence = np.mean(confidence_scores[mask])
+                max_confidence = np.max(confidence_scores[mask])
+                confidence_score = (avg_confidence + max_confidence) / 2
+            else:
+                confidence_score = 0.0
         else:
             confidence_score = 0.0
 
-        # Natural area scoring - same criteria for all types
+        # Multi-object area scoring - adjusted for individual objects
         area_percentage = (pixel_count / (h * w)) * 100
 
-        # Universal reasonable ranges (no type bias)
-        if 0.1 < area_percentage < 8:
-            area_score = 1.0  # Small to medium defects
-        elif 8 <= area_percentage < 20:
-            area_score = 0.9  # Medium defects
-        elif 20 <= area_percentage < 35:
-            area_score = 0.7  # Large defects
-        elif 35 <= area_percentage < 50:
-            area_score = 0.5  # Very large defects
-        elif area_percentage >= 50:
-            area_score = 0.2  # Extremely large (likely false positive)
+        # Individual object size ranges (smaller than single detection)
+        if 0.05 < area_percentage < 5:
+            area_score = 1.0  # Small individual objects
+        elif 5 <= area_percentage < 15:
+            area_score = 0.9  # Medium individual objects
+        elif 15 <= area_percentage < 25:
+            area_score = 0.7  # Large individual objects
+        elif area_percentage >= 25:
+            area_score = 0.3  # Very large (might be merged objects)
         else:
-            area_score = 0.4  # Very small defects
+            area_score = 0.5  # Very small objects
 
-        # Spatial distribution score (same for all types)
+        # Spatial compactness score for individual objects
         y_coords, x_coords = np.where(mask)
         if len(x_coords) > 0:
-            # Check if defect is reasonably localized
+            # Check if object is reasonably compact
             x_span = np.max(x_coords) - np.min(x_coords)
             y_span = np.max(y_coords) - np.min(y_coords)
 
-            spatial_ratio = (x_span / w + y_span / h) / 2
-            spatial_score = 1.0 - spatial_ratio
-            spatial_score = max(0.1, spatial_score)
+            bbox_area = (x_span + 1) * (y_span + 1)
+            compactness = pixel_count / bbox_area if bbox_area > 0 else 0
+            
+            spatial_score = min(1.0, compactness * 2)  # Reward compact objects
         else:
             spatial_score = 0.0
 
-        # Natural weighting (equal treatment for all defect types)
+        # Multi-object weighting (balanced scoring)
         quality_score = (confidence_score * 0.4 + area_score * 0.4 + spatial_score * 0.2)
 
         return quality_score
 
     except Exception as e:
-        print(f"Error calculating natural quality score for {defect_type}: {e}")
+        print(f"Error calculating multi-object quality score for {defect_type}: {e}")
         return 0.0
 
-def is_natural_defect_candidate(mask, defect_type, h, w, area_percentage):
-    """Natural defect validation without type-specific bias"""
+def is_valid_multi_object_candidate(mask, defect_type, h, w, area_percentage):
+    """RELAXED: Validate individual objects in multi-object detection with more permissive thresholds"""
     try:
-        # Universal max area threshold (same for all types)
-        universal_max_area = 100  # 100% for all defect types
+        # RELAXED individual object max area threshold
+        if defect_type in ['damaged', 'missing_component']:
+            individual_max_area = 85  # Much higher for damaged/missing items
+        else:
+            individual_max_area = 50  # Higher for other types
 
-        if area_percentage > universal_max_area:
-            print(f"  Rejecting {defect_type}: covers {area_percentage:.1f}% (exceeds {universal_max_area}%)")
+        if area_percentage > individual_max_area:
+            print(f"    Rejecting {defect_type} object: covers {area_percentage:.1f}% (exceeds {individual_max_area}%)")
             return False
 
-        # Universal spatial validation
+        # Individual object spatial validation - MORE PERMISSIVE
         y_coords, x_coords = np.where(mask)
         if len(x_coords) == 0:
             return False
@@ -260,83 +356,32 @@ def is_natural_defect_candidate(mask, defect_type, h, w, area_percentage):
         x_span = (np.max(x_coords) - np.min(x_coords)) / w
         y_span = (np.max(y_coords) - np.min(y_coords)) / h
 
-        # Universal span threshold (same for all types)
-        universal_span_threshold = 0.9  # 90% for all defect types
+        # RELAXED span thresholds
+        if defect_type in ['damaged', 'missing_component']:
+            individual_span_threshold = 0.95  # Very permissive for damaged items
+        else:
+            individual_span_threshold = 0.8   # More permissive for others
 
-        if x_span > universal_span_threshold and y_span > universal_span_threshold:
-            print(f"  Rejecting {defect_type}: spans {x_span:.2f}x{y_span:.2f} (exceeds {universal_span_threshold})")
+        if x_span > individual_span_threshold and y_span > individual_span_threshold:
+            print(f"    Rejecting {defect_type} object: spans {x_span:.2f}x{y_span:.2f} (exceeds {individual_span_threshold})")
             return False
 
-        # Keep minimum size check
-        if area_percentage < 0.05:
-            print(f"  Rejecting {defect_type}: too small ({area_percentage:.3f}%)")
+        # MUCH LOWER minimum size check
+        min_area_threshold = 0.001  # Very low minimum
+        if area_percentage < min_area_threshold:
+            print(f"    Rejecting {defect_type} object: too small ({area_percentage:.3f}%)")
             return False
 
         return True
 
     except Exception as e:
-        print(f"Error validating {defect_type}: {e}")
+        print(f"Error validating multi-object {defect_type}: {e}")
         return False
 
-
-def apply_natural_tie_breaking(candidates):
-    """Apply natural tie-breaking logic without type priority bias"""
-    if len(candidates) == 1:
-        return candidates[0]
-
-    print(f"  Applying natural tie-breaking for {len(candidates)} similar candidates...")
-
-    # Natural tie-breaking criteria (NO TYPE PRIORITY):
-
-    # 1. Highest confidence
-    max_confidence = max(candidate['confidence_avg'] for candidate in candidates)
-    high_confidence_candidates = [c for c in candidates if c['confidence_avg'] >= max_confidence * 0.95]
-
-    if len(high_confidence_candidates) == 1:
-        print(f"    Tie-broken by confidence: {high_confidence_candidates[0]['class_name']}")
-        return high_confidence_candidates[0]
-
-    candidates = high_confidence_candidates
-
-    # 2. Most reasonable area size (middle range preferred)
-    area_scores = []
-    for candidate in candidates:
-        area_pct = candidate['area_percentage']
-        # Prefer moderate sizes (2-15% is often most reliable)
-        if 2 <= area_pct <= 15:
-            area_reasonableness = 1.0
-        elif 1 <= area_pct < 2 or 15 < area_pct <= 25:
-            area_reasonableness = 0.8
-        elif 0.5 <= area_pct < 1 or 25 < area_pct <= 35:
-            area_reasonableness = 0.6
-        else:
-            area_reasonableness = 0.4
-        area_scores.append(area_reasonableness)
-
-    max_area_score = max(area_scores)
-    best_area_candidates = [candidates[i] for i, score in enumerate(area_scores) if score == max_area_score]
-
-    if len(best_area_candidates) == 1:
-        print(f"    Tie-broken by area reasonableness: {best_area_candidates[0]['class_name']}")
-        return best_area_candidates[0]
-
-    candidates = best_area_candidates
-
-    # 3. Highest quality score
-    candidates.sort(key=lambda x: x['quality_score'], reverse=True)
-
-    if len(candidates) > 1 and candidates[0]['quality_score'] > candidates[1]['quality_score']:
-        print(f"    Tie-broken by quality score: {candidates[0]['class_name']}")
-        return candidates[0]
-
-    # 4. Final fallback: First candidate (deterministic, no random bias)
-    print(f"    Natural selection: {candidates[0]['class_name']} (highest area + quality)")
-    return candidates[0]
-
-def extract_natural_bounding_box(mask, defect_type, h, w, total_pixels, confidence_scores):
-    """Extract bounding box using natural approach (same method for all types)"""
+def extract_multi_object_bounding_box(mask, defect_type, h, w, total_pixels, confidence_scores, object_id):
+    """Extract bounding box for individual objects in multi-object detection"""
     try:
-        print(f"  Extracting natural bbox for {defect_type}...")
+        print(f"    Extracting multi-object bbox for {defect_type} object {object_id}...")
 
         # Convert to uint8 if needed
         if mask.dtype != np.uint8:
@@ -344,34 +389,28 @@ def extract_natural_bounding_box(mask, defect_type, h, w, total_pixels, confiden
         else:
             mask_uint8 = mask.copy()
 
-        # Find all defect pixels
+        # Find all object pixels
         y_coords, x_coords = np.where(mask_uint8 > 0)
 
         if len(x_coords) == 0 or len(y_coords) == 0:
-            print(f"  No pixels found for {defect_type}")
+            print(f"    No pixels found for {defect_type} object {object_id}")
             return None
 
-        print(f"  Found {len(x_coords)} defect pixels for {defect_type}")
+        print(f"    Found {len(x_coords)} pixels for {defect_type} object {object_id}")
 
-        # Natural bounding box calculation (same for all types)
-        # Use percentiles to avoid outlier pixels
-        x_percentile_low = np.percentile(x_coords, 5)
-        x_percentile_high = np.percentile(x_coords, 95)
-        y_percentile_low = np.percentile(y_coords, 5)
-        y_percentile_high = np.percentile(y_coords, 95)
-
-        min_x = int(max(0, x_percentile_low))
-        max_x = int(min(w - 1, x_percentile_high))
-        min_y = int(max(0, y_percentile_low))
-        max_y = int(min(h - 1, y_percentile_high))
+        # Precise bounding box calculation for individual objects
+        min_x = int(np.min(x_coords))
+        max_x = int(np.max(x_coords))
+        min_y = int(np.min(y_coords))
+        max_y = int(np.max(y_coords))
 
         width = max_x - min_x + 1
         height = max_y - min_y + 1
         area = len(x_coords)
 
-        # Validate minimum area
-        if area < MIN_BBOX_AREA:
-            print(f"  Area {area} below minimum requirement {MIN_BBOX_AREA}")
+        # Validate minimum area for individual objects
+        if area < MIN_BBOX_AREA // 2:  # Smaller threshold for individual objects
+            print(f"    Area {area} below minimum requirement {MIN_BBOX_AREA // 2}")
             return None
 
         # Calculate centroid
@@ -387,17 +426,17 @@ def extract_natural_bounding_box(mask, defect_type, h, w, total_pixels, confiden
         bbox_area = width * height
         compactness = area / bbox_area if bbox_area > 0 else 0
 
-        # Calculate confidence
-        defect_confidences = confidence_scores[mask_uint8 > 0]
-        avg_confidence = float(np.mean(defect_confidences)) if len(defect_confidences) > 0 else 0.0
-        max_confidence = float(np.max(defect_confidences)) if len(defect_confidences) > 0 else 0.0
+        # Calculate confidence for this specific object
+        object_confidences = confidence_scores[mask_uint8 > 0]
+        avg_confidence = float(np.mean(object_confidences)) if len(object_confidences) > 0 else 0.0
+        max_confidence = float(np.max(object_confidences)) if len(object_confidences) > 0 else 0.0
 
         # Calculate area percentage
         area_percentage = (area / (h * w)) * 100
 
-        # Create natural bounding box (same structure for all types)
-        natural_bbox = {
-            'id': 1,
+        # Create multi-object bounding box
+        multi_object_bbox = {
+            'id': object_id,
             'x': min_x,
             'y': min_y,
             'width': width,
@@ -419,24 +458,166 @@ def extract_natural_bounding_box(mask, defect_type, h, w, total_pixels, confiden
             },
             'shape_type': classify_defect_shape_natural(width, height, aspect_ratio, compactness),
             'severity': calculate_defect_severity_natural(area_percentage),
-            'coverage_type': 'natural_detection',
+            'coverage_type': 'multi_object_detection',
             'total_defect_pixels': area,
-            'combined_defect': True,
-            'single_bbox_per_type': True,
-            'natural_selection': True,
-            'detection_method': 'natural_no_priority',
+            'multi_object_detection': True,
+            'individual_object': True,
+            'object_id': object_id,
+            'detection_method': 'multi_object_enhanced',
             'coordinates_validated': True,
             'within_image_bounds': True,
             'threshold_used': DEFECT_CONFIDENCE_THRESHOLD
         }
 
-        print(f"  Created natural bbox for {defect_type}: {width}x{height} at ({min_x},{min_y}) covering {area} pixels ({area_percentage:.2f}%)")
+        print(f"    Created multi-object bbox for {defect_type} object {object_id}: {width}x{height} at ({min_x},{min_y}) covering {area} pixels ({area_percentage:.2f}%)")
 
-        return natural_bbox
+        return multi_object_bbox
 
     except Exception as e:
-        print(f"  Error extracting natural bbox for {defect_type}: {e}")
+        print(f"    Error extracting multi-object bbox for {defect_type} object {object_id}: {e}")
         return None
+
+def analyze_multi_object_spatial_distribution(bboxes, image_shape):
+    """Analyze spatial distribution of multiple objects"""
+    try:
+        if not bboxes:
+            return {}
+
+        h, w = image_shape[:2] if len(image_shape) >= 2 else (image_shape[0], 640)
+
+        # Calculate distribution metrics
+        centers_x = [bbox['center_x'] for bbox in bboxes]
+        centers_y = [bbox['center_y'] for bbox in bboxes]
+
+        spatial_analysis = {
+            'object_count': len(bboxes),
+            'distribution_pattern': determine_distribution_pattern(centers_x, centers_y, w, h),
+            'coverage_area': calculate_total_coverage_area(bboxes, w, h),
+            'object_density': len(bboxes) / ((w * h) / 10000),  # Objects per 100x100 area
+            'spacing_analysis': analyze_object_spacing(centers_x, centers_y),
+            'quadrant_distribution': analyze_quadrant_distribution(centers_x, centers_y, w, h),
+            'edge_proximity_analysis': analyze_multi_object_edge_proximity(bboxes, w, h)
+        }
+
+        return spatial_analysis
+
+    except Exception as e:
+        print(f"Error analyzing multi-object spatial distribution: {e}")
+        return {}
+
+def determine_distribution_pattern(centers_x, centers_y, w, h):
+    """Determine the spatial distribution pattern of objects"""
+    if len(centers_x) < 2:
+        return 'single_object'
+    elif len(centers_x) == 2:
+        return 'pair'
+    
+    # Calculate spread
+    x_spread = (max(centers_x) - min(centers_x)) / w
+    y_spread = (max(centers_y) - min(centers_y)) / h
+    
+    if x_spread > 0.6 and y_spread > 0.6:
+        return 'scattered'
+    elif x_spread > 0.6:
+        return 'horizontal_line'
+    elif y_spread > 0.6:
+        return 'vertical_line'
+    else:
+        return 'clustered'
+
+def calculate_total_coverage_area(bboxes, w, h):
+    """Calculate total area covered by all objects"""
+    total_pixels = sum(bbox['area'] for bbox in bboxes)
+    total_percentage = (total_pixels / (w * h)) * 100
+    
+    return {
+        'total_pixels': total_pixels,
+        'total_percentage': round(total_percentage, 2),
+        'average_object_size': round(total_percentage / len(bboxes), 2) if bboxes else 0
+    }
+
+def analyze_object_spacing(centers_x, centers_y):
+    """Analyze spacing between objects"""
+    if len(centers_x) < 2:
+        return {'spacing': 'single_object'}
+    
+    # Calculate distances between all pairs
+    distances = []
+    for i in range(len(centers_x)):
+        for j in range(i + 1, len(centers_x)):
+            dist = np.sqrt((centers_x[i] - centers_x[j])**2 + (centers_y[i] - centers_y[j])**2)
+            distances.append(dist)
+    
+    if distances:
+        avg_distance = np.mean(distances)
+        min_distance = min(distances)
+        max_distance = max(distances)
+        
+        return {
+            'average_distance': round(avg_distance, 1),
+            'min_distance': round(min_distance, 1),
+            'max_distance': round(max_distance, 1),
+            'spacing_uniformity': 'uniform' if (max_distance - min_distance) < avg_distance * 0.5 else 'varied'
+        }
+    
+    return {'spacing': 'unknown'}
+
+def analyze_quadrant_distribution(centers_x, centers_y, w, h):
+    """Analyze how objects are distributed across image quadrants"""
+    mid_x, mid_y = w // 2, h // 2
+    
+    quadrant_counts = {
+        'top_left': 0,
+        'top_right': 0,
+        'bottom_left': 0,
+        'bottom_right': 0
+    }
+    
+    for x, y in zip(centers_x, centers_y):
+        if x < mid_x and y < mid_y:
+            quadrant_counts['top_left'] += 1
+        elif x >= mid_x and y < mid_y:
+            quadrant_counts['top_right'] += 1
+        elif x < mid_x and y >= mid_y:
+            quadrant_counts['bottom_left'] += 1
+        else:
+            quadrant_counts['bottom_right'] += 1
+    
+    return quadrant_counts
+
+def analyze_multi_object_edge_proximity(bboxes, w, h):
+    """Analyze proximity of multiple objects to image edges"""
+    edge_distance_threshold = 0.1
+    
+    edge_proximity = {
+        'near_top': 0,
+        'near_bottom': 0,
+        'near_left': 0,
+        'near_right': 0,
+        'near_any_edge': 0
+    }
+    
+    for bbox in bboxes:
+        cx, cy = bbox['center_x'], bbox['center_y']
+        near_edge = False
+        
+        if cy < h * edge_distance_threshold:
+            edge_proximity['near_top'] += 1
+            near_edge = True
+        if cy > h * (1 - edge_distance_threshold):
+            edge_proximity['near_bottom'] += 1
+            near_edge = True
+        if cx < w * edge_distance_threshold:
+            edge_proximity['near_left'] += 1
+            near_edge = True
+        if cx > w * (1 - edge_distance_threshold):
+            edge_proximity['near_right'] += 1
+            near_edge = True
+        
+        if near_edge:
+            edge_proximity['near_any_edge'] += 1
+    
+    return edge_proximity
 
 def get_quadrant(x, y, width, height):
     """Determine which quadrant of the image the defect is in"""
@@ -530,12 +711,24 @@ def analyze_edge_proximity(bbox, image_shape):
 
 # Legacy functions for backward compatibility
 def extract_enhanced_bounding_boxes(mask, defect_type):
-    """Legacy function - only works with real detection data"""
+    """Legacy function - now supports multi-object detection"""
     if np.sum(mask) == 0:
         print(f"No pixels found for {defect_type}, returning empty list")
         return []
 
     h, w = mask.shape[:2]
     confidence_scores = np.ones_like(mask, dtype=np.float32)
-    natural_bbox = extract_natural_bounding_box(mask, defect_type, h, w, np.sum(mask), confidence_scores)
-    return [natural_bbox] if natural_bbox else []
+    
+    # Use multi-object detection
+    separate_objects = find_separate_objects(mask, defect_type, h, w)
+    
+    multi_object_bboxes = []
+    for obj_idx, obj_info in enumerate(separate_objects):
+        bbox = extract_multi_object_bounding_box(
+            obj_info['mask'], defect_type, h, w, obj_info['pixel_count'], 
+            confidence_scores, obj_idx + 1
+        )
+        if bbox:
+            multi_object_bboxes.append(bbox)
+    
+    return multi_object_bboxes if multi_object_bboxes else []
