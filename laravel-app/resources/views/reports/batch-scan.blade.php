@@ -873,8 +873,6 @@
 
 
     <!-- Report Metadata -->
-    <div class="page-break"></div>
-
     <div class="section">
         <h2 class="section-title">Report Metadata</h2>
         <table class="data-table">
