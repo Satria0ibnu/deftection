@@ -287,7 +287,7 @@ const handleDeleteError = (errors) => {
                         </tr>
                         <RowNotFound
                             v-if="!session.scans || session.scans.length === 0"
-                            label="No scans found for this session"
+                            label="No defect scans found for this session"
                         />
                     </template>
                 </Table>
